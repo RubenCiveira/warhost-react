@@ -12,6 +12,8 @@ import GameNew from "./pages/games/GameNew";
 import GameLive from "./pages/games/GameLive";
 import AssociationList from "./pages/associations/AssociationList";
 import AssociationDetail from "./pages/associations/AssociationDetail";
+import CatalogBooks from "./pages/catalog/CatalogBooks";
+import CatalogBook from "./pages/catalog/CatalogBook";
 import RulesIndex from "./pages/rules/RulesIndex";
 import MissionCards from "./pages/missions/MissionCards";
 
@@ -37,6 +39,8 @@ export default function App() {
         <Route path="/partidas/:gameId" element={<GameLive />} />
         <Route path="/asociaciones" element={<AssociationList />} />
         <Route path="/asociaciones/:associationId" element={<AssociationDetail />} />
+        <Route path="/catalogo" element={<CatalogBooks />} />
+        <Route path="/catalogo/:bookKey" element={<CatalogBook />} />
         <Route path="/reglas" element={<RulesIndex />} />
         <Route path="/misiones" element={<MissionCards />} />
       </Route>

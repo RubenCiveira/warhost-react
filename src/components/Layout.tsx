@@ -8,6 +8,7 @@ const LINKS = [
   { to: "/ejercitos", label: "Ejercitos" },
   { to: "/partidas", label: "Partidas" },
   { to: "/asociaciones", label: "Asociaciones" },
+  { to: "/catalogo", label: "Catalogo" },
   { to: "/reglas", label: "Reglas" },
   { to: "/misiones", label: "Misiones" },
 ];

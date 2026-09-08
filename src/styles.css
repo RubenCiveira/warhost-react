@@ -170,3 +170,44 @@ button.icon { padding: 3px 10px; min-width: 34px; }
   .topbar { padding: 8px 12px; gap: 10px; }
   .content { padding: 16px 12px 56px; }
 }
+
+/* Catalogo y galerias ------------------------------------------------------ */
+
+.cover {
+  width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 8px; margin-bottom: 10px; background: var(--surface-2);
+}
+.cover.placeholder {
+  display: grid; place-items: center;
+  color: var(--muted); font-size: 0.85rem;
+  border: 1px dashed var(--border);
+}
+
+.thumb {
+  max-width: 260px; width: 100%; border-radius: 8px;
+  display: block; margin-bottom: 10px;
+}
+
+.gallery {
+  display: grid; gap: 10px; margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+.gallery .shot { margin: 0; }
+.gallery .shot img {
+  width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2);
+}
+.gallery .shot.primary img { border-color: var(--accent); }
+.gallery figcaption { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }
+.gallery figcaption .by { opacity: 0.7; }
+
+.uploader {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding: 10px; border: 1px dashed var(--border); border-radius: 8px;
+  background: var(--surface-2);
+}
+.uploader label { margin: 0; flex-basis: 100%; }
+.uploader input[type="file"] { flex: 1 1 220px; width: auto; padding: 6px; }
+.uploader input[type="text"] { flex: 1 1 180px; width: auto; }
+
+.danger-text { color: var(--danger); flex-basis: 100%; margin: 0; }
