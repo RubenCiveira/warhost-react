@@ -27,6 +27,19 @@ Variables (`.env`):
 El dominio desde el que sirvas el front tiene que estar dado de alta como
 plataforma Web en la consola de Appwrite, o el navegador recibira errores de CORS.
 
+## Comprobaciones
+
+```bash
+pnpm test:import     # importa listas reales de Army Forge y valida el resultado
+pnpm test:builder    # construye con datos reales del catalogo y valida los topes
+```
+
+Ninguna de las dos necesita navegador: ejecutan los modulos que se despliegan
+(`src/lib/armyForgeResolve.ts` y `src/lib/builder.ts`), que estan separados de la
+capa de red justamente para poder ejercitarlos desde Node. `test:builder` lee de
+Appwrite con la CLI, que toma el proyecto del repo del backend; si lo tienes en
+otro sitio, pasale `APPWRITE_DIR`.
+
 ## Como esta montado
 
 ```

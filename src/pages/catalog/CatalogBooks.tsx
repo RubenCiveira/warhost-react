@@ -82,19 +82,29 @@ export default function CatalogBooks() {
             const uploaded = pickCover(byTarget.get(targetKeyFor(book.$id)));
             const cover = uploaded ? catalogImageUrl(uploaded.fileId) : book.coverImagePath;
             return (
-              <Link key={book.$id} to={`/catalogo/${book.$id}`} className="card card-link">
-                {cover ? (
-                  <img className="cover" src={cover} alt="" loading="lazy" />
-                ) : (
-                  <div className="cover placeholder">Sin imagen</div>
-                )}
-                <h3>{book.name}</h3>
+              <article key={book.$id} className="card">
+                <Link to={`/facciones/${book.$id}`} className="card-link">
+                  {cover ? (
+                    <img className="cover" src={cover} alt="" loading="lazy" />
+                  ) : (
+                    <div className="cover placeholder">Sin imagen</div>
+                  )}
+                  <h3>{book.name}</h3>
+                </Link>
                 <div className="row small muted">
                   <span>{book.unitCount} unidades</span>
                   {book.versionString ? <span className="tag">v{book.versionString}</span> : null}
                   {uploaded ? <span className="tag accent">imagen propia</span> : null}
                 </div>
-              </Link>
+                <div className="row" style={{ marginTop: 10 }}>
+                  <Link to={`/facciones/${book.$id}/crear`} className="button-link">
+                    Crear ejercito
+                  </Link>
+                  <Link to={`/facciones/${book.$id}`} className="small muted">
+                    Ver unidades
+                  </Link>
+                </div>
+              </article>
             );
           })}
         </div>

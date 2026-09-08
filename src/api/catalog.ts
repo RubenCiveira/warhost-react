@@ -2,6 +2,8 @@ import { ID, Permission, Query, Role, storage, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
 import type { Row } from "../lib/types";
+import { parseSections } from "../lib/builder";
+import type { UpgradeSection } from "../lib/builder";
 
 const ACCEPTED = Role.label("aceptado");
 
@@ -39,6 +41,14 @@ export interface ArmyUnit extends Row {
   items: string | null;
   upgradePackageUids: string[];
   sortOrder: number;
+}
+
+export interface UpgradePackageRow extends Row {
+  bookKey: string;
+  bookUid: string;
+  gameSystem: GameSystemId;
+  packageUid: string;
+  sections: string;
 }
 
 export type ImageScope = "faction" | "unit";
@@ -90,6 +100,24 @@ export async function listUnits(bookKey: string): Promise<ArmyUnit[]> {
     queries: [Query.equal("bookKey", bookKey), Query.orderAsc("sortOrder"), Query.limit(200)],
   });
   return result.rows;
+}
+
+/** Paquetes de mejora del libro, indexados por su uid para cruzarlos con las unidades. */
+export async function listUpgradePackages(bookKey: string): Promise<Map<string, UpgradeSection[]>> {
+  const map = new Map<string, UpgradeSection[]>();
+  let cursor: string | null = null;
+  for (;;) {
+    const queries = [Query.equal("bookKey", bookKey), Query.limit(100)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    const page: { rows: UpgradePackageRow[] } = await tables.listRows<UpgradePackageRow>({
+      databaseId: env.databaseId,
+      tableId: TABLES.armyUpgradePackages,
+      queries,
+    });
+    for (const row of page.rows) map.set(row.packageUid, parseSections(row.sections));
+    if (page.rows.length < 100) return map;
+    cursor = page.rows[page.rows.length - 1].$id;
+  }
 }
 
 /** Todas las imagenes de un libro: las de la faccion y las de sus unidades. */

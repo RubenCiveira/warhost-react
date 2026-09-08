@@ -134,7 +134,7 @@ export default function CatalogBook() {
     return (
       <>
         <ErrorBanner error={error ?? "No se ha encontrado esta faccion."} />
-        <Link to="/catalogo">Volver al catalogo</Link>
+        <Link to="/facciones">Volver a facciones</Link>
       </>
     );
   }
@@ -144,7 +144,14 @@ export default function CatalogBook() {
       <PageHead
         title={book.name}
         sub={`${book.unitCount} unidades${book.versionString ? ` · version ${book.versionString}` : ""}`}
-        actions={<Link to="/catalogo">Volver</Link>}
+        actions={
+          <>
+            <Link to={`/facciones/${book.$id}/crear`} className="button-link">
+              Crear ejercito
+            </Link>
+            <Link to="/facciones">Volver</Link>
+          </>
+        }
       />
       <ErrorBanner error={error} />
 

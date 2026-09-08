@@ -38,9 +38,12 @@ export default function ArmyList() {
             <button type="button" className="ghost" onClick={() => setAllSystems((value) => !value)}>
               {allSystems ? "Solo este modo" : "Ver todos"}
             </button>
+            <Link to="/facciones">
+              <button type="button">Construir desde faccion</button>
+            </Link>
             <Link to="/ejercitos/nuevo">
               <button type="button" className="primary">
-                Nuevo ejercito
+                Importar o crear
               </button>
             </Link>
           </>
@@ -52,7 +55,8 @@ export default function ArmyList() {
       ) : armies.length === 0 ? (
         <EmptyState title="Aun no hay ejercitos">
           <p>
-            Crea uno a mano o pega el enlace de una lista de Army Forge para importarla con todas sus unidades.
+            Construye uno desde una faccion del catalogo, o pega el enlace de una lista de Army Forge para
+            importarla con todas sus unidades.
           </p>
           <Link to="/ejercitos/nuevo">
             <button type="button" className="primary">

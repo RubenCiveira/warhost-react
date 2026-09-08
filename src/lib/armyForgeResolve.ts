@@ -1,0 +1,265 @@
+/**
+ * Formas de Army Forge y logica de resolucion de listas, sin dependencias de
+ * red ni de Appwrite. Vive aparte para poder ejercitarla desde Node con datos
+ * reales: ver scripts/test-import.mjs.
+ */
+
+interface ForgeRule {
+  name?: string;
+  label?: string;
+  rating?: string | number;
+}
+
+interface ForgeSelectedUpgrade {
+  optionId?: string;
+  upgradeId?: string;
+}
+
+export interface ForgeListUnit {
+  id?: string;
+  armyId?: string;
+  customName?: string;
+  selectionId?: string;
+  selectedUpgrades?: ForgeSelectedUpgrade[];
+}
+
+export interface ArmyForgeList {
+  id?: string;
+  army_uid?: string;
+  game_system?: string;
+  details?: {
+    armyId?: string;
+    armyIds?: string[];
+    armyName?: string;
+    armyFaction?: string;
+    gameSystem?: string;
+    listPoints?: number;
+  };
+  list?: {
+    id?: string;
+    name?: string;
+    gameSystem?: string;
+    modelCount?: number;
+    pointsLimit?: number;
+    description?: string;
+    units?: ForgeListUnit[];
+  };
+  [key: string]: unknown;
+}
+
+interface ForgeBookUnit {
+  id?: string;
+  name?: string;
+  size?: number;
+  quality?: number;
+  defense?: number;
+  cost?: number;
+  rules?: ForgeRule[];
+}
+
+interface ForgeUpgradeOption {
+  id?: string;
+  label?: string;
+  costs?: Array<{ cost?: number; unitId?: string }>;
+  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number }>;
+}
+
+export interface ForgeArmyBook {
+  uid?: string;
+  name?: string;
+  units?: ForgeBookUnit[];
+  upgradePackages?: Array<{ sections?: Array<{ options?: ForgeUpgradeOption[] }> }>;
+}
+
+export interface ArmyBookSummary {
+  uid: string;
+  name: string;
+  factionName?: string;
+  official?: boolean;
+}
+
+/** Unidad ya resuelta, lista para guardar o para llevar a una partida. */
+export interface ResolvedUnit {
+  name: string;
+  unitKey: string | null;
+  size: number;
+  quality: number;
+  defense: number;
+  maxWounds: number;
+  /** Aproximado: no cuenta las mejoras que ya no existen en el libro. */
+  cost: number;
+  rules: string[];
+  unresolvedUpgrades: number;
+  sortOrder: number;
+}
+
+export interface ResolvedList {
+  listId: string;
+  name: string;
+  faction: string | null;
+  gameSystem: string | null;
+  points: number;
+  modelCount: number;
+  units: ResolvedUnit[];
+  /**
+   * Mejoras que la lista referencia pero que ya no existen en el libro de
+   * ejercito. Pasa cuando la lista se guardo con una version anterior del libro:
+   * Army Forge conserva el total original y no lo recalcula, asi que nosotros
+   * tampoco. Solo afecta al coste por unidad, no al total del ejercito.
+   */
+  unresolvedUpgrades: number;
+  raw: ArmyForgeList;
+}
+
+/**
+ * Acepta un id pelado o una URL de Army Forge. Las listas de comunidad usan
+ * `?listId=`, y las compartidas `?id=`; el ultimo segmento de la ruta es el
+ * nombre del sistema de juego, nunca un id, asi que no sirve como respaldo.
+ */
+export function extractListId(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  if (/^[A-Za-z0-9_-]{4,64}$/.test(trimmed)) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    return url.searchParams.get("listId") ?? url.searchParams.get("id") ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cruza una lista con los libros de ejercito ya descargados y devuelve las
+ * unidades con nombre, estadisticas, coste y reglas resueltos.
+ */
+export function resolveList(
+  raw: ArmyForgeList,
+  books: Map<string, ForgeArmyBook>,
+  listId: string,
+): ResolvedList {
+  const list = raw.list ?? {};
+  const units = list.units ?? [];
+  const resolved = units.map((unit, index) => resolveUnit(unit, books, index));
+  const unresolvedUpgrades = resolved.reduce((sum, unit) => sum + unit.unresolvedUpgrades, 0);
+
+  return {
+    listId: raw.id ?? list.id ?? listId,
+    name: list.name ?? "Lista importada",
+    faction: raw.details?.armyFaction ?? raw.details?.armyName ?? null,
+    gameSystem: raw.details?.gameSystem ?? list.gameSystem ?? raw.game_system ?? null,
+    // El total lo manda Army Forge: es el que se guardo al crear la lista y el
+    // unico que cuadra si el libro de ejercito ha cambiado desde entonces.
+    points: raw.details?.listPoints ?? resolved.reduce((sum, unit) => sum + unit.cost, 0),
+    modelCount: list.modelCount ?? resolved.reduce((sum, unit) => sum + unit.size, 0),
+    units: resolved,
+    unresolvedUpgrades,
+    raw,
+  };
+}
+
+/** Uids de los libros de ejercito que hacen falta para resolver una lista. */
+export function requiredBookUids(raw: ArmyForgeList): string[] {
+  const units = raw.list?.units ?? [];
+  const uids = [...new Set(units.map((unit) => unit.armyId).filter((uid): uid is string => Boolean(uid)))];
+  const fallback = raw.army_uid ?? raw.details?.armyId;
+  if (!uids.length && fallback) uids.push(fallback);
+  return uids;
+}
+
+export function gameSystemOf(raw: ArmyForgeList): string | null {
+  return raw.details?.gameSystem ?? raw.list?.gameSystem ?? raw.game_system ?? null;
+}
+
+function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, index: number): ResolvedUnit {
+  const book = unit.armyId ? books.get(unit.armyId) : undefined;
+  const definition = book?.units?.find((candidate) => candidate.id === unit.id);
+  const options = optionsById(book);
+
+  const rules = (definition?.rules ?? []).map(ruleLabel).filter(Boolean);
+  let cost = definition?.cost ?? 0;
+
+  let unresolvedUpgrades = 0;
+
+  for (const selected of unit.selectedUpgrades ?? []) {
+    const option = selected.optionId ? options.get(selected.optionId) : undefined;
+    if (!option) {
+      unresolvedUpgrades += 1;
+      continue;
+    }
+    cost += costFor(option, unit.id);
+    for (const gain of option.gains ?? []) {
+      // Las mejoras que dan reglas cuentan para la partida; las armas se quedan
+      // en el JSON completo, que se guarda aparte.
+      if (gain.type === "ArmyBookRule") rules.push(ruleLabel(gain));
+    }
+  }
+
+  const size = definition?.size ?? 1;
+  const tough = ratingOf((definition?.rules ?? []).find((rule) => rule.name?.toLowerCase() === "tough")?.rating) ?? 1;
+
+  return {
+    name: unit.customName || definition?.name || `Unidad ${index + 1}`,
+    unitKey: unit.selectionId ?? unit.id ?? null,
+    size,
+    quality: definition?.quality ?? 4,
+    defense: definition?.defense ?? 4,
+    maxWounds: size * tough,
+    cost,
+    rules: [...new Set(rules.filter(Boolean))].slice(0, 20),
+    unresolvedUpgrades,
+    sortOrder: index,
+  };
+}
+
+function optionsById(book: ForgeArmyBook | undefined): Map<string, ForgeUpgradeOption> {
+  const map = new Map<string, ForgeUpgradeOption>();
+  for (const pkg of book?.upgradePackages ?? []) {
+    for (const section of pkg.sections ?? []) {
+      for (const option of section.options ?? []) {
+        if (option.id) map.set(option.id, option);
+      }
+    }
+  }
+  return map;
+}
+
+/** Los costes de una opcion varian segun la unidad que la compre. */
+function costFor(option: ForgeUpgradeOption, unitId: string | undefined): number {
+  const costs = option.costs ?? [];
+  const exact = costs.find((entry) => entry.unitId === unitId);
+  return exact?.cost ?? costs[0]?.cost ?? 0;
+}
+
+function ruleLabel(rule: { name?: string; label?: string; rating?: string | number }): string {
+  if (rule.label) return rule.label;
+  if (!rule.name) return "";
+  return rule.rating ? `${rule.name}(${rule.rating})` : rule.name;
+}
+
+function ratingOf(value: number | string | undefined): number | undefined {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const digits = value.match(/\d+/);
+    if (digits) return Number(digits[0]);
+  }
+  return undefined;
+}
+
+export function listUrl(listId: string): string {
+  return `https://army-forge.onepagerules.com/share?id=${encodeURIComponent(listId)}`;
+}
+
+/**
+ * Las unidades ya resueltas se guardan en la columna `listJson` del ejercito,
+ * junto al JSON original. Esto las recupera para pintarlas o llevarlas a una
+ * partida sin volver a llamar a Army Forge.
+ */
+export function parseStoredList(listJson: string | null | undefined): ResolvedUnit[] {
+  if (!listJson) return [];
+  try {
+    const parsed = JSON.parse(listJson) as Partial<ResolvedList>;
+    return Array.isArray(parsed.units) ? parsed.units : [];
+  } catch {
+    return [];
+  }
+}

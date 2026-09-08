@@ -211,3 +211,28 @@ button.icon { padding: 3px 10px; min-width: 34px; }
 .uploader input[type="text"] { flex: 1 1 180px; width: auto; }
 
 .danger-text { color: var(--danger); flex-basis: 100%; margin: 0; }
+
+/* Constructor de ejercitos -------------------------------------------------- */
+
+.builder { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; align-items: start; }
+@media (max-width: 900px) { .builder { grid-template-columns: 1fr; } }
+
+.builder .sticky { position: sticky; top: 68px; }
+.builder .total { font-size: 1.1rem; margin: 4px 0 10px; }
+.builder .total.over strong { color: var(--danger); }
+
+.builder .upgrades { margin: 6px 0 0; padding-left: 18px; }
+
+.section {
+  border: 1px solid var(--border); border-radius: 8px;
+  margin: 10px 0 0; padding: 8px 10px;
+}
+.section legend { padding: 0 6px; font-size: 0.85rem; }
+.option { padding: 3px 0; gap: 10px; }
+.option + .option { border-top: 1px solid var(--border); }
+
+a.button-link {
+  display: inline-block; padding: 6px 14px; border-radius: 8px;
+  background: var(--accent); color: #14100d; font-weight: 550;
+}
+a.button-link:hover { text-decoration: none; opacity: 0.9; }
