@@ -17,6 +17,7 @@ import {
   sectionsForUnit,
 } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
+import { parseWeapons, rangeLabel } from "../../lib/unitProfile";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
 
@@ -164,6 +165,22 @@ export default function ArmyBuilder() {
                   {unit.rules.length > 0 ? (
                     <div className="small muted">{unit.rules.slice(0, 5).join(", ")}</div>
                   ) : null}
+                  {(() => {
+                    const weapons = parseWeapons(unit.weapons);
+                    if (weapons.length === 0) return null;
+                    return (
+                      <div className="small muted">
+                        {weapons
+                          .map(
+                            (weapon) =>
+                              `${weapon.count > 1 ? `${weapon.count}× ` : ""}${weapon.name} ` +
+                              `(${rangeLabel(weapon.range)}, A${weapon.attacks}` +
+                              `${weapon.rules.length ? `, ${weapon.rules.join(", ")}` : ""})`,
+                          )
+                          .join(" · ")}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button type="button" className="tiny" onClick={() => addUnit(unit)}>
                   Anadir

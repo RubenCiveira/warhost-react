@@ -32,6 +32,7 @@ plataforma Web en la consola de Appwrite, o el navegador recibira errores de COR
 ```bash
 pnpm test:import     # importa listas reales de Army Forge y valida el resultado
 pnpm test:builder    # construye con datos reales del catalogo y valida los topes
+pnpm test:profile    # lee armamento, equipo y opciones de todas las unidades
 ```
 
 Ninguna de las dos necesita navegador: ejecutan los modulos que se despliegan

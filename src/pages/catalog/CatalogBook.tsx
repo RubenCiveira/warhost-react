@@ -8,6 +8,7 @@ import {
   groupImages,
   listBookImages,
   listUnits,
+  listUpgradePackages,
   setPrimaryImage,
   targetKeyFor,
   uploadCatalogImage,
@@ -16,6 +17,8 @@ import type { ArmyBook, ArmyUnit, CatalogImage } from "../../api/catalog";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
+import UnitProfile from "../../components/UnitProfile";
+import type { UpgradeSection } from "../../lib/builder";
 
 /** Ficha de una faccion: sus imagenes y las de cada tipo de unidad. */
 export default function CatalogBook() {
@@ -24,6 +27,7 @@ export default function CatalogBook() {
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
   const [images, setImages] = useState<CatalogImage[]>([]);
+  const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,14 +36,16 @@ export default function CatalogBook() {
     setLoading(true);
     setError(null);
     try {
-      const [loadedBook, loadedUnits, loadedImages] = await Promise.all([
+      const [loadedBook, loadedUnits, loadedImages, loadedPackages] = await Promise.all([
         getBook(bookKey),
         listUnits(bookKey),
         listBookImages(bookKey),
+        listUpgradePackages(bookKey),
       ]);
       setBook(loadedBook);
       setUnits(loadedUnits);
       setImages(loadedImages);
+      setPackages(loadedPackages);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -180,23 +186,8 @@ export default function CatalogBook() {
         <div className="stack">
           {units.map((unit) => (
             <section key={unit.$id} className="card">
-              <div className="spread">
-                <div>
-                  <h3>{unit.name}</h3>
-                  <p className="small muted mono">
-                    ×{unit.size} · C{unit.quality}+ D{unit.defense}+ · {unit.cost} pts
-                  </p>
-                </div>
-              </div>
-              {unit.rules.length > 0 ? (
-                <div className="row small" style={{ marginBottom: 8 }}>
-                  {unit.rules.slice(0, 8).map((rule) => (
-                    <span key={rule} className="tag">
-                      {rule}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              <h3>{unit.name}</h3>
+              <UnitProfile unit={unit} packages={packages} />
               {gallery(targetKeyFor(book.$id, unit.unitId))}
               {admin ? (
                 <ImageUploader

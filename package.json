@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "test:import": "node scripts/test-import.mjs",
-    "test:builder": "node scripts/test-builder.mjs"
+    "test:builder": "node scripts/test-builder.mjs",
+    "test:profile": "node scripts/test-profile.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",
