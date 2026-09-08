@@ -10,7 +10,8 @@
     "typecheck": "tsc -b --noEmit",
     "test:import": "node scripts/test-import.mjs",
     "test:builder": "node scripts/test-builder.mjs",
-    "test:profile": "node scripts/test-profile.mjs"
+    "test:profile": "node scripts/test-profile.mjs",
+    "test:spells": "node scripts/test-spells.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

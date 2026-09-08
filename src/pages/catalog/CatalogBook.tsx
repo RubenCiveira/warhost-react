@@ -18,6 +18,7 @@ import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
 import UnitProfile from "../../components/UnitProfile";
+import SpellTable from "../../components/SpellTable";
 import type { UpgradeSection } from "../../lib/builder";
 
 /** Ficha de una faccion: sus imagenes y las de cada tipo de unidad. */
@@ -178,6 +179,8 @@ export default function CatalogBook() {
           />
         ) : null}
       </section>
+
+      <SpellTable spells={book.spells} />
 
       <h2 style={{ marginTop: 28 }}>Tipos de unidad ({units.length})</h2>
       {units.length === 0 ? (

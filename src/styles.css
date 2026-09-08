@@ -258,3 +258,18 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
   display: flex; justify-content: space-between; gap: 12px; padding: 3px 0;
 }
 .option-list li + li { border-top: 1px solid var(--border); }
+
+/* Hechizos ------------------------------------------------------------------ */
+
+.inline-search { width: auto; max-width: 220px; }
+
+.spell-group + .spell-group { margin-top: 14px; }
+.spell-threshold {
+  font-size: 0.85rem; color: var(--accent); text-transform: uppercase;
+  letter-spacing: 0.06em; margin: 0 0 6px;
+}
+.spell-list { margin: 0; }
+.spell { padding: 7px 0; }
+.spell + .spell { border-top: 1px solid var(--border); }
+.spell dt { font-weight: 600; }
+.spell dd { margin: 2px 0 0; color: var(--muted); }
