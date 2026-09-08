@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useGameSystem } from "../../context/GameSystemContext";
+import { getGameSystem } from "../../lib/gameSystems";
 import {
   catalogImageUrl,
   deleteCatalogImage,
@@ -25,6 +27,7 @@ import type { UpgradeSection } from "../../lib/builder";
 export default function CatalogBook() {
   const { bookKey = "" } = useParams();
   const { user, admin } = useAuth();
+  const { system } = useGameSystem();
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
   const [images, setImages] = useState<CatalogImage[]>([]);
@@ -59,6 +62,8 @@ export default function CatalogBook() {
   }, [load]);
 
   const byTarget = useMemo(() => groupImages(images), [images]);
+  // Cada faccion existe una vez por modo de juego, y su contenido difiere.
+  const bookSystem = getGameSystem(book?.gameSystem);
 
   const upload = useCallback(
     async (files: File[], caption: string, unit?: ArmyUnit) => {
@@ -150,7 +155,10 @@ export default function CatalogBook() {
     <>
       <PageHead
         title={book.name}
-        sub={`${book.unitCount} unidades${book.versionString ? ` · version ${book.versionString}` : ""}`}
+        sub={
+          `${bookSystem?.name ?? book.gameSystem} · ${units.length} unidades` +
+          (book.versionString ? ` · version ${book.versionString}` : "")
+        }
         actions={
           <>
             <Link to={`/facciones/${book.$id}/crear`} className="button-link">
@@ -161,6 +169,13 @@ export default function CatalogBook() {
         }
       />
       <ErrorBanner error={error} />
+      {system && system.id !== book.gameSystem ? (
+        <div className="banner">
+          Estas viendo la version de <strong>{bookSystem?.name ?? book.gameSystem}</strong> de esta faccion, pero tienes
+          seleccionado {system.name}. Las unidades, los costes y los hechizos cambian entre modos.{" "}
+          <Link to="/facciones">Ver las facciones de {system.name}</Link>.
+        </div>
+      ) : null}
       {admin ? null : (
         <p className="muted small">
           Las imagenes del catalogo las mantienen los administradores. Si quieres aportar alguna, pidesela a uno.
