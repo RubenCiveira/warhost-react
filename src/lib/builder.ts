@@ -5,8 +5,9 @@
  * sobre Army Forge, pero produce exactamente la misma forma que la importacion,
  * para que una partida no tenga que saber de donde salio el ejercito.
  */
-import { applyOptions, baseLoadout, formatLoadout } from "./loadout";
-import type { AppliedOption } from "./loadout";
+import { applyOptions, baseLoadout } from "./loadout";
+import type { AppliedOption, LoadoutEntry } from "./loadout";
+import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
@@ -20,7 +21,7 @@ export interface UpgradeOption {
   uid?: string;
   label?: string;
   costs?: Array<{ cost?: number; unitId?: string }>;
-  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number; count?: number }>;
+  gains?: Gain[];
 }
 
 export interface UpgradeSection {
@@ -193,9 +194,9 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
   return applied;
 }
 
-export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): string[] {
+export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
   const base = baseLoadout(entry.unit.weapons ?? null, entry.unit.items ?? null);
-  return formatLoadout(applyOptions(base, appliedOptions(entry, sections)));
+  return applyOptions(base, appliedOptions(entry, sections));
 }
 
 export function toResolvedUnit(

@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=Barlow+Condensed:wght@600;700&display=swap");
+
 :root {
   --bg: #12100f;
   --surface: #1b1917;
@@ -283,3 +285,99 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 .loadout li { padding: 1px 0; }
 .loadout-missing { margin: 6px 0; font-style: italic; }
 .upgrades-label { color: var(--accent); }
+
+/* Carta de unidad ----------------------------------------------------------- */
+/* Apaisada y clara sobre el fondo oscuro, con banda de titulo, atributos en
+   cajas y armamento en tabla. El tamano no es fijo como en una carta impresa:
+   aqui el contenido manda, porque una unidad puede tener dos armas o diez. */
+
+.ucard {
+  --ucard-tinta: #1b1f26;
+  --ucard-papel: #f6f4ef;
+  --ucard-cebra: #eceae3;
+  --ucard-banda: #14181f;
+  --ucard-realce: #e0876b;
+  background: var(--ucard-papel);
+  color: var(--ucard-tinta);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  overflow: hidden;
+  font-family: "Barlow", system-ui, sans-serif;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.ucard-head {
+  display: flex; align-items: stretch; gap: 2px;
+  background: var(--ucard-banda);
+}
+.ucard-title {
+  flex: 1; margin: 0; display: flex; align-items: center;
+  padding: 8px 12px; color: #f5f0e4;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; font-size: 1.05rem; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.ucard-stats { display: flex; }
+.ucard-stat {
+  min-width: 46px; padding: 5px 8px; text-align: center;
+  background: var(--ucard-banda); color: #f5f0e4;
+  border-left: 1px solid rgba(245, 240, 228, 0.16);
+}
+.ucard-stat-key {
+  display: block; color: var(--ucard-realce);
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; font-size: 0.6rem; letter-spacing: 0.1em;
+}
+.ucard-stat-value { display: block; font-weight: 600; font-size: 1rem; font-variant-numeric: tabular-nums; }
+
+.ucard-body { padding: 10px 12px 12px; }
+
+.ucard-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.ucard-table thead th {
+  background: var(--accent); color: #14100d;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 8px; text-align: left;
+}
+.ucard-table td { padding: 4px 8px; vertical-align: top; }
+.ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
+.ucard-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ucard-wrules { color: #4a5059; }
+.ucard-count { color: #6b7280; font-variant-numeric: tabular-nums; margin-right: 3px; }
+
+.ucard-line { margin: 8px 0 0; font-size: 0.86rem; line-height: 1.45; }
+.ucard-label {
+  display: inline-block; margin-right: 6px;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #6b7280;
+}
+.ucard-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.ucard-tag {
+  background: #e3e0d7; border-radius: 3px; padding: 1px 6px; font-size: 0.76rem;
+}
+
+.ucard-options { margin-top: 10px; border-top: 1px solid #d9d5cb; padding-top: 8px; }
+.ucard-options summary {
+  cursor: pointer; color: #8a5a2b; font-size: 0.82rem;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.ucard-section { margin-top: 8px; }
+.ucard-section-head { margin: 0 0 3px; font-size: 0.8rem; font-weight: 600; }
+.ucard-limit { color: #6b7280; font-weight: 400; }
+.ucard-option-list { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
+.ucard-option-list li {
+  display: flex; justify-content: space-between; gap: 12px; padding: 2px 0;
+}
+.ucard-option-list li:nth-child(odd) { background: var(--ucard-cebra); }
+.ucard-price { font-variant-numeric: tabular-nums; color: #6b7280; white-space: nowrap; padding-right: 4px; }
+
+.ucard-foot {
+  border-top: 1px solid #d9d5cb; padding: 8px 12px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: var(--ucard-cebra);
+}
+
+/* Rejilla de cartas: apaisadas, dos por fila cuando cabe. */
+.ucard-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
+@media (max-width: 520px) { .ucard-grid { grid-template-columns: 1fr; } }

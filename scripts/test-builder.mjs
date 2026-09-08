@@ -29,6 +29,9 @@ const packages = new Map(
 
 console.log(`libro ${BOOK}: ${units.length} unidades, ${packages.size} paquetes\n`);
 
+const linea = (e) => `${e.count > 1 ? e.count + "\u00d7 " : ""}${e.name}` +
+  (e.kind === "weapon" ? ` (${e.range === null ? "CaC" : e.range + '"'}, A${e.attacks ?? "?"}${e.rules.length ? ", " + e.rules.join(", ") : ""})` : "");
+
 let fallos = 0;
 const entries = [];
 
@@ -78,8 +81,8 @@ for (const unit of units.slice(0, 6)) {
   if (resolved.loadout.length === 0) { console.log(`✗ ${unit.name}: sin equipamiento resuelto`); fallos += 1; }
 
   console.log(`  ${unit.name}  ${baseCost} → ${B.entryCost(entry, sections)} pts (${anadidas} mejoras)`);
-  console.log(`      de partida: ${base.join(" · ") || "(nada)"}`);
-  console.log(`      resultante: ${conMejoras.join(" · ")}`);
+  console.log(`      de partida: ${base.map(linea).join(" · ") || "(nada)"}`);
+  console.log(`      resultante: ${conMejoras.map(linea).join(" · ")}`);
   entries.push(entry);
 }
 

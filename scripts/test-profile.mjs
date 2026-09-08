@@ -19,7 +19,7 @@ const bundle = async (entry, name) => {
   await build({ entryPoints: [entry], outfile, format: "esm", bundle: true, platform: "node", logLevel: "error" });
   return import(outfile);
 };
-const P = await bundle("src/lib/unitProfile.ts", "profile.mjs");
+const P = await bundle("src/lib/loadout.ts", "loadout.mjs");
 const B = await bundle("src/lib/builder.ts", "builder.mjs");
 
 const units = rows("army_units", [{ method: "equal", attribute: "bookKey", values: [BOOK] }, { method: "orderAsc", attribute: "sortOrder" }]);
@@ -32,14 +32,15 @@ let fallos = 0;
 let sinArmas = 0;
 
 for (const unit of units) {
-  const weapons = P.parseWeapons(unit.weapons);
-  const items = P.parseItems(unit.items);
+  const entradas = P.baseLoadout(unit.weapons, unit.items);
+  const weapons = entradas.filter((e) => e.kind === "weapon");
+  const items = entradas.filter((e) => e.kind === "gear");
   const sections = B.sectionsForUnit(unit, packages);
 
   if (weapons.length === 0) sinArmas += 1;
   for (const w of weapons) {
     if (!w.name) { console.log(`✗ ${unit.name}: arma sin nombre`); fallos += 1; }
-    if (typeof w.attacks !== "number") { console.log(`✗ ${unit.name}/${w.name}: ataques no numericos`); fallos += 1; }
+    if (w.attacks !== null && typeof w.attacks !== "number") { console.log(`✗ ${unit.name}/${w.name}: ataques no numericos`); fallos += 1; }
   }
   for (const s of sections) {
     for (const o of s.options ?? []) {
@@ -51,15 +52,16 @@ for (const unit of units) {
 
 console.log(`libro ${BOOK}: ${units.length} unidades · ${sinArmas} sin armas declaradas\n`);
 for (const unit of units.slice(0, 3)) {
-  const weapons = P.parseWeapons(unit.weapons);
-  const items = P.parseItems(unit.items);
+  const entradas = P.baseLoadout(unit.weapons, unit.items);
+  const weapons = entradas.filter((e) => e.kind === "weapon");
+  const items = entradas.filter((e) => e.kind === "gear");
   const sections = B.sectionsForUnit(unit, packages);
   console.log(`=== ${unit.name}  (×${unit.size} C${unit.quality}+ D${unit.defense}+ ${unit.cost}pts)`);
   for (const w of weapons) {
     console.log(`   ${(w.count > 1 ? w.count + "× " : "") + w.name}`.padEnd(28) +
-      `${P.rangeLabel(w.range).padStart(5)}  A${w.attacks}  ${w.rules.join(", ")}`);
+      `${(w.range === null ? "CaC" : w.range + '"').padStart(5)}  A${w.attacks ?? "—"}  ${w.rules.join(", ")}`);
   }
-  for (const i of items) console.log(`   equipo: ${i.name}${i.grants.length ? ` (${i.grants.join(", ")})` : ""}`);
+  for (const i of items) console.log(`   equipo: ${i.name}${i.rules.length ? ` (${i.rules.join(", ")})` : ""}`);
   const opciones = sections.reduce((n, s) => n + (s.options?.length ?? 0), 0);
   console.log(`   ${sections.length} secciones de mejora, ${opciones} opciones`);
   const ejemplo = sections[0];

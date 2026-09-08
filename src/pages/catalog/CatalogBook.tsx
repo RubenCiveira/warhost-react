@@ -19,7 +19,9 @@ import type { ArmyBook, ArmyUnit, CatalogImage } from "../../api/catalog";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
-import UnitProfile from "../../components/UnitProfile";
+import UnitCard from "../../components/UnitCard";
+import { sectionsForUnit } from "../../lib/builder";
+import { baseLoadout } from "../../lib/loadout";
 import SpellTable from "../../components/SpellTable";
 import type { UpgradeSection } from "../../lib/builder";
 
@@ -201,20 +203,35 @@ export default function CatalogBook() {
       {units.length === 0 ? (
         <EmptyState title="Esta faccion todavia no tiene unidades sincronizadas" />
       ) : (
-        <div className="stack">
+        <div className="ucard-grid">
           {units.map((unit) => (
-            <section key={unit.$id} className="card">
-              <h3>{unit.name}</h3>
-              <UnitProfile unit={unit} packages={packages} />
-              {gallery(targetKeyFor(book.$id, unit.unitId))}
-              {admin ? (
-                <ImageUploader
-                  label={`Anadir imagenes de ${unit.name}`}
-                  busy={busy}
-                  onUpload={(files, caption) => upload(files, caption, unit)}
-                />
-              ) : null}
-            </section>
+            <UnitCard
+              key={unit.$id}
+              variant="catalogo"
+              unitId={unit.unitId}
+              sections={sectionsForUnit(unit, packages)}
+              unit={{
+                name: unit.name,
+                size: unit.size,
+                quality: unit.quality,
+                defense: unit.defense,
+                cost: unit.cost,
+                rules: unit.rules,
+                loadout: baseLoadout(unit.weapons, unit.items),
+              }}
+              footer={
+                <>
+                  {gallery(targetKeyFor(book.$id, unit.unitId))}
+                  {admin ? (
+                    <ImageUploader
+                      label={`Anadir imagenes de ${unit.name}`}
+                      busy={busy}
+                      onUpload={(files, caption) => upload(files, caption, unit)}
+                    />
+                  ) : null}
+                </>
+              }
+            />
           ))}
         </div>
       )}

@@ -95,3 +95,20 @@ El navegador no puede llamar a `army-forge.onepagerules.com` por CORS, asi que
 las importaciones pasan por la funcion `army_forge_proxy` del backend. Si Army
 Forge cambia sus rutas, la accion `raw` del proxy permite apuntar a una nueva sin
 redesplegar el front.
+
+## La carta de unidad
+
+`components/UnitCard.tsx` pinta una unidad con aire de carta de juego: apaisada
+y clara sobre el fondo oscuro, banda de titulo con los atributos en cajas, y el
+armamento en tabla. La estetica viene del generador de cartas de kt-cartas.
+
+Tiene dos variantes, porque son dos preguntas distintas sobre la misma unidad:
+
+- **`catalogo`** (ficha de faccion): con que armas viene de serie y **como se
+  configura** — cada seccion de mejora con sus opciones, su precio y a cuantos
+  modelos alcanza.
+- **`ejercito`** (ejercito guardado): con que ha acabado **esta** unidad, ya
+  aplicados los reemplazos, y que mejoras se le compraron.
+
+A diferencia de una carta impresa, no tiene tamano fijo: el contenido manda,
+porque una unidad puede llevar dos armas o diez.

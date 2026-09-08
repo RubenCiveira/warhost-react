@@ -1,5 +1,5 @@
-import { applyOptions, baseLoadout, formatLoadout } from "./loadout";
-import type { AppliedOption } from "./loadout";
+import { applyOptions, baseLoadout } from "./loadout";
+import type { AppliedOption, LoadoutEntry } from "./loadout";
 
 /**
  * Formas de Army Forge y logica de resolucion de listas, sin dependencias de
@@ -58,8 +58,8 @@ interface ForgeBookUnit {
   defense?: number;
   cost?: number;
   rules?: ForgeRule[];
-  weapons?: Array<{ name?: string; label?: string; count?: number }>;
-  items?: Array<{ name?: string; label?: string; count?: number }>;
+  weapons?: Array<Record<string, unknown>>;
+  items?: Array<Record<string, unknown>>;
 }
 
 interface ForgeUpgradeOption {
@@ -107,7 +107,7 @@ export interface ResolvedUnit {
   cost: number;
   rules: string[];
   /** Armas y equipo tras aplicar los reemplazos elegidos. */
-  loadout: string[];
+  loadout: LoadoutEntry[];
   /** Las opciones elegidas, tal como las nombra Army Forge. */
   upgrades: string[];
   unresolvedUpgrades: number;
@@ -233,7 +233,7 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
     maxWounds: size * tough,
     cost,
     rules: [...new Set(rules.filter(Boolean))].slice(0, 20),
-    loadout: formatLoadout(loadout),
+    loadout,
     upgrades,
     unresolvedUpgrades,
     sortOrder: index,

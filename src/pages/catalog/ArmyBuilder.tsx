@@ -8,6 +8,7 @@ import {
   blockReason,
   buildArmy,
   entryCost,
+  entryLoadout,
   entryUpgradeLabels,
   maxDistinctOptions,
   maxPicks,
@@ -17,7 +18,7 @@ import {
   sectionsForUnit,
 } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { parseWeapons, rangeLabel } from "../../lib/unitProfile";
+import { baseLoadout, formatLoadout } from "../../lib/loadout";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
 
@@ -165,22 +166,9 @@ export default function ArmyBuilder() {
                   {unit.rules.length > 0 ? (
                     <div className="small muted">{unit.rules.slice(0, 5).join(", ")}</div>
                   ) : null}
-                  {(() => {
-                    const weapons = parseWeapons(unit.weapons);
-                    if (weapons.length === 0) return null;
-                    return (
-                      <div className="small muted">
-                        {weapons
-                          .map(
-                            (weapon) =>
-                              `${weapon.count > 1 ? `${weapon.count}× ` : ""}${weapon.name} ` +
-                              `(${rangeLabel(weapon.range)}, A${weapon.attacks}` +
-                              `${weapon.rules.length ? `, ${weapon.rules.join(", ")}` : ""})`,
-                          )
-                          .join(" · ")}
-                      </div>
-                    );
-                  })()}
+                  <div className="small muted">
+                    {formatLoadout(baseLoadout(unit.weapons, unit.items)).join(" · ")}
+                  </div>
                 </div>
                 <button type="button" className="tiny" onClick={() => addUnit(unit)}>
                   Anadir
@@ -258,6 +246,9 @@ export default function ArmyBuilder() {
                         </button>
                       </div>
                     </div>
+                    <p className="small muted" style={{ margin: "4px 0 0" }}>
+                      {formatLoadout(entryLoadout(entry, sections)).join(" · ")}
+                    </p>
                     {labels.length > 0 ? (
                       <ul className="small muted upgrades">
                         {labels.map((label) => (

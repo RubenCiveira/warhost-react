@@ -23,6 +23,7 @@ import {
 import type { Army } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
+import UnitCard from "../../components/UnitCard";
 
 interface FormState {
   name: string;
@@ -339,47 +340,30 @@ export default function ArmyEditor() {
         {units.length > 0 ? (
           <section className="card">
             <h2>Unidades ({units.length})</h2>
-            <div className="stack">
+            <div className="ucard-grid">
               {units.map((unit) => (
-                <article key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-unit">
-                  <div className="spread">
-                    <span>
-                      <strong>{unit.name}</strong> <span className="muted">×{unit.size}</span>
-                    </span>
-                    <span className="muted mono small">
-                      C{unit.quality}+ D{unit.defense}+ · {unit.maxWounds} heridas
-                      {unit.cost ? ` · ${unit.cost} pts` : ""}
-                    </span>
-                  </div>
-
-                  {unit.loadout?.length ? (
-                    <ul className="loadout">
-                      {unit.loadout.map((line) => (
-                        <li key={line}>{line}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="small muted loadout-missing">
-                      Esta lista se guardo antes de que se calculara el equipamiento. Vuelve a importarla para verlo.
-                    </p>
-                  )}
-
-                  {unit.upgrades?.length ? (
-                    <p className="small muted">
-                      <span className="upgrades-label">Mejoras:</span> {unit.upgrades.join(" · ")}
-                    </p>
-                  ) : null}
-
-                  {unit.rules.length > 0 ? (
-                    <div className="row small">
-                      {unit.rules.map((rule) => (
-                        <span key={rule} className="tag">
-                          {rule}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
+                <UnitCard
+                  key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`}
+                  variant="ejercito"
+                  upgrades={unit.upgrades ?? []}
+                  unit={{
+                    name: unit.name,
+                    size: unit.size,
+                    quality: unit.quality,
+                    defense: unit.defense,
+                    cost: unit.cost,
+                    maxWounds: unit.maxWounds,
+                    rules: unit.rules,
+                    loadout: unit.loadout,
+                  }}
+                  footer={
+                    unit.loadout && (unit.loadout as unknown[]).length > 0 ? null : (
+                      <span className="small muted">
+                        Esta lista se guardo antes de que se calculara el equipamiento. Vuelve a importarla para verlo.
+                      </span>
+                    )
+                  }
+                />
               ))}
             </div>
           </section>

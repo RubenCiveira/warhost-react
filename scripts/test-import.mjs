@@ -34,6 +34,9 @@ await build({
 });
 const { extractListId, resolveList, requiredBookUids, gameSystemOf, parseStoredList } = await import(outfile);
 
+const linea = (e) => `${e.count > 1 ? e.count + "\u00d7 " : ""}${e.name}` +
+  (e.kind === "weapon" ? ` (${e.range === null ? "CaC" : e.range + '"'}, A${e.attacks ?? "?"}${e.rules.length ? ", " + e.rules.join(", ") : ""})` : "");
+
 let fallos = 0;
 
 for (const caso of CASOS) {
@@ -73,7 +76,7 @@ for (const caso of CASOS) {
         `C${unit.quality} D${unit.defense} ${String(unit.cost).padStart(4)}pts ` +
         `${String(unit.maxWounds).padStart(2)}her`,
     );
-    for (const linea of unit.loadout) console.log(`        · ${linea}`);
+    for (const e of unit.loadout) console.log(`        · ${linea(e)}`);
     if (unit.upgrades.length) console.log(`        mejoras: ${unit.upgrades.join(" | ")}`);
     if (unit.loadout.length === 0) { console.log("        ✗ sin equipamiento resuelto"); fallos += 1; }
   }
