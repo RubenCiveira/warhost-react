@@ -9,8 +9,8 @@ React + Vite + TypeScript, con Appwrite como unico backend.
 
 ```bash
 cp .env.example .env   # apunta a tu proyecto de Appwrite
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Variables (`.env`):
