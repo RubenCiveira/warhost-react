@@ -240,3 +240,72 @@ export function buildArmy(
     modelCount: units.reduce((sum, unit) => sum + unit.size, 0),
   };
 }
+
+/* Persistencia de la composicion ---------------------------------------------
+ *
+ * Un ejercito guardado lleva las unidades ya resueltas, que es lo que necesitan
+ * la ficha y la partida. Pero para poder *editarlo* hace falta lo que se eligio,
+ * no el resultado: que unidad del catalogo era y que opciones se marcaron. Eso
+ * se guarda aparte, y es lo que permite reabrir el constructor sin perder nada.
+ */
+
+export interface StoredEntry {
+  unitId: string;
+  choices: Record<string, number>;
+}
+
+export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
+  return entries.map((entry) => ({ unitId: entry.unit.unitId, choices: { ...entry.choices } }));
+}
+
+function newKey(unitId: string, index: number): string {
+  return `${unitId}-${index}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/**
+ * Reconstruye la composicion a partir de lo guardado. Las unidades que ya no
+ * existen en el catalogo se descartan: el libro pudo cambiar de version.
+ */
+export function rehydrateEntries(stored: unknown, units: CatalogUnitLike[]): BuilderEntry[] {
+  if (!Array.isArray(stored)) return [];
+  const byId = new Map(units.map((unit) => [unit.unitId, unit]));
+
+  return stored.flatMap((raw, index) => {
+    const item = raw as Partial<StoredEntry>;
+    const unit = item.unitId ? byId.get(item.unitId) : undefined;
+    if (!unit) return [];
+    const choices: Record<string, number> = {};
+    for (const [id, count] of Object.entries(item.choices ?? {})) {
+      if (typeof count === "number" && count > 0) choices[id] = count;
+    }
+    return [{ key: newKey(unit.unitId, index), unit, choices }];
+  });
+}
+
+/** Forma minima de una lista de Army Forge, para reconstruir una importacion. */
+interface ForgeListShape {
+  list?: { units?: Array<{ id?: string; selectedUpgrades?: Array<{ optionId?: string }> }> };
+}
+
+/**
+ * Reconstruye la composicion de un ejercito importado. Los identificadores de
+ * unidad y de opcion son los mismos que usa nuestro catalogo, porque salen de
+ * la misma fuente; las opciones que ya no existan se pierden, igual que se
+ * pierden al importar.
+ */
+export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): BuilderEntry[] {
+  const list = (raw as ForgeListShape)?.list?.units;
+  if (!Array.isArray(list)) return [];
+  const byId = new Map(units.map((unit) => [unit.unitId, unit]));
+
+  return list.flatMap((forgeUnit, index) => {
+    const unit = forgeUnit.id ? byId.get(forgeUnit.id) : undefined;
+    if (!unit) return [];
+    const choices: Record<string, number> = {};
+    for (const selected of forgeUnit.selectedUpgrades ?? []) {
+      if (!selected.optionId) continue;
+      choices[selected.optionId] = (choices[selected.optionId] ?? 0) + 1;
+    }
+    return [{ key: newKey(unit.unitId, index), unit, choices }];
+  });
+}

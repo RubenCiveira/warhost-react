@@ -11,7 +11,8 @@
     "test:import": "node scripts/test-import.mjs",
     "test:builder": "node scripts/test-builder.mjs",
     "test:profile": "node scripts/test-profile.mjs",
-    "test:spells": "node scripts/test-spells.mjs"
+    "test:spells": "node scripts/test-spells.mjs",
+    "test:edit": "node scripts/test-edit.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

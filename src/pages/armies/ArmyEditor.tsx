@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { GAME_SYSTEMS, getGameSystem } from "../../lib/gameSystems";
@@ -90,6 +90,21 @@ export default function ArmyEditor() {
   }, [armyId]);
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
+
+  /**
+   * Solo se pueden anadir o cambiar unidades si el ejercito recuerda de que
+   * faccion del catalogo salio. Los creados con el constructor lo guardan; los
+   * importados de Army Forge, no.
+   */
+  const bookKey = useMemo(() => {
+    if (!listJson) return null;
+    try {
+      const parsed = JSON.parse(listJson) as { source?: { bookKey?: string } };
+      return parsed.source?.bookKey ?? null;
+    } catch {
+      return null;
+    }
+  }, [listJson]);
 
   async function importFromArmyForge() {
     const id = extractListId(form.listId);
@@ -339,7 +354,21 @@ export default function ArmyEditor() {
 
         {units.length > 0 ? (
           <section className="card">
-            <h2>Unidades ({units.length})</h2>
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Unidades ({units.length})</h2>
+              {armyId && bookKey ? (
+                <Link to={`/ejercitos/${armyId}/unidades`} className="button-link">
+                  Anadir o cambiar unidades
+                </Link>
+              ) : null}
+            </div>
+            {armyId && !bookKey ? (
+              <p className="small muted">
+                Este ejercito se importo de Army Forge y no guarda de que faccion del catalogo viene, asi que no se
+                pueden anadir unidades desde aqui. Editalo en Army Forge y vuelve a importarlo, o crea uno nuevo desde
+                su faccion.
+              </p>
+            ) : null}
             <div className="ucard-grid">
               {units.map((unit) => (
                 <UnitCard

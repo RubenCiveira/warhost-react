@@ -34,6 +34,7 @@ pnpm test:import     # importa listas reales de Army Forge y valida el resultado
 pnpm test:builder    # construye con datos reales del catalogo y valida los topes
 pnpm test:profile    # lee armamento, equipo y opciones de todas las unidades
 pnpm test:spells     # lee los hechizos de los 226 libros del catalogo
+pnpm test:edit       # compone, guarda, rehidrata y modifica un ejercito
 ```
 
 Ninguna de las dos necesita navegador: ejecutan los modulos que se despliegan
@@ -112,3 +113,20 @@ Tiene dos variantes, porque son dos preguntas distintas sobre la misma unidad:
 
 A diferencia de una carta impresa, no tiene tamano fijo: el contenido manda,
 porque una unidad puede llevar dos armas o diez.
+
+## Editar un ejercito
+
+Un ejercito guardado lleva dos cosas en `listJson`: las **unidades resueltas**,
+que es lo que necesitan la ficha y la partida, y las **elecciones** que las
+produjeron (`entries`), que es lo unico que permite reabrir el constructor sin
+perder informacion. El resultado no se puede desandar; las elecciones si.
+
+Tambien guarda `source.bookKey`, la faccion del catalogo de la que salio. Sin
+ese dato no se pueden anadir unidades, y la ficha lo dice en vez de ofrecer un
+boton que no llevaria a ninguna parte.
+
+Un ejercito **importado** de Army Forge no tiene `entries`, pero si el JSON
+original: la composicion se reconstruye de ahi, porque los identificadores de
+unidad y de opcion son los mismos que usa el catalogo. Lo que se pierde en esa
+reconstruccion son las unidades y opciones que ya no existan en la version
+actual del libro, y el constructor avisa de cuantas.

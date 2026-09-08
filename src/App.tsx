@@ -35,6 +35,7 @@ export default function App() {
         <Route path="/ejercitos" element={<ArmyList />} />
         <Route path="/ejercitos/nuevo" element={<ArmyEditor />} />
         <Route path="/ejercitos/:armyId" element={<ArmyEditor />} />
+        <Route path="/ejercitos/:armyId/unidades" element={<ArmyBuilder />} />
         <Route path="/partidas" element={<GameList />} />
         <Route path="/partidas/nueva" element={<GameNew />} />
         <Route path="/partidas/:gameId" element={<GameLive />} />
