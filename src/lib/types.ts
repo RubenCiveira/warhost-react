@@ -1,0 +1,140 @@
+import type { Models } from "appwrite";
+import type { GameSystemId, Setting } from "./gameSystems";
+
+export type Row = Models.Row;
+
+export interface Army extends Row {
+  userId: string;
+  name: string;
+  setting: Setting;
+  gameSystem: GameSystemId;
+  faction: string | null;
+  points: number;
+  modelCount: number;
+  listId: string | null;
+  sourceUrl: string | null;
+  listJson: string | null;
+  coverId: string | null;
+  imageIds: string[];
+  notes: string | null;
+  shared: boolean;
+  updatedAt: string | null;
+}
+
+export interface Association extends Row {
+  name: string;
+  slug: string;
+  ownerId: string;
+  description: string | null;
+  city: string | null;
+  visibility: "public" | "private";
+  createdAt: string | null;
+}
+
+export type MemberRole = "owner" | "admin" | "member";
+
+export interface AssociationMember extends Row {
+  associationId: string;
+  userId: string;
+  displayName: string | null;
+  role: MemberRole;
+  joinedAt: string | null;
+}
+
+export type GameStatus = "setup" | "active" | "finished";
+
+export interface Game extends Row {
+  name: string;
+  setting: Setting;
+  gameSystem: GameSystemId;
+  associationId: string | null;
+  missionId: string | null;
+  missionName: string | null;
+  pointsLimit: number;
+  status: GameStatus;
+  round: number;
+  activePlayerId: string | null;
+  createdBy: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  notes: string | null;
+}
+
+export type GameResult = "win" | "loss" | "draw";
+
+export interface GamePlayer extends Row {
+  gameId: string;
+  userId: string | null;
+  displayName: string;
+  armyId: string | null;
+  armyName: string | null;
+  faction: string | null;
+  points: number;
+  score: number;
+  victoryPoints: number;
+  commandPoints: number;
+  result: GameResult | null;
+  color: string | null;
+}
+
+export interface GameUnit extends Row {
+  gameId: string;
+  playerId: string;
+  name: string;
+  unitKey: string | null;
+  size: number;
+  quality: number;
+  defense: number;
+  wounds: number;
+  maxWounds: number;
+  state: string;
+  activated: boolean;
+  shaken: boolean;
+  fatigued: boolean;
+  destroyed: boolean;
+  tokens: string | null;
+  rules: string[];
+  sortOrder: number;
+}
+
+export interface Rule extends Row {
+  setting: Setting;
+  gameSystems: GameSystemId[];
+  category: string;
+  title: string;
+  body: string;
+  tags: string[];
+  sourceUrl: string | null;
+  sortOrder: number;
+}
+
+export interface Mission extends Row {
+  setting: Setting;
+  gameSystems: GameSystemId[];
+  deck: string | null;
+  name: string;
+  objectives: string | null;
+  deployment: string | null;
+  scoring: string | null;
+  specialRules: string | null;
+  sourceUrl: string | null;
+  sortOrder: number;
+}
+
+/** Contadores libres por unidad, serializados en la columna `tokens`. */
+export type TokenMap = Record<string, number>;
+
+export function parseTokens(raw: string | null | undefined): TokenMap {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed as Record<string, unknown>)
+        .filter(([, value]) => typeof value === "number")
+        .map(([key, value]) => [key, value as number]),
+    );
+  } catch {
+    return {};
+  }
+}

@@ -1,0 +1,90 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import { useGameSystem } from "../../context/GameSystemContext";
+import { imageUrl, listArmies } from "../../api/armies";
+import type { Army } from "../../lib/types";
+import { errorMessage, formatDate } from "../../lib/format";
+import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
+
+export default function ArmyList() {
+  const { user } = useAuth();
+  const { system } = useGameSystem();
+  const [armies, setArmies] = useState<Army[]>([]);
+  const [allSystems, setAllSystems] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setLoading(true);
+    listArmies(user.$id, allSystems ? undefined : system?.id)
+      .then((rows) => !cancelled && (setArmies(rows), setError(null)))
+      .catch((err: unknown) => !cancelled && setError(errorMessage(err)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [user, system, allSystems]);
+
+  return (
+    <>
+      <PageHead
+        title="Ejercitos"
+        sub={allSystems ? "Todos tus ejercitos" : `Tus ejercitos de ${system?.name ?? "este modo"}`}
+        actions={
+          <>
+            <button type="button" className="ghost" onClick={() => setAllSystems((value) => !value)}>
+              {allSystems ? "Solo este modo" : "Ver todos"}
+            </button>
+            <Link to="/ejercitos/nuevo">
+              <button type="button" className="primary">
+                Nuevo ejercito
+              </button>
+            </Link>
+          </>
+        }
+      />
+      <ErrorBanner error={error} />
+      {loading ? (
+        <Spinner />
+      ) : armies.length === 0 ? (
+        <EmptyState title="Aun no hay ejercitos">
+          <p>
+            Crea uno a mano o pega el enlace de una lista de Army Forge para importarla con todas sus unidades.
+          </p>
+          <Link to="/ejercitos/nuevo">
+            <button type="button" className="primary">
+              Crear ejercito
+            </button>
+          </Link>
+        </EmptyState>
+      ) : (
+        <div className="grid">
+          {armies.map((army) => (
+            <Link key={army.$id} to={`/ejercitos/${army.$id}`} className="card card-link">
+              {army.coverId ? (
+                <img
+                  src={imageUrl(army.coverId)}
+                  alt=""
+                  style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 8, marginBottom: 10 }}
+                />
+              ) : null}
+              <div className="spread">
+                <strong>{army.name}</strong>
+                <span className="tag">{army.gameSystem.toUpperCase()}</span>
+              </div>
+              <p className="muted small" style={{ margin: "6px 0 0" }}>
+                {army.faction ?? "Sin faccion"} · {army.points} pts · {army.modelCount} miniaturas
+              </p>
+              <p className="muted small" style={{ margin: 0 }}>
+                Actualizado {formatDate(army.updatedAt)}
+              </p>
+            </Link>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
