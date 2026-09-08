@@ -2,8 +2,12 @@ import { useMemo, useState } from "react";
 import { byThreshold, parseSpells } from "../lib/spells";
 
 /**
- * Tabla de hechizos de una faccion, agrupada por umbral. Lleva buscador porque
- * en mesa se busca por nombre o por lo que hace, no leyendo la lista entera.
+ * Hechizos de una faccion, cada uno como una carta, agrupados por umbral: en
+ * mesa la pregunta es "que puedo lanzar con lo que me queda", asi que el valor
+ * manda sobre el nombre.
+ *
+ * Comparte la estetica de UnitCard, pero no su estructura: un hechizo no tiene
+ * tabla de armas ni opciones, solo un valor y un efecto.
  */
 export default function SpellTable({ spells }: { spells: string | null }) {
   const [search, setSearch] = useState("");
@@ -22,8 +26,8 @@ export default function SpellTable({ spells }: { spells: string | null }) {
   const groups = byThreshold(visible);
 
   return (
-    <section className="card">
-      <div className="spread">
+    <section style={{ marginTop: 28 }}>
+      <div className="spread" style={{ marginBottom: 4 }}>
         <h2>Hechizos ({all.length})</h2>
         <input
           type="search"
@@ -46,14 +50,24 @@ export default function SpellTable({ spells }: { spells: string | null }) {
             <h3 className="spell-threshold">
               Valor {threshold}+ <span className="muted small">({list.length})</span>
             </h3>
-            <dl className="spell-list">
+            <div className="ucard-grid spell-grid">
               {list.map((spell) => (
-                <div key={spell.key} className="spell">
-                  <dt>{spell.name}</dt>
-                  <dd className="small">{spell.effect}</dd>
-                </div>
+                <article key={spell.key} className="ucard ucard-spell">
+                  <header className="ucard-head">
+                    <h4 className="ucard-title">{spell.name}</h4>
+                    <div className="ucard-stats">
+                      <div className="ucard-stat">
+                        <span className="ucard-stat-key">Valor</span>
+                        <span className="ucard-stat-value">{spell.threshold}+</span>
+                      </div>
+                    </div>
+                  </header>
+                  <div className="ucard-body">
+                    <p className="ucard-effect">{spell.effect}</p>
+                  </div>
+                </article>
               ))}
-            </dl>
+            </div>
           </div>
         ))
       )}

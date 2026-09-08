@@ -265,16 +265,11 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 
 .inline-search { width: auto; max-width: 220px; }
 
-.spell-group + .spell-group { margin-top: 14px; }
+.spell-group + .spell-group { margin-top: 18px; }
 .spell-threshold {
   font-size: 0.85rem; color: var(--accent); text-transform: uppercase;
   letter-spacing: 0.06em; margin: 0 0 6px;
 }
-.spell-list { margin: 0; }
-.spell { padding: 7px 0; }
-.spell + .spell { border-top: 1px solid var(--border); }
-.spell dt { font-weight: 600; }
-.spell dd { margin: 2px 0 0; color: var(--muted); }
 
 /* Unidades de un ejercito guardado ------------------------------------------ */
 
@@ -381,3 +376,12 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 /* Rejilla de cartas: apaisadas, dos por fila cuando cabe. */
 .ucard-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); }
 @media (max-width: 520px) { .ucard-grid { grid-template-columns: 1fr; } }
+
+/* Carta de hechizo ---------------------------------------------------------- */
+/* Misma piel que la de unidad, pero mas estrecha: un hechizo es un titulo, un
+   valor y un parrafo, no una tabla. */
+
+.spell-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.ucard-spell .ucard-title { font-size: 0.95rem; }
+.ucard-spell .ucard-body { padding: 10px 12px; }
+.ucard-effect { margin: 0; font-size: 0.88rem; line-height: 1.5; }
