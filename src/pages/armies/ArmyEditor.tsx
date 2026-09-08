@@ -16,13 +16,10 @@ import {
 } from "../../api/armies";
 import {
   extractListId,
-  fetchList,
+  importList,
   listUrl,
-  modelCount,
-  summarizeUnits,
-  totalPoints,
+  parseStoredList,
 } from "../../api/armyForge";
-import type { ArmyForgeList } from "../../api/armyForge";
 import type { Army } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
@@ -91,14 +88,7 @@ export default function ArmyEditor() {
     };
   }, [armyId]);
 
-  const units = useMemo(() => {
-    if (!listJson) return [];
-    try {
-      return summarizeUnits(JSON.parse(listJson) as ArmyForgeList);
-    } catch {
-      return [];
-    }
-  }, [listJson]);
+  const units = useMemo(() => parseStoredList(listJson), [listJson]);
 
   async function importFromArmyForge() {
     const id = extractListId(form.listId);
@@ -110,16 +100,21 @@ export default function ArmyEditor() {
     setError(null);
     setNotice(null);
     try {
-      const list = await fetchList(id);
+      const list = await importList(id);
       setListJson(JSON.stringify(list));
       setForm((prev) => ({
         ...prev,
         listId: id,
-        name: prev.name || list.name || "Ejercito importado",
-        points: totalPoints(list) || prev.points,
-        modelCount: modelCount(list) || prev.modelCount,
+        name: prev.name || list.name,
+        faction: prev.faction || list.faction || "",
+        points: list.points || prev.points,
+        modelCount: list.modelCount || prev.modelCount,
       }));
-      setNotice(`Importadas ${Array.isArray(list.units) ? list.units.length : 0} unidades desde Army Forge.`);
+      setNotice(
+        list.unresolvedUpgrades > 0
+          ? `Importadas ${list.units.length} unidades. ${list.unresolvedUpgrades} mejoras ya no existen en el libro de ejercito actual, asi que el coste por unidad es aproximado; el total del ejercito es el que guardo Army Forge.`
+          : `Importadas ${list.units.length} unidades desde Army Forge.`,
+      );
     } catch (err) {
       setError(errorMessage(err));
     } finally {

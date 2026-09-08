@@ -7,8 +7,7 @@ import { listArmies } from "../../api/armies";
 import { listAssociations, listMyMemberships } from "../../api/associations";
 import { listMissions } from "../../api/content";
 import { addPlayer, addUnits, createGame } from "../../api/games";
-import { summarizeUnits } from "../../api/armyForge";
-import type { ArmyForgeList } from "../../api/armyForge";
+import { parseStoredList } from "../../api/armyForge";
 import type { Army, Association, Mission } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
@@ -108,14 +107,8 @@ export default function GameNew() {
 
         // Si el ejercito viene de Army Forge, se copian sus unidades para tener
         // contadores de heridas y activacion desde el minuto uno.
-        if (army?.listJson) {
-          try {
-            const units = summarizeUnits(JSON.parse(army.listJson) as ArmyForgeList);
-            if (units.length > 0) await addUnits(game.$id, player.$id, units);
-          } catch {
-            // Una lista ilegible no debe impedir crear la partida.
-          }
-        }
+        const units = parseStoredList(army?.listJson);
+        if (units.length > 0) await addUnits(game.$id, player.$id, units);
       }
 
       navigate(`/partidas/${game.$id}`, { replace: true });
