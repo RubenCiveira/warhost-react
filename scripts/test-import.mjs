@@ -71,8 +71,11 @@ for (const caso of CASOS) {
     console.log(
       `    ${unit.name.slice(0, 22).padEnd(24)} x${String(unit.size).padEnd(2)} ` +
         `C${unit.quality} D${unit.defense} ${String(unit.cost).padStart(4)}pts ` +
-        `${String(unit.maxWounds).padStart(2)}her  ${unit.rules.slice(0, 3).join(", ")}`,
+        `${String(unit.maxWounds).padStart(2)}her`,
     );
+    for (const linea of unit.loadout) console.log(`        · ${linea}`);
+    if (unit.upgrades.length) console.log(`        mejoras: ${unit.upgrades.join(" | ")}`);
+    if (unit.loadout.length === 0) { console.log("        ✗ sin equipamiento resuelto"); fallos += 1; }
   }
   if (list.unresolvedUpgrades) {
     console.log(`  ⚠ ${list.unresolvedUpgrades} mejoras ya no existen en el libro actual`);

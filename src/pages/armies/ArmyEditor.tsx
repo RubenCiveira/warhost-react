@@ -341,14 +341,45 @@ export default function ArmyEditor() {
             <h2>Unidades ({units.length})</h2>
             <div className="stack">
               {units.map((unit) => (
-                <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="spread small">
-                  <span>
-                    <strong>{unit.name}</strong> <span className="muted">×{unit.size}</span>
-                  </span>
-                  <span className="muted mono">
-                    C{unit.quality}+ D{unit.defense}+ · {unit.maxWounds} heridas
-                  </span>
-                </div>
+                <article key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-unit">
+                  <div className="spread">
+                    <span>
+                      <strong>{unit.name}</strong> <span className="muted">×{unit.size}</span>
+                    </span>
+                    <span className="muted mono small">
+                      C{unit.quality}+ D{unit.defense}+ · {unit.maxWounds} heridas
+                      {unit.cost ? ` · ${unit.cost} pts` : ""}
+                    </span>
+                  </div>
+
+                  {unit.loadout?.length ? (
+                    <ul className="loadout">
+                      {unit.loadout.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="small muted loadout-missing">
+                      Esta lista se guardo antes de que se calculara el equipamiento. Vuelve a importarla para verlo.
+                    </p>
+                  )}
+
+                  {unit.upgrades?.length ? (
+                    <p className="small muted">
+                      <span className="upgrades-label">Mejoras:</span> {unit.upgrades.join(" · ")}
+                    </p>
+                  ) : null}
+
+                  {unit.rules.length > 0 ? (
+                    <div className="row small">
+                      {unit.rules.map((rule) => (
+                        <span key={rule} className="tag">
+                          {rule}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
               ))}
             </div>
           </section>

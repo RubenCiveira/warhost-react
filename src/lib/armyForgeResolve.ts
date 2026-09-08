@@ -1,3 +1,6 @@
+import { applyOptions, baseLoadout, formatLoadout } from "./loadout";
+import type { AppliedOption } from "./loadout";
+
 /**
  * Formas de Army Forge y logica de resolucion de listas, sin dependencias de
  * red ni de Appwrite. Vive aparte para poder ejercitarla desde Node con datos
@@ -55,20 +58,34 @@ interface ForgeBookUnit {
   defense?: number;
   cost?: number;
   rules?: ForgeRule[];
+  weapons?: Array<{ name?: string; label?: string; count?: number }>;
+  items?: Array<{ name?: string; label?: string; count?: number }>;
 }
 
 interface ForgeUpgradeOption {
   id?: string;
   label?: string;
   costs?: Array<{ cost?: number; unitId?: string }>;
-  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number }>;
+  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number; count?: number }>;
+}
+
+interface ForgeUpgradeSection {
+  variant?: string;
+  targets?: string[];
+  options?: ForgeUpgradeOption[];
+}
+
+/** Una opcion con su seccion: hace falta la seccion para saber que reemplaza. */
+interface OptionInSection {
+  option: ForgeUpgradeOption;
+  section: ForgeUpgradeSection;
 }
 
 export interface ForgeArmyBook {
   uid?: string;
   name?: string;
   units?: ForgeBookUnit[];
-  upgradePackages?: Array<{ sections?: Array<{ options?: ForgeUpgradeOption[] }> }>;
+  upgradePackages?: Array<{ sections?: ForgeUpgradeSection[] }>;
 }
 
 export interface ArmyBookSummary {
@@ -89,6 +106,10 @@ export interface ResolvedUnit {
   /** Aproximado: no cuenta las mejoras que ya no existen en el libro. */
   cost: number;
   rules: string[];
+  /** Armas y equipo tras aplicar los reemplazos elegidos. */
+  loadout: string[];
+  /** Las opciones elegidas, tal como las nombra Army Forge. */
+  upgrades: string[];
   unresolvedUpgrades: number;
   sortOrder: number;
 }
@@ -176,26 +197,32 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
   const options = optionsById(book);
 
   const rules = (definition?.rules ?? []).map(ruleLabel).filter(Boolean);
+  const upgrades: string[] = [];
+  const applied: AppliedOption[] = [];
   let cost = definition?.cost ?? 0;
-
   let unresolvedUpgrades = 0;
 
   for (const selected of unit.selectedUpgrades ?? []) {
-    const option = selected.optionId ? options.get(selected.optionId) : undefined;
-    if (!option) {
+    const found = selected.optionId ? options.get(selected.optionId) : undefined;
+    if (!found) {
       unresolvedUpgrades += 1;
       continue;
     }
+    const { option, section } = found;
     cost += costFor(option, unit.id);
+    if (option.label) upgrades.push(option.label);
+
     for (const gain of option.gains ?? []) {
-      // Las mejoras que dan reglas cuentan para la partida; las armas se quedan
-      // en el JSON completo, que se guarda aparte.
       if (gain.type === "ArmyBookRule") rules.push(ruleLabel(gain));
     }
+    // Cada seleccion cuenta como una aplicacion: si la misma opcion aparece dos
+    // veces en la lista, reemplaza y anade dos veces.
+    applied.push({ variant: section.variant, targets: section.targets, gains: option.gains, count: 1 });
   }
 
   const size = definition?.size ?? 1;
   const tough = ratingOf((definition?.rules ?? []).find((rule) => rule.name?.toLowerCase() === "tough")?.rating) ?? 1;
+  const loadout = applyOptions(baseLoadout(definition?.weapons ?? [], definition?.items ?? []), applied);
 
   return {
     name: unit.customName || definition?.name || `Unidad ${index + 1}`,
@@ -206,17 +233,19 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
     maxWounds: size * tough,
     cost,
     rules: [...new Set(rules.filter(Boolean))].slice(0, 20),
+    loadout: formatLoadout(loadout),
+    upgrades,
     unresolvedUpgrades,
     sortOrder: index,
   };
 }
 
-function optionsById(book: ForgeArmyBook | undefined): Map<string, ForgeUpgradeOption> {
-  const map = new Map<string, ForgeUpgradeOption>();
+function optionsById(book: ForgeArmyBook | undefined): Map<string, OptionInSection> {
+  const map = new Map<string, OptionInSection>();
   for (const pkg of book?.upgradePackages ?? []) {
     for (const section of pkg.sections ?? []) {
       for (const option of section.options ?? []) {
-        if (option.id) map.set(option.id, option);
+        if (option.id) map.set(option.id, { option, section });
       }
     }
   }

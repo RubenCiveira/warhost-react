@@ -5,6 +5,8 @@
  * sobre Army Forge, pero produce exactamente la misma forma que la importacion,
  * para que una partida no tenga que saber de donde salio el ejercito.
  */
+import { applyOptions, baseLoadout, formatLoadout } from "./loadout";
+import type { AppliedOption } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
@@ -18,7 +20,7 @@ export interface UpgradeOption {
   uid?: string;
   label?: string;
   costs?: Array<{ cost?: number; unitId?: string }>;
-  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number }>;
+  gains?: Array<{ name?: string; label?: string; type?: string; rating?: string | number; count?: number }>;
 }
 
 export interface UpgradeSection {
@@ -43,6 +45,9 @@ export interface CatalogUnitLike {
   cost: number;
   rules: string[];
   upgradePackageUids: string[];
+  /** JSON del catalogo; hace falta para saber con que armas parte la unidad. */
+  weapons?: string | null;
+  items?: string | null;
 }
 
 /** Una unidad puesta en la lista. La misma unidad puede repetirse. */
@@ -174,6 +179,25 @@ function toughOf(rules: string[]): number {
   return 1;
 }
 
+/** Las opciones elegidas, con la seccion que dice a que sustituyen. */
+export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]): AppliedOption[] {
+  const applied: AppliedOption[] = [];
+  for (const section of sections) {
+    for (const option of section.options ?? []) {
+      const count = entry.choices[optionId(option)] ?? 0;
+      if (count > 0) {
+        applied.push({ variant: section.variant, targets: section.targets, gains: option.gains, count });
+      }
+    }
+  }
+  return applied;
+}
+
+export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): string[] {
+  const base = baseLoadout(entry.unit.weapons ?? null, entry.unit.items ?? null);
+  return formatLoadout(applyOptions(base, appliedOptions(entry, sections)));
+}
+
 export function toResolvedUnit(
   entry: BuilderEntry,
   sections: UpgradeSection[],
@@ -189,6 +213,8 @@ export function toResolvedUnit(
     maxWounds: entry.unit.size * toughOf(rules),
     cost: entryCost(entry, sections),
     rules: rules.slice(0, 20),
+    loadout: entryLoadout(entry, sections),
+    upgrades: entryUpgradeLabels(entry, sections),
     unresolvedUpgrades: 0,
     sortOrder: index,
   };

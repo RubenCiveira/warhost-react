@@ -35,8 +35,8 @@ const entries = [];
 for (const unit of units.slice(0, 6)) {
   const entry = { key: unit.unitId, unit, choices: {} };
   const sections = B.sectionsForUnit(unit, packages);
-  const base = B.entryCost(entry, sections);
-  if (base !== unit.cost) { console.log(`✗ ${unit.name}: coste base ${base} != ${unit.cost}`); fallos += 1; }
+  const baseCost = B.entryCost(entry, sections);
+  if (baseCost !== unit.cost) { console.log(`✗ ${unit.name}: coste base ${baseCost} != ${unit.cost}`); fallos += 1; }
 
   // Coge opciones hasta que las restricciones lo impidan, y comprueba que el
   // tope declarado se respeta de verdad.
@@ -58,15 +58,28 @@ for (const unit of units.slice(0, 6)) {
     if (distintas > limite) { console.log(`✗ ${unit.name} / ${section.label}: ${distintas} opciones > limite ${limite}`); fallos += 1; }
   }
 
-  const conMejoras = B.entryCost(entry, sections);
-  if (anadidas > 0 && conMejoras < base) { console.log(`✗ ${unit.name}: las mejoras abaratan la unidad`); fallos += 1; }
+  if (anadidas > 0 && B.entryCost(entry, sections) < baseCost) {
+    console.log(`✗ ${unit.name}: las mejoras abaratan la unidad`); fallos += 1;
+  }
   const resolved = B.toResolvedUnit(entry, sections, 0);
   if (!resolved.name || resolved.maxWounds < 1) { console.log(`✗ ${unit.name}: unidad resuelta invalida`); fallos += 1; }
 
-  console.log(
-    `  ${unit.name.slice(0, 22).padEnd(24)} base ${String(base).padStart(4)} → ${String(conMejoras).padStart(4)} pts  ` +
-      `(${anadidas} mejoras, ${sections.length} secciones, ${resolved.maxWounds} heridas)`,
-  );
+  // El equipamiento de partida no puede quedar intacto si se han aplicado
+  // reemplazos: significaria que los targets no se estan quitando.
+  const base = B.entryLoadout({ ...entry, choices: {} }, sections);
+  const conMejoras = B.entryLoadout(entry, sections);
+  const huboReemplazo = B.appliedOptions(entry, sections).some((o) => o.variant === "replace");
+  if (huboReemplazo && JSON.stringify(base) === JSON.stringify(conMejoras)) {
+    console.log(`✗ ${unit.name}: hubo reemplazos pero el equipo no cambia`); fallos += 1;
+  }
+  if (base.length === 0 && (unit.weapons ?? "[]") !== "[]") {
+    console.log(`✗ ${unit.name}: no se lee el armamento de partida`); fallos += 1;
+  }
+  if (resolved.loadout.length === 0) { console.log(`✗ ${unit.name}: sin equipamiento resuelto`); fallos += 1; }
+
+  console.log(`  ${unit.name}  ${baseCost} → ${B.entryCost(entry, sections)} pts (${anadidas} mejoras)`);
+  console.log(`      de partida: ${base.join(" · ") || "(nada)"}`);
+  console.log(`      resultante: ${conMejoras.join(" · ")}`);
   entries.push(entry);
 }
 
