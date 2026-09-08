@@ -1,4 +1,4 @@
-# Warhost — front
+# Warhost — front React
 
 Aplicacion web para jugar a los sistemas de One Page Rules: base de datos de
 ejercitos, partidas asistidas, asociaciones e indice de reglas y misiones.
