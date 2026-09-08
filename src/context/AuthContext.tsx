@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { ID, OAuthProvider, account } from "../lib/appwrite";
 import type { Models } from "../lib/appwrite";
-import { accessStateFor } from "../api/access";
+import { accessStateFor, isAdmin } from "../api/access";
 import type { AccessState } from "../api/access";
 
 type User = Models.User<Models.Preferences>;
@@ -10,6 +10,7 @@ type User = Models.User<Models.Preferences>;
 interface AuthValue {
   user: User | null;
   access: AccessState;
+  admin: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -74,7 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ user, access: accessStateFor(user), loading, refresh, login, loginWithGoogle, register, logout }),
+    () => ({
+      user,
+      access: accessStateFor(user),
+      admin: isAdmin(user),
+      loading,
+      refresh,
+      login,
+      loginWithGoogle,
+      register,
+      logout,
+    }),
     [user, loading, refresh, login, loginWithGoogle, register, logout],
   );
 

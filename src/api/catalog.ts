@@ -1,11 +1,9 @@
-import { ID, Permission, Query, Role, storage, tables } from "../lib/appwrite";
+import { ID, Query, storage, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
 import type { Row } from "../lib/types";
 import { parseSections } from "../lib/builder";
 import type { UpgradeSection } from "../lib/builder";
-
-const ACCEPTED = Role.label("aceptado");
 
 export interface ArmyBook extends Row {
   uid: string;
@@ -157,18 +155,9 @@ export async function uploadCatalogImage(
   caption?: string,
 ): Promise<CatalogImage> {
   const fileId = ID.unique();
-  await storage.createFile({
-    bucketId: env.catalogBucketId,
-    fileId,
-    file,
-    // La imagen la ve cualquier aceptado, pero solo quien la subio puede
-    // reemplazarla o borrarla.
-    permissions: [
-      Permission.read(ACCEPTED),
-      Permission.update(Role.user(user.$id)),
-      Permission.delete(Role.user(user.$id)),
-    ],
-  });
+  // Sin permisos por fichero: manda el bucket, que deja leer a los aceptados y
+  // escribir solo a los admins.
+  await storage.createFile({ bucketId: env.catalogBucketId, fileId, file });
 
   return tables.createRow<CatalogImage>({
     databaseId: env.databaseId,
@@ -191,11 +180,6 @@ export async function uploadCatalogImage(
       uploadedByName: user.name || user.email,
       uploadedAt: new Date().toISOString(),
     },
-    permissions: [
-      Permission.read(ACCEPTED),
-      Permission.update(Role.user(user.$id)),
-      Permission.delete(Role.user(user.$id)),
-    ],
   });
 }
 
@@ -216,16 +200,12 @@ export async function setPrimaryImage(image: CatalogImage, siblings: CatalogImag
     siblings
       .filter((candidate) => candidate.isPrimary && candidate.$id !== image.$id)
       .map((candidate) =>
-        tables
-          .updateRow({
-            databaseId: env.databaseId,
-            tableId: TABLES.catalogImages,
-            rowId: candidate.$id,
-            data: { isPrimary: false },
-          })
-          // Solo quien subio una imagen puede editarla: si es de otro, se queda
-          // como esta y se acepta tener dos marcadas.
-          .catch(() => undefined),
+        tables.updateRow({
+          databaseId: env.databaseId,
+          tableId: TABLES.catalogImages,
+          rowId: candidate.$id,
+          data: { isPrimary: false },
+        }),
       ),
   );
   await tables.updateRow({

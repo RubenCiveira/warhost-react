@@ -1,6 +1,6 @@
 import { ExecutionMethod } from "appwrite";
 import { account, functions } from "../lib/appwrite";
-import { ACCEPTED_LABEL, env } from "../lib/env";
+import { ACCEPTED_LABEL, ADMIN_LABEL, env } from "../lib/env";
 import type { Models } from "../lib/appwrite";
 
 export type AccessState = "anonymous" | "unverified" | "pending" | "accepted";
@@ -9,6 +9,14 @@ export function accessStateFor(user: Models.User<Models.Preferences> | null): Ac
   if (!user) return "anonymous";
   if (!user.emailVerification) return "unverified";
   return user.labels.includes(ACCEPTED_LABEL) ? "accepted" : "pending";
+}
+
+/**
+ * Los admins mantienen el catalogo. Es solo para no ensenar controles que
+ * Appwrite va a rechazar: el permiso de verdad lo aplican las colecciones.
+ */
+export function isAdmin(user: Models.User<Models.Preferences> | null): boolean {
+  return Boolean(user?.labels.includes(ADMIN_LABEL));
 }
 
 export interface AccessRequestResult {

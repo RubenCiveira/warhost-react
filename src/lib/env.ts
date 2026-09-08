@@ -30,3 +30,6 @@ export const TABLES = {
 
 /** Label que un admin concede en Appwrite para dar acceso a los datos. */
 export const ACCEPTED_LABEL = "aceptado";
+
+/** Label que permite mantener el catalogo: imagenes de facciones y unidades. */
+export const ADMIN_LABEL = "admin";
