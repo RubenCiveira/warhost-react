@@ -128,6 +128,19 @@ export default function ArmyEditor() {
     };
   }, [menuOpen]);
 
+  // Cerrar el popup del borrador con Escape equivale a ignorarlo.
+  useEffect(() => {
+    if (!decidirBorrador) return undefined;
+    const conEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (army) mostrar(army);
+      setViendoBorrador(false);
+      setDecidirBorrador(false);
+    };
+    document.addEventListener("keydown", conEscape);
+    return () => document.removeEventListener("keydown", conEscape);
+  }, [decidirBorrador, army, mostrar]);
+
   useEffect(() => {
     if (!importOpen) return undefined;
     const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setImportOpen(false);
@@ -388,8 +401,8 @@ export default function ArmyEditor() {
 
         <div className="army-bar-actions">
           {draft && !viendoBorrador ? (
-            <button type="button" className="primary" onClick={continuarBorrador}>
-              Ir al borrador
+            <button type="button" className="primary" onClick={() => setDecidirBorrador(true)}>
+              Borrador
             </button>
           ) : null}
           {draft && viendoBorrador ? (
@@ -463,15 +476,7 @@ export default function ArmyEditor() {
           Estas editando un <strong>borrador</strong>. El ejercito sigue como estaba hasta que pulses Guardar.
         </div>
       ) : null}
-      {draft && !viendoBorrador ? (
-        <div className="banner">
-          Hay un <strong>borrador sin aplicar</strong> de este ejercito. Estas viendo la version publicada, y no se
-          puede editar sin decidir antes que hacer con el.{" "}
-          <button type="button" className="tiny danger" onClick={() => void onDiscard()} disabled={busy}>
-            Descartar el borrador
-          </button>
-        </div>
-      ) : null}
+
 
       {units.length > 0 ? (
         <div className="army-strip">
@@ -505,26 +510,30 @@ export default function ArmyEditor() {
       )}
 
       {decidirBorrador && draft ? (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Borrador pendiente">
-          <div className="modal">
-            <h2 style={{ marginTop: 0 }}>Tienes un borrador sin aplicar</h2>
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Borrador pendiente"
+          onClick={ignorarBorrador}
+        >
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>Borrador sin aplicar</h2>
             <p className="muted">
-              Dejaste cambios a medias en <strong>{draft.name}</strong>
-              {draft.updatedAt ? ` el ${formatDateTime(draft.updatedAt)}` : ""}. El ejercito publicado sigue intacto.
+              Hay un borrador sin aplicar de este ejercito
+              {draft.updatedAt ? `, de ${formatDateTime(draft.updatedAt)}` : ""}. Estas viendo la version publicada, y
+              no se puede editar sin decidir antes que hacer con el.
             </p>
-            <div className="stack">
-              <button type="button" className="primary" onClick={continuarBorrador}>
-                Continuar editando el borrador
-              </button>
-              <button type="button" onClick={ignorarBorrador}>
-                Ignorar el borrador y ver el ejercito
-              </button>
+            <div className="row">
               <button type="button" className="danger" disabled={busy} onClick={() => void onDiscard()}>
                 Descartar el borrador
               </button>
+              <button type="button" className="primary" onClick={continuarBorrador}>
+                Editar el borrador
+              </button>
             </div>
             <p className="small muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              Ignorarlo no lo borra: seguira ahi la proxima vez.
+              Si cierras sin elegir, el borrador se queda como esta y podras volver desde el boton Borrador.
             </p>
           </div>
         </div>
