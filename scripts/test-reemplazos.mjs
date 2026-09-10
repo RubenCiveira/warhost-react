@@ -67,6 +67,47 @@ comprobar(!equipoDespues.some((e) => e.name.startsWith("Adrenaline")), "quita la
 comprobar(equipoDespues.some((e) => e.name === "Burrowing Strike" && e.count === 3), "y da 3 del nuevo, uno por modelo");
 comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se puede coger una vez");
 
+// --- "Upgrade all models with any": varias mejoras, todas comprables.
+// El fallo era tomar `affects: all` como tope de la seccion entera, asi que la
+// primera mejora bloqueaba las demas. `affects` dice a cuantos modelos alcanza;
+// cuantas puedes elegir lo dice `select`.
+{
+  const libros = filas("army_books", [{ method: "limit", values: [30] }]);
+  let miradas = 0;
+  let malas = 0;
+  let unaSola = 0;
+  for (const libro of libros) {
+    const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
+    const pk = new Map(
+      filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [200] }])
+        .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+    );
+    for (const u of us) {
+      for (const sec of B.sectionsForUnit(u, pk)) {
+        if (sec.affects?.type !== "all") continue;
+        const opciones = sec.options ?? [];
+
+        if (sec.variant !== "replace" && opciones.length > 1 && sec.select?.type !== "exactly") {
+          miradas += 1;
+          // Cogida la primera, la segunda tiene que seguir disponible.
+          const entry = { key: "x", unit: u, choices: { [B.optionId(opciones[0])]: 1 } };
+          if (B.blockReason(sec, opciones[1], entry)) malas += 1;
+          // Y la ya cogida no, que alcanzar a todos ya lo hizo a la primera.
+          if (!B.blockReason(sec, opciones[0], entry)) unaSola += 1;
+        }
+
+        if (sec.variant === "replace" && opciones.length > 1) {
+          const entry = { key: "x", unit: u, choices: { [B.optionId(opciones[0])]: 1 } };
+          if (!B.blockReason(sec, opciones[1], entry)) malas += 1;
+        }
+      }
+    }
+  }
+  console.log(`\n${miradas} secciones "alcanza a todos" con varias mejoras`);
+  comprobar(malas === 0, "se pueden comprar todas, y un reemplazo 'all' sigue admitiendo una", `${malas} mal`);
+  comprobar(unaSola === 0, "pero cada mejora solo una vez", `${unaSola} repetibles`);
+}
+
 // --- Y en general: ninguna seccion "all" debe dejar su objetivo en pie.
 const libros = filas("army_books", [{ method: "limit", values: [8] }]);
 let revisadas = 0;

@@ -92,15 +92,40 @@ export function optionCost(option: UpgradeOption, unitId: string): number {
  * `affects` habla de modelos: "exactly 1" es una vez, "up to 2" hasta dos, y
  * "any"/"all"/sin dato se limitan al tamano de la unidad.
  */
+/**
+ * Cuantas veces se puede coger algo de esta seccion, sumando todas sus
+ * opciones.
+ *
+ * `affects` y `select` son ejes distintos y confundirlos es facil: `affects`
+ * dice a cuantos modelos alcanza la seccion, `select` cuantas opciones
+ * distintas se pueden elegir. Que una mejora alcance a todos los modelos no
+ * quiere decir que solo puedas comprar una: "Upgrade all models with any" con
+ * dos opciones son dos mejoras, cada una para todos los modelos.
+ *
+ * La excepcion es el reemplazo: "Replace all Bio-Spiners" se lleva los
+ * Bio-Spiners enteros, asi que un segundo reemplazo de la misma seccion no
+ * tendria ya nada que quitar.
+ */
 export function maxPicks(section: UpgradeSection, unitSize: number): number {
   const affects = section.affects;
   if (!affects) return Math.max(1, unitSize);
   if (affects.type === "exactly") return Math.max(1, affects.value ?? 1);
   if (affects.type === "up to") return Math.max(1, affects.value ?? 1);
-  // "all" alcanza a toda la unidad de una vez: cogerlo dos veces no significa
-  // nada, y dejarlo abierto permitia comprar la misma mejora varias veces.
-  if (affects.type === "all") return 1;
+  if (affects.type === "all") {
+    return section.variant === "replace" ? 1 : Math.max(1, (section.options ?? []).length);
+  }
   return Math.max(1, unitSize);
+}
+
+/**
+ * Cuantas veces se puede coger **una misma** opcion.
+ *
+ * Lo que alcanza a todos los modelos ya los alcanza a la primera: comprarlo
+ * dos veces no cambia nada y se cobra dos veces.
+ */
+export function maxPorOpcion(section: UpgradeSection, unitSize: number): number {
+  if (section.affects?.type === "all") return 1;
+  return maxPicks(section, unitSize);
 }
 
 /** Cuantas opciones distintas de la seccion se pueden tener a la vez. */
@@ -130,6 +155,9 @@ export function blockReason(
 
   if (picks >= maxPicks(section, entry.unit.size)) {
     return `Esta seccion admite como mucho ${maxPicks(section, entry.unit.size)}.`;
+  }
+  if (current >= maxPorOpcion(section, entry.unit.size)) {
+    return "Esta mejora ya alcanza a todos los modelos.";
   }
   const limit = maxDistinctOptions(section);
   if (current === 0 && distinctChosen(section, entry.choices) >= limit) {

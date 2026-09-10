@@ -287,6 +287,25 @@ que otra opcion de la misma unidad te dio antes —"Replace Energy Sword" despue
 de comprar la Energy Sword—, y eso es correcto. Sin ese filtro el informe se
 llena de falsos positivos.
 
+## Cuantas mejoras deja comprar una seccion
+
+Son dos limites distintos y confundirlos cuesta caro:
+
+- **`affects`** dice a cuantos modelos alcanza la seccion: `exactly 1`,
+  `up to 2`, `any`, `all`.
+- **`select`** dice cuantas opciones distintas puedes elegir: `exactly 1`,
+  `any`, o nada.
+
+Que una mejora alcance a todos los modelos no significa que solo puedas comprar
+una: "Upgrade all models with any" con dos opciones son dos mejoras, cada una
+para todos los modelos. Tomar `affects: all` como tope de la seccion entera
+hacia que la primera bloquease las demas.
+
+Con `all` el tope de uno es **por opcion**: alcanzar a todos ya lo hace a la
+primera, y comprarlo dos veces solo cobra dos veces. La excepcion es el
+reemplazo, donde si es por seccion: "Replace all Bio-Spiners" se lleva los
+Bio-Spiners enteros y un segundo reemplazo no tendria nada que quitar.
+
 ## Reemplazos de equipo
 
 Una seccion `replace` dice en `targets` que armas quita. Dos cosas que hay que
