@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { GAME_SYSTEMS, getGameSystem } from "../../lib/gameSystems";
+import { getGameSystem } from "../../lib/gameSystems";
 import type { GameSystemId } from "../../lib/gameSystems";
 import {
   createArmy,
@@ -67,6 +67,12 @@ export default function ArmyEditor() {
   const [draft, setDraft] = useState<Army | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  /**
+   * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
+   * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
+   * la misma promesa.
+   */
+  const abriendoBorrador = useRef<Promise<Army> | null>(null);
 
   useEffect(() => {
     if (!armyId) return;
@@ -120,6 +126,45 @@ export default function ArmyEditor() {
     document.addEventListener("keydown", conEscape);
     return () => document.removeEventListener("keydown", conEscape);
   }, [importOpen]);
+
+  /** Devuelve el borrador sobre el que escribir, creandolo la primera vez. */
+  const conBorrador = useCallback(async (): Promise<Army | null> => {
+    if (!army || !user) return null;
+    if (draft) return draft;
+    if (!abriendoBorrador.current) {
+      abriendoBorrador.current = startDraft(army, user.$id).finally(() => {
+        abriendoBorrador.current = null;
+      });
+    }
+    const abierto = await abriendoBorrador.current;
+    setDraft(abierto);
+    return abierto;
+  }, [army, draft, user]);
+
+  /**
+   * El nombre se edita en la barra y se guarda solo, con un respiro para no
+   * escribir a cada tecla. Si no habia borrador, escribirlo es lo que lo abre.
+   */
+  useEffect(() => {
+    if (!army) return undefined;
+    const guardado = (draft ?? army).name;
+    const nuevo = form.name.trim();
+    if (!nuevo || nuevo === guardado) return undefined;
+
+    const temporizador = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const destino = await conBorrador();
+          if (!destino) return;
+          setDraft(await saveDraft(destino.$id, { name: nuevo }));
+        } catch (err) {
+          setError(errorMessage(err));
+        }
+      })();
+    }, 700);
+
+    return () => window.clearTimeout(temporizador);
+  }, [form.name, army, draft, conBorrador]);
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
 
@@ -224,7 +269,8 @@ export default function ArmyEditor() {
       }
       // Editar no toca el ejercito activo: los cambios van a su borrador, y de
       // ahi no salen hasta que se aceptan.
-      const destino = draft ?? (await startDraft(army, user.$id));
+      const destino = await conBorrador();
+      if (!destino) return;
       const guardado = await saveDraft(destino.$id, payload);
       setDraft(guardado);
       setNotice("Cambios guardados en el borrador. Pulsa Guardar para aplicarlos.");
@@ -492,51 +538,10 @@ export default function ArmyEditor() {
         <summary>Datos e imagenes</summary>
         <form id="army-form" onSubmit={onSubmit} className="stack">
         <section className="card">
+          {/* Nombre, modo, faccion, puntos y miniaturas no viven aqui: o estan en
+              la barra, o los calcula el constructor a partir de las unidades y
+              editarlos a mano solo serviria para descuadrarlos. */}
           <h2>Datos</h2>
-          <div className="field">
-            <label htmlFor="name">Nombre</label>
-            <input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="field">
-            <label htmlFor="system">Modo de juego</label>
-            <select
-              id="system"
-              value={form.gameSystem}
-              onChange={(e) => setForm({ ...form, gameSystem: e.target.value as GameSystemId })}
-            >
-              {GAME_SYSTEMS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="faction">Faccion</label>
-            <input id="faction" value={form.faction} onChange={(e) => setForm({ ...form, faction: e.target.value })} />
-          </div>
-          <div className="row">
-            <div className="field" style={{ flex: 1 }}>
-              <label htmlFor="points">Puntos</label>
-              <input
-                id="points"
-                type="number"
-                min={0}
-                value={form.points}
-                onChange={(e) => setForm({ ...form, points: Number(e.target.value) })}
-              />
-            </div>
-            <div className="field" style={{ flex: 1 }}>
-              <label htmlFor="models">Miniaturas</label>
-              <input
-                id="models"
-                type="number"
-                min={0}
-                value={form.modelCount}
-                onChange={(e) => setForm({ ...form, modelCount: Number(e.target.value) })}
-              />
-            </div>
-          </div>
           <div className="field">
             <label htmlFor="notes">Notas</label>
             <textarea id="notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
