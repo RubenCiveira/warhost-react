@@ -148,7 +148,19 @@ Dibuja el componente que se despliega con el CSS que se despliega y datos del
 catalogo, elige la unidad con mas armas, la de mas reglas y una con equipo, y
 saca una foto. Usa el Chrome del sistema, asi que Playwright no se baja el suyo.
 
-El cuerpo cabe holgado en el 99% de las unidades: el catalogo dice que como
-mucho tienen 4 armas y 7 reglas. Lo que pase de ahi se resume en una linea en
-vez de estirar la caja, porque una carta que cambia de tamano deja de ser una
-carta.
+Una caja de tamano fijo no puede con todo, y lo que decide si desborda no es el
+numero de armas sino los renglones que ocupan: un arma con cuatro reglas
+envuelve y cuenta por dos. Asi que la carta **aprieta su tipografia** cuando va
+cargada, en dos escalones, como hacen las secciones compactas de kt-cartas. La
+banda de titulo nunca se toca: es lo que identifica la carta de un vistazo.
+
+Que eso baste no se decide mirando: se comprueba.
+
+```bash
+pnpm check:cards [nLibros]    # pasa TODAS las unidades y avisa de las que se recortan
+```
+
+Renderiza cada unidad, le pregunta al navegador si el contenido cabe en la caja
+y falla si alguna se pasa. Ahora mismo: **740 unidades de 30 libros, ninguna se
+recorta**. Si tocas tamanos, tipos o espaciados de la carta, esto es lo que dice
+si te has pasado.

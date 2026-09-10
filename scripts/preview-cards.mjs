@@ -90,9 +90,26 @@ const { chromium } = await import("playwright");
 const navegador = await chromium.launch({ channel: "chrome" });
 const pagina = await navegador.newPage({ viewport: { width: 640, height: 1200 }, deviceScaleFactor: 2 });
 await pagina.goto(`file://${html}`);
+// Con tamano fijo lo que no cabe se recorta en silencio: hay que preguntarlo.
+const recortes = await pagina.evaluate(() =>
+  [...document.querySelectorAll(".ucard")].map((carta) => {
+    const nombre = carta.querySelector(".ucard-title")?.textContent ?? "?";
+    const zonas = [...carta.querySelectorAll(".ucard-cols, .ucard-body")];
+    const sobra = zonas.reduce((max, z) => Math.max(max, z.scrollHeight - z.clientHeight), 0);
+    return { nombre, sobra };
+  }),
+);
 await pagina.screenshot({ path: SALIDA, fullPage: true });
 await navegador.close();
 await rm(dir, { recursive: true, force: true });
 
-console.log(elegidas.map((u) => `${u.name} — ${armas(u)} armas, ${u.rules.length} reglas, ${equipo(u)} equipo`).join("\n"));
+console.log(
+  elegidas
+    .map((u, i) => {
+      const sobra = recortes[i]?.sobra ?? 0;
+      const aviso = sobra > 1 ? `  ✗ SE RECORTAN ${Math.round(sobra)} px` : "  ✓ cabe";
+      return `${u.name} — ${armas(u)} armas, ${u.rules.length} reglas, ${equipo(u)} equipo${aviso}`;
+    })
+    .join("\n"),
+);
 console.log(`\nfoto: ${SALIDA}`);

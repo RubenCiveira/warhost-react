@@ -583,14 +583,15 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    con aire, y amontonado arriba se lee como una carta que se quedo a medias. */
 .ucard-body {
   flex: 1; min-height: 0;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 10px 12px 11px;
+  display: flex; flex-direction: column;
+  padding: 3mm 3.2mm 3.2mm;
+  font-size: 1rem;
 }
 
 /* Armamento: a todo el ancho, que es la informacion que mas se consulta. */
 .ucard-table {
   width: 100%; border-collapse: separate; border-spacing: 0;
-  font-size: 0.85rem; flex: 0 0 auto;
+  font-size: 0.85em; flex: 0 0 auto;
   /* Enmarcado como en kt-cartas, pero en la tinta de la carta y no en el color
      de realce: el acento vale para una raya o una etiqueta, y como relleno de
      media carta se come todo lo demas. */
@@ -599,24 +600,24 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-table thead th {
   background: var(--ucard-tinta); color: var(--ucard-papel);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
+  font-weight: 700; font-size: 0.66em; letter-spacing: 0.09em; text-transform: uppercase;
   padding: 3px 8px; text-align: left;
 }
-.ucard-table td { padding: 4px 8px; vertical-align: top; }
+.ucard-table td { padding: 2.8px 8px; vertical-align: top; }
 .ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
 .ucard-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ucard-table td:first-child, .ucard-wrules { overflow: hidden; text-overflow: ellipsis; }
 .ucard-wrules { color: #575043; }
 .ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 3px; }
-.ucard-mas { margin: 4px 0 0; font-size: 0.76rem; color: var(--ucard-tenue); font-style: italic; }
+.ucard-mas { margin: 4px 0 0; font-size: 0.76em; color: var(--ucard-tenue); font-style: italic; }
 
 /* Reglas y equipo, hombro con hombro bajo el armamento. Las reglas mandan: el
    equipo esta vacio en la gran mayoria de unidades, y cuando lo esta no deja un
    hueco muerto, sino que las reglas se quedan con toda la fila. */
 .ucard-cols {
-  flex: 0 0 auto; overflow: hidden;
-  display: grid; gap: 0 14px; grid-template-columns: 1.5fr 1fr;
-  margin-top: 9px; padding-top: 8px;
+  flex: 1; min-height: 0; overflow: hidden;
+  display: grid; gap: 0 5mm; grid-template-columns: 1.4fr 1fr;
+  margin-top: 2.4mm; padding-top: 2mm;
   border-top: 1px solid var(--ucard-filete);
 }
 .ucard-cols.sin-equipo { grid-template-columns: 1fr; }
@@ -624,13 +625,33 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-col-title {
   margin: 0 0 4px;
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.66rem; letter-spacing: 0.11em; text-transform: uppercase;
+  font-weight: 700; font-size: 0.66em; letter-spacing: 0.11em; text-transform: uppercase;
   color: var(--ucard-tenue);
 }
-.ucard-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.ucard-tag { background: #e0d9c6; border-radius: 2px; padding: 1px 6px; font-size: 0.76rem; }
-.ucard-gear { list-style: none; margin: 0; padding: 0; font-size: 0.79rem; line-height: 1.4; }
-.ucard-vacio { margin: 0; font-size: 0.79rem; color: var(--ucard-tenue); }
+/* Una regla por linea, y las lineas fluyendo en columnas de 45 mm: a lo ancho
+   entran dos y a media carta una, sin que haya que decidirlo a mano. Cuando la
+   lista lleve tambien la descripcion de cada regla, bastara con ensanchar la
+   columna para que vuelva a ser una sola. */
+.ucard-list {
+  list-style: none; margin: 0; padding: 0;
+  font-size: 0.8em; line-height: 1.42;
+  columns: 45mm; column-gap: 5mm;
+}
+.ucard-list li { padding: 0.15mm 0; break-inside: avoid; }
+.ucard-term { font-weight: 600; }
+.ucard-gloss { color: var(--ucard-tenue); }
+.ucard-vacio { margin: 0; font-size: 0.8em; color: var(--ucard-tenue); }
+
+/* Cartas cargadas: se aprieta la tipografia del cuerpo en vez de recortar. Es
+   lo que hace kt-cartas con sus secciones compactas. La banda no se toca, que
+   es lo que da la identidad de la carta de un vistazo. */
+.ucard.denso .ucard-body { font-size: 0.92em; }
+.ucard.denso .ucard-table td { padding-top: 1.8px; padding-bottom: 1.8px; }
+.ucard.denso .ucard-cols { margin-top: 2mm; padding-top: 1.8mm; }
+.ucard.muy-denso .ucard-body { font-size: 0.8em; }
+.ucard.muy-denso .ucard-table td { padding-top: 1.2px; padding-bottom: 1.2px; }
+.ucard.muy-denso .ucard-list { line-height: 1.3; }
+.ucard.muy-denso .ucard-cols { margin-top: 1.8mm; padding-top: 1.6mm; }
 
 /* Lo que no es perfil de la unidad cuelga del marco, ya fuera de la carta. */
 .ucard-upgrades { margin: 8px 0 0; font-size: 0.84rem; line-height: 1.45; }

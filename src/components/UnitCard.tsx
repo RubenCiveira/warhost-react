@@ -19,8 +19,37 @@ import type { UpgradeOption, UpgradeSection } from "../lib/builder";
  * objeto de consulta; lo demas es anotacion sobre ella.
  */
 
-/** Armas que caben en el cuerpo de la carta sin apretar la tipografia. */
-const ARMAS_VISIBLES = 4;
+/**
+ * Tope de armas en la carta. Es el maximo que tiene el catalogo, asi que en la
+ * practica no se esconde ninguna: quien aprieta el texto cuando hace falta es
+ * `densidad`, no el recorte. El tope se queda como red por si un ejercito
+ * importado trae una unidad con mas de las que existen en los libros.
+ */
+const ARMAS_VISIBLES = 6;
+
+/*
+ * Las reglas y el equipo van en lista, una por linea, y no en etiquetas: es la
+ * forma que admite anadirles su descripcion debajo sin rehacer la carta, que es
+ * lo que acabara llenando el cuerpo.
+ */
+
+/**
+ * Cuanto texto lleva la carta, para poder apretar la tipografia cuando toca.
+ * Una caja de tamano fijo no puede con todo, y lo que decide si desborda no es
+ * el numero de armas sino los renglones que ocupan: un arma con cuatro reglas
+ * envuelve y cuenta por dos.
+ */
+function densidad(weapons: LoadoutEntry[], rules: string[], gear: LoadoutEntry[]): "" | " denso" | " muy-denso" {
+  const renglones =
+    weapons.reduce((suma, arma) => suma + Math.ceil((arma.rules.join(", ").length || 1) / 28), 0) +
+    weapons.length +
+    Math.ceil(rules.length / 2) +
+    gear.reduce((suma, item) => suma + Math.ceil((item.name.length + item.rules.join(", ").length) / 26), 0);
+
+  if (renglones >= 11) return " muy-denso";
+  if (renglones >= 8) return " denso";
+  return "";
+}
 
 export interface UnitCardData {
   name: string;
@@ -87,7 +116,7 @@ export default function UnitCard({
   return (
     <div className="ucard-wrap">
       <div className="ucard-frame">
-        <article className={`ucard ucard-${variant}`}>
+        <article className={`ucard ucard-${variant}${densidad(weapons, unit.rules, gear)}`}>
           <header className="ucard-head">
             <h3 className="ucard-title">{unit.name}</h3>
             <div className="ucard-stats">
@@ -136,13 +165,13 @@ export default function UnitCard({
               <section className="ucard-col">
                 <h4 className="ucard-col-title">Reglas</h4>
                 {unit.rules.length > 0 ? (
-                  <div className="ucard-tags">
+                  <ul className="ucard-list">
                     {unit.rules.map((rule) => (
-                      <span key={rule} className="ucard-tag">
-                        {rule}
-                      </span>
+                      <li key={rule}>
+                        <span className="ucard-term">{rule}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
                   <p className="ucard-vacio">Ninguna</p>
                 )}
@@ -151,12 +180,12 @@ export default function UnitCard({
               {gear.length > 0 ? (
                 <section className="ucard-col">
                   <h4 className="ucard-col-title">Equipo</h4>
-                  <ul className="ucard-gear">
+                  <ul className="ucard-list">
                     {gear.map((item, index) => (
                       <li key={`${item.label}-${index}`}>
                         {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
-                        {item.name}
-                        {item.rules.length > 0 ? <span className="ucard-wrules"> ({item.rules.join(", ")})</span> : null}
+                        <span className="ucard-term">{item.name}</span>
+                        {item.rules.length > 0 ? <span className="ucard-gloss"> {item.rules.join(", ")}</span> : null}
                       </li>
                     ))}
                   </ul>
