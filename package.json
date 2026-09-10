@@ -15,7 +15,8 @@
     "test:edit": "node scripts/test-edit.mjs",
     "preview:cards": "node scripts/preview-cards.mjs",
     "check:cards": "node scripts/check-cards.mjs",
-    "test:reemplazos": "node scripts/test-reemplazos.mjs"
+    "test:reemplazos": "node scripts/test-reemplazos.mjs",
+    "audit:armies": "node scripts/audit-armies.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",
