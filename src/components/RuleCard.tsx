@@ -8,7 +8,16 @@ import type { Habilidad } from "../lib/reglas";
  * Una regla sin descripcion sigue teniendo carta: dice que es del reglamento
  * basico, que es informacion util, en vez de fingir que no existe.
  */
-export default function RuleCard({ habilidad, regla }: { habilidad: Habilidad; regla?: CatalogRule | null }) {
+export default function RuleCard({
+  habilidad,
+  regla,
+  lleva,
+}: {
+  habilidad: Habilidad;
+  regla?: CatalogRule | null;
+  /** Unidades que lo llevan de serie, en la vista de equipo de la faccion. */
+  lleva?: string[];
+}) {
   const texto = regla ? conValor(regla.description, habilidad.valor) : null;
 
   return (
@@ -26,7 +35,16 @@ export default function RuleCard({ habilidad, regla }: { habilidad: Habilidad; r
 
         <div className="scard-body">
           {texto ? (
-            <p className="scard-efecto">{texto}</p>
+            <div>
+              <p className="scard-efecto">{texto}</p>
+              {habilidad.concede?.length ? (
+                <p className="scard-concede">Concede {habilidad.concede.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : habilidad.concede?.length ? (
+            <div>
+              <p className="scard-efecto">Concede {habilidad.concede.join(", ")}.</p>
+            </div>
           ) : (
             <p className="scard-efecto scard-sin-texto">
               Es una regla del reglamento basico: su texto no viene en los libros de ejercito.
@@ -36,8 +54,11 @@ export default function RuleCard({ habilidad, regla }: { habilidad: Habilidad; r
 
         <footer className="scard-foot">
           <span className="scard-faccion">{habilidad.tipo === "equipo" ? "Equipo" : "Regla especial"}</span>
-          {habilidad.concede?.length ? (
-            <span className="scard-tirada">Concede {habilidad.concede.join(", ")}</span>
+          {lleva?.length ? (
+            <span className="scard-tirada">
+              Lo llevan {lleva.slice(0, 3).join(", ")}
+              {lleva.length > 3 ? ` y ${lleva.length - 3} mas` : ""}
+            </span>
           ) : null}
         </footer>
       </article>

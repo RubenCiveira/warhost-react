@@ -1014,3 +1014,5 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 /* La carta de una regla se abre sola, sin caja alrededor: es la carta lo que se
    mira, no un dialogo con una carta dentro. */
 .regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+
+.scard-concede { margin: 2.4mm 0 0; font-size: 3mm; color: var(--ucard-tenue); }

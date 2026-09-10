@@ -36,6 +36,10 @@ import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
 import SpellCard from "../../components/SpellCard";
 import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
+import { parseHabilidad } from "../../lib/reglas";
+import RuleCard from "../../components/RuleCard";
+import { equipoDeFaccion, habilidadesDeFaccion } from "../../lib/faccion";
+import { listUnits as listCatalogUnits } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload } from "../../lib/armyPayload";
@@ -82,7 +86,9 @@ export default function ArmyEditor() {
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo">("unidades");
+  /** Unidades del libro de origen, solo para saber que equipo publica la faccion. */
+  const [unidadesLibro, setUnidadesLibro] = useState<ArmyUnit[]>([]);
   /** El libro de origen, solo para sus hechizos: el ejercito no los guarda. */
   const [libro, setLibro] = useState<ArmyBook | null>(null);
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
@@ -216,6 +222,8 @@ export default function ArmyEditor() {
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
   const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
+  const habilidades = useMemo(() => habilidadesDeFaccion(libro, glosario), [libro, glosario]);
+  const equipo = useMemo(() => equipoDeFaccion(unidadesLibro), [unidadesLibro]);
 
   /**
    * Solo se pueden anadir o cambiar unidades si el ejercito recuerda de que
@@ -244,7 +252,10 @@ export default function ArmyEditor() {
       .then((row) => {
         if (cancelado) return;
         setLibro(row);
-        return listRuleGlossary(row.gameSystem).then((g) => !cancelado && setGlosario(g));
+        return Promise.all([
+          listRuleGlossary(row.gameSystem).then((g) => !cancelado && setGlosario(g)),
+          listCatalogUnits(bookKey).then((u) => !cancelado && setUnidadesLibro(u)),
+        ]);
       })
       .catch(() => !cancelado && setLibro(null));
     return () => {
@@ -586,11 +597,41 @@ export default function ArmyEditor() {
         onChange={setPestana}
         items={[
           { id: "unidades", label: "Unidades", count: units.length },
+          { id: "habilidades", label: "Habilidades", count: habilidades.length },
+          { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
         ]}
       />
 
-      {pestana === "hechizos" ? (
+      {pestana === "habilidades" ? (
+        habilidades.length === 0 ? (
+          <EmptyState title="Esta faccion no publica reglas propias" />
+        ) : (
+          <div className="army-strip">
+            {habilidades.map((regla) => (
+              <div key={regla.$id} className="army-slide">
+                <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+              </div>
+            ))}
+          </div>
+        )
+      ) : pestana === "equipo" ? (
+        equipo.length === 0 ? (
+          <EmptyState title="Ninguna unidad de esta faccion lleva equipo" />
+        ) : (
+          <div className="army-strip">
+            {equipo.map((pieza) => (
+              <div key={pieza.habilidad.nombre} className="army-slide">
+                <RuleCard
+                  habilidad={pieza.habilidad}
+                  regla={glosario.get(pieza.habilidad.nombre.toLowerCase())}
+                  lleva={pieza.unidades}
+                />
+              </div>
+            ))}
+          </div>
+        )
+      ) : pestana === "hechizos" ? (
         hechizos.length === 0 ? (
           <EmptyState title="Esta faccion no tiene hechizos">
             <p className="muted">

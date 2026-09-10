@@ -26,6 +26,9 @@ import { baseLoadout } from "../../lib/loadout";
 import SpellCard from "../../components/SpellCard";
 import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
+import { parseHabilidad } from "../../lib/reglas";
+import RuleCard from "../../components/RuleCard";
+import { equipoDeFaccion, habilidadesDeFaccion } from "../../lib/faccion";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
@@ -40,7 +43,7 @@ export default function CatalogBook() {
   const [images, setImages] = useState<CatalogImage[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo">("unidades");
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,6 +83,8 @@ export default function CatalogBook() {
   // Cada faccion existe una vez por modo de juego, y su contenido difiere.
   const bookSystem = getGameSystem(book?.gameSystem);
   const hechizos = useMemo(() => parseSpells(book?.spells ?? null), [book]);
+  const habilidades = useMemo(() => habilidadesDeFaccion(book, glosario), [book, glosario]);
+  const equipo = useMemo(() => equipoDeFaccion(units), [units]);
 
   const upload = useCallback(
     async (files: File[], caption: string, unit?: ArmyUnit) => {
@@ -209,11 +214,54 @@ export default function CatalogBook() {
         onChange={setPestana}
         items={[
           { id: "unidades", label: "Unidades", count: units.length },
+          { id: "habilidades", label: "Habilidades", count: habilidades.length },
+          { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
         ]}
       />
 
-      {pestana === "hechizos" ? (
+      {pestana === "habilidades" ? (
+        habilidades.length === 0 ? (
+          <EmptyState title="Esta faccion no publica reglas propias">
+            <p className="muted">Sus unidades usan solo reglas del reglamento basico.</p>
+          </EmptyState>
+        ) : (
+          <>
+            <p className="small muted">
+              Reglas que publica {book.name}. Las del reglamento basico —Fast, Hero, Impact— no salen aqui porque no
+              son suyas.
+            </p>
+            <div className="army-strip">
+              {habilidades.map((regla) => (
+                <div key={regla.$id} className="army-slide">
+                  <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      ) : pestana === "equipo" ? (
+        equipo.length === 0 ? (
+          <EmptyState title="Ninguna unidad de esta faccion lleva equipo" />
+        ) : (
+          <>
+            <p className="small muted">
+              Equipo que llevan de serie las unidades de {book.name}.
+            </p>
+            <div className="army-strip">
+              {equipo.map((pieza) => (
+                <div key={pieza.habilidad.nombre} className="army-slide">
+                  <RuleCard
+                    habilidad={pieza.habilidad}
+                    regla={glosario.get(pieza.habilidad.nombre.toLowerCase())}
+                    lleva={pieza.unidades}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      ) : pestana === "hechizos" ? (
         hechizos.length === 0 ? (
           <EmptyState title="Esta faccion no tiene hechizos" />
         ) : (

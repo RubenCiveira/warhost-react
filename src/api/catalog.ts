@@ -22,6 +22,8 @@ export interface ArmyBook extends Row {
   spells: string | null;
   syncedAt: string | null;
   syncedVersion: string | null;
+  /** Reglas que publica este libro; el glosario es comun y no lo dice. */
+  ruleNames: string[];
 }
 
 export interface ArmyUnit extends Row {
@@ -243,7 +245,13 @@ export interface CatalogRule extends Row {
   setting: Setting;
   description: string;
   hasRating: boolean;
+  /**
+   * Marcado en las reglas del reglamento —AP, Ambush, Deadly— y nulo en las que
+   * publica la faccion. Es lo que separa "las reglas de esta faccion" del resto.
+   */
   coreType: number | null;
+  /** 1 en reglas de unidad, 2 en reglas de arma. */
+  targetType: number | null;
   sourceBook: string | null;
 }
 
