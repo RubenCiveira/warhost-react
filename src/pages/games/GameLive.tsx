@@ -166,7 +166,7 @@ export default function GameLive() {
       />
       <ErrorBanner error={error} />
 
-      <div className="game-tabs" role="tablist">
+      <div className="tabs" role="tablist">
         {TABS.map(([id, label]) => (
           <button
             key={id}

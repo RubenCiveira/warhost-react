@@ -1,4 +1,10 @@
-/** Pestanas de una vista. El estado lo lleva quien la usa. */
+/**
+ * Pestanas de una vista. El estado lo lleva quien la usa.
+ *
+ * Reutiliza el control segmentado que ya usaba la vista de partida: son la
+ * misma idea, y dos idiomas distintos para lo mismo es como se desalinea una
+ * interfaz sin que nadie lo decida.
+ */
 export default function Tabs<T extends string>({
   value,
   onChange,
@@ -16,7 +22,7 @@ export default function Tabs<T extends string>({
           type="button"
           role="tab"
           aria-selected={value === item.id}
-          className={value === item.id ? "tab activa" : "tab"}
+          className={value === item.id ? "activa" : undefined}
           onClick={() => onChange(item.id)}
         >
           {item.label}
