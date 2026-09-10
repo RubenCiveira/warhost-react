@@ -17,10 +17,10 @@ import {
   optionId,
   rehydrateEntries,
   sectionsForUnit,
-  serializeEntries,
 } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
+import { composeArmyPayload } from "../../lib/armyPayload";
 import { errorMessage } from "../../lib/format";
 import { getGameSystem } from "../../lib/gameSystems";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
@@ -201,28 +201,7 @@ export default function ArmyBuilder() {
       // Se guarda con la misma forma que produce la importacion, para que las
       // partidas no tengan que saber de donde salio el ejercito, y ademas las
       // elecciones, que son lo unico que permite volver a editarlo.
-      const listJson = JSON.stringify({
-        listId: army?.listId ?? "",
-        name: name.trim() || book.name,
-        faction: book.factionName ?? book.name,
-        gameSystem: book.gameSystem,
-        points: built.points,
-        modelCount: built.modelCount,
-        units: built.units,
-        entries: serializeEntries(entries),
-        unresolvedUpgrades: 0,
-        source: { builder: "warhost", bookKey: book.$id, bookVersion: book.versionString },
-      });
-
-      const data = {
-        name: name.trim() || book.name,
-        setting: book.setting,
-        gameSystem: book.gameSystem,
-        faction: book.factionName ?? book.name,
-        points: built.points,
-        modelCount: built.modelCount,
-        listJson,
-      };
+      const data = composeArmyPayload(entries, packages, book, name, army?.listId ?? "");
 
       if (!army) {
         const creado = await createArmy(user.$id, data);

@@ -482,3 +482,35 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 
 /* En el popup de decision los botones van apilados y a todo el ancho. */
 .modal .stack button { width: 100%; }
+
+/* Asistente de anadir unidad ------------------------------------------------ */
+
+.wizard { display: flex; flex-direction: column; gap: 10px; }
+
+.wizard-steps {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  list-style: none; margin: 0; padding: 0;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.wizard-steps li { display: flex; align-items: center; gap: 6px; }
+.wizard-steps li.activo { color: var(--accent); }
+.wizard-num {
+  display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 0.72rem;
+}
+.wizard-steps li.activo .wizard-num { background: var(--accent); border-color: var(--accent); color: #14100d; }
+
+/* Un solo sitio para la carta cuando se configura o se revisa: centrada y sin
+   estirarse a todo el ancho del dialogo, que la haria ilegible. */
+.wizard-single { max-width: 520px; margin: 0 auto; width: 100%; }
+
+.wizard-foot {
+  display: flex; justify-content: space-between; gap: 8px;
+  border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;
+}
+
+.wizard .army-strip { padding-bottom: 12px; }

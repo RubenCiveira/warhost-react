@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { getGameSystem } from "../../lib/gameSystems";
@@ -28,6 +28,11 @@ import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import AddUnitWizard from "../../components/AddUnitWizard";
+import { rehydrateEntries } from "../../lib/builder";
+import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
+import type { ArmyBook, ArmyUnit } from "../../api/catalog";
+import { composeArmyPayload } from "../../lib/armyPayload";
 
 interface FormState {
   name: string;
@@ -70,6 +75,7 @@ export default function ArmyEditor() {
   const [importOpen, setImportOpen] = useState(false);
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
+  const [anadiendo, setAnadiendo] = useState(false);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
    * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
@@ -325,6 +331,47 @@ export default function ArmyEditor() {
   }
 
   /** Acepta el borrador: pasa a ser el ejercito y el anterior queda archivado. */
+  /**
+   * Mete la unidad que sale del asistente en el borrador. Hay que recomponer la
+   * lista entera —no basta con anadir una tarjeta— porque los puntos y las
+   * miniaturas salen de la suma de todas.
+   */
+  async function onAddUnit(
+    nueva: BuilderEntry,
+    book: ArmyBook,
+    packages: Map<string, UpgradeSection[]>,
+    catalogo: ArmyUnit[],
+  ) {
+    if (!army) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const guardadas = (() => {
+        try {
+          return (JSON.parse(listJson ?? "{}") as { entries?: unknown }).entries;
+        } catch {
+          return undefined;
+        }
+      })();
+      // Las unidades disponibles salen del propio asistente, que ya las cargo.
+      const previas = rehydrateEntries(guardadas, catalogo);
+      const payload = composeArmyPayload([...previas, nueva], packages, book, form.name, form.listId);
+
+      const destino = await conBorrador();
+      if (!destino) return;
+      const guardado = await saveDraft(destino.$id, payload);
+      setDraft(guardado);
+      setViendoBorrador(true);
+      mostrar(guardado);
+      setAnadiendo(false);
+      setNotice(`${nueva.unit.name} anadida al borrador.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onPublish() {
     if (!draft) return;
     setBusy(true);
@@ -652,14 +699,24 @@ export default function ArmyEditor() {
       ) : null}
 
       {armyId && bookKey && !ignorandoBorrador ? (
-        <Link
-          to={`/ejercitos/${armyId}/unidades`}
+        <button
+          type="button"
           className="fab"
-          title="Anadir o cambiar unidades"
-          aria-label="Anadir o cambiar unidades"
+          title="Anadir una unidad"
+          aria-label="Anadir una unidad"
+          onClick={() => setAnadiendo(true)}
         >
           +
-        </Link>
+        </button>
+      ) : null}
+
+      {anadiendo && bookKey ? (
+        <AddUnitWizard
+          bookKey={bookKey}
+          busy={busy}
+          onCancel={() => setAnadiendo(false)}
+          onConfirm={(entry, book, packages, catalogo) => void onAddUnit(entry, book, packages, catalogo)}
+        />
       ) : null}
 
       {/* La vista es de consulta: los datos y las imagenes se pliegan para que
