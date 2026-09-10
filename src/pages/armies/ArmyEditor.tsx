@@ -187,6 +187,13 @@ export default function ArmyEditor() {
     return () => window.clearTimeout(temporizador);
   }, [form.name, army, draft, viendoBorrador, conBorrador]);
 
+  /**
+   * Hay borrador pero se esta mirando la version publicada. Nada de lo que se
+   * haga aqui deberia poder tocar el ejercito: la unica accion es decidir que
+   * hacer con el borrador.
+   */
+  const ignorandoBorrador = Boolean(draft) && !viendoBorrador;
+
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
 
   /**
@@ -373,8 +380,8 @@ export default function ArmyEditor() {
             value={form.name}
             aria-label="Nombre del ejercito"
             placeholder="Nombre del ejercito"
-            disabled={Boolean(draft) && !viendoBorrador}
-            title={draft && !viendoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
+            disabled={ignorandoBorrador}
+            title={ignorandoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <p className="army-bar-sub small muted">
@@ -409,16 +416,18 @@ export default function ArmyEditor() {
               Descartar
             </button>
           ) : null}
-          <button
-            type="button"
-            className="primary"
-            onClick={() => void onPublish()}
-            disabled={busy || !draft || !viendoBorrador}
-            title={draft ? undefined : "No hay cambios pendientes que guardar"}
-          >
-            {busy ? "Guardando…" : "Guardar"}
-          </button>
-          {army ? (
+          {ignorandoBorrador ? null : (
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void onPublish()}
+              disabled={busy || !draft}
+              title={draft ? undefined : "No hay cambios pendientes que guardar"}
+            >
+              {busy ? "Guardando…" : "Guardar"}
+            </button>
+          )}
+          {army && !ignorandoBorrador ? (
             <div className="menu-wrap">
               <button
                 type="button"
@@ -589,7 +598,7 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && bookKey && !(draft && !viendoBorrador) ? (
+      {armyId && bookKey && !ignorandoBorrador ? (
         <Link
           to={`/ejercitos/${armyId}/unidades`}
           className="fab"
@@ -661,8 +670,8 @@ export default function ArmyEditor() {
           <button
             type="submit"
             className="primary"
-            disabled={busy || (Boolean(draft) && !viendoBorrador)}
-            title={draft && !viendoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
+            disabled={busy || ignorandoBorrador}
+            title={ignorandoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
           >
             {busy ? "Guardando…" : "Guardar en el borrador"}
           </button>
