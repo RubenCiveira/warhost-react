@@ -642,6 +642,27 @@ label.check.tiny input { margin: 0; }
 
 /* Con el mismo margen lateral que la tabla de armas: el cuerpo de la carta no
    lleva padding propio, cada pieza pone el suyo. */
+/* La esquina inferior derecha de la carta: se apoya en el hueco que casi
+   siempre queda al pie, y no empuja nada porque el cuerpo es flex y esta pieza
+   se lleva el espacio sobrante. */
+.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; }
+.ucard-accion button {
+  font-family: "Saira Condensed", sans-serif;
+  font-size: 2.6mm; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.9mm 2.4mm; cursor: pointer;
+  color: var(--ucard-banda-texto); background: var(--ucard-banda);
+  border: 0; border-radius: 0.9mm;
+}
+.ucard-accion button:hover { background: var(--ucard-trim); }
+.ucard-accion button:focus-visible { outline: 0.5mm solid var(--ucard-realce); outline-offset: 0.4mm; }
+/* En las cartas cargadas encoge con el resto: la mas apretada del catalogo se
+   pasaba siete pixeles con el boton a tamano normal. */
+.ucard.denso .ucard-accion { padding-top: 1mm; }
+.ucard.denso .ucard-accion button { font-size: 2.3mm; padding: 0.6mm 2mm; }
+.ucard.muy-denso .ucard-accion { padding-top: 0.6mm; }
+.ucard.muy-denso .ucard-accion button { font-size: 2.1mm; padding: 0.4mm 1.8mm; }
+@media print { .ucard-accion { display: none; } }
+
 .ucard-notas {
   margin: 1.2mm 0 0; padding: 1mm 2.5mm 0; font-size: 2.3mm; line-height: 1.3;
   color: var(--ucard-tinta);
@@ -660,6 +681,27 @@ label.check.tiny {
   font-size: 0.82rem; color: var(--muted); white-space: nowrap; cursor: pointer;
 }
 label.check.tiny input { margin: 0; }
+
+/* La esquina inferior derecha de la carta: se apoya en el hueco que casi
+   siempre queda al pie, y no empuja nada porque el cuerpo es flex y esta pieza
+   se lleva el espacio sobrante. */
+.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; }
+.ucard-accion button {
+  font-family: "Saira Condensed", sans-serif;
+  font-size: 2.6mm; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.9mm 2.4mm; cursor: pointer;
+  color: var(--ucard-banda-texto); background: var(--ucard-banda);
+  border: 0; border-radius: 0.9mm;
+}
+.ucard-accion button:hover { background: var(--ucard-trim); }
+.ucard-accion button:focus-visible { outline: 0.5mm solid var(--ucard-realce); outline-offset: 0.4mm; }
+/* En las cartas cargadas encoge con el resto: la mas apretada del catalogo se
+   pasaba siete pixeles con el boton a tamano normal. */
+.ucard.denso .ucard-accion { padding-top: 1mm; }
+.ucard.denso .ucard-accion button { font-size: 2.3mm; padding: 0.6mm 2mm; }
+.ucard.muy-denso .ucard-accion { padding-top: 0.6mm; }
+.ucard.muy-denso .ucard-accion button { font-size: 2.1mm; padding: 0.4mm 1.8mm; }
+@media print { .ucard-accion { display: none; } }
 
 .ucard-notas { font-size: 2.7mm; }
 .ucard-mas { margin: 0.8mm 0 0; font-size: 2.2mm; color: var(--ucard-tenue); font-style: italic; }

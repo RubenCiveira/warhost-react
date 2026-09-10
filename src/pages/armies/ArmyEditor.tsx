@@ -29,7 +29,8 @@ import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
-import { rehydrateEntries } from "../../lib/builder";
+import { esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
+import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { getBook, listRuleGlossary } from "../../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
@@ -87,6 +88,8 @@ export default function ArmyEditor() {
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
+  /** Indice en `entries` de la unidad que se esta reconfigurando. */
+  const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
   const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
   const [verGenerales, setVerGenerales] = useState(false);
   /** Unidades del libro de origen, solo para saber que equipo publica la faccion. */
@@ -223,6 +226,33 @@ export default function ArmyEditor() {
   const ignorandoBorrador = Boolean(draft) && !viendoBorrador;
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
+  /**
+   * Las elecciones guardadas. Van en el mismo orden que las unidades —las
+   * escribe `composeArmyPayload` del mismo array—, asi que el `sortOrder` de
+   * una carta es su indice aqui. Un ejercito importado de Army Forge no las
+   * tiene, y entonces no hay nada que reconfigurar.
+   */
+  const entradasGuardadas = useMemo<StoredEntry[]>(() => {
+    try {
+      const guardadas = (JSON.parse(listJson ?? "{}") as { entries?: unknown }).entries;
+      return Array.isArray(guardadas) ? (guardadas as StoredEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }, [listJson]);
+  /**
+   * Unidades a las que puede unirse el heroe que se esta editando: las del
+   * ejercito que no son heroes, quitando la propia. El indice es el de la lista
+   * guardada, que es lo que persiste la union.
+   */
+  const unidadesParaUnir = useMemo(
+    () =>
+      units
+        .map((unit, indice) => ({ indice, nombre: unit.name, heroe: esHeroe(unit.rules) }))
+        .filter((u) => !u.heroe && u.indice !== editandoIndice)
+        .map(({ indice, nombre }) => ({ indice, nombre })),
+    [units, editandoIndice],
+  );
   const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
   const habilidades = useMemo(
     () => habilidadesDeFaccion(libro, glosario, unidadesLibro),
@@ -394,6 +424,8 @@ export default function ArmyEditor() {
     book: ArmyBook,
     packages: Map<string, UpgradeSection[]>,
     catalogo: ArmyUnit[],
+    indice: number | null = null,
+    unirA: number | null = null,
   ) {
     if (!army) return;
     setBusy(true);
@@ -406,9 +438,27 @@ export default function ArmyEditor() {
           return undefined;
         }
       })();
+      // El indice viene del array guardado, asi que se aplica ahi y no sobre la
+      // lista ya rehidratada: rehidratar descarta las unidades que ya no estan
+      // en el libro, y entonces los indices no serian los mismos y se
+      // reconfiguraria otra unidad sin que nada avisara.
+      const anteriores = Array.isArray(guardadas) ? (guardadas as StoredEntry[]) : [];
+      // `serializeEntries` de una sola entrada no puede resolver la union —no
+      // tiene el resto del array—, asi que el indice destino se pone aqui.
+      const suya: StoredEntry = { ...serializeEntries([nueva])[0] };
+      if (unirA === null) delete suya.attachedTo;
+      else suya.attachedTo = unirA;
+      const actualizadas =
+        indice === null ? [...anteriores, suya] : anteriores.map((previa, i) => (i === indice ? suya : previa));
+
       // Las unidades disponibles salen del propio asistente, que ya las cargo.
-      const previas = rehydrateEntries(guardadas, catalogo);
-      const payload = composeArmyPayload([...previas, nueva], packages, book, form.name, form.listId);
+      const payload = composeArmyPayload(
+        rehydrateEntries(actualizadas, catalogo),
+        packages,
+        book,
+        form.name,
+        form.listId,
+      );
 
       const destino = await conBorrador();
       if (!destino) return;
@@ -417,7 +467,12 @@ export default function ArmyEditor() {
       setViendoBorrador(true);
       mostrar(guardado);
       setAnadiendo(false);
-      setNotice(`${nueva.unit.name} anadida al borrador.`);
+      setEditandoIndice(null);
+      setNotice(
+        indice === null
+          ? `${nueva.unit.name} anadida al borrador.`
+          : `${nueva.unit.name} reconfigurada en el borrador.`,
+      );
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -718,6 +773,13 @@ export default function ArmyEditor() {
                     }}
                     combinada={unit.combined}
                     notas={unit.notes}
+                    accion={
+                      bookKey && entradasGuardadas[unit.sortOrder] ? (
+                        <button type="button" onClick={() => setEditandoIndice(unit.sortOrder)}>
+                          Configurar
+                        </button>
+                      ) : null
+                    }
                   />
                 </div>
               ))}
@@ -869,12 +931,19 @@ export default function ArmyEditor() {
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
       ) : null}
 
-      {anadiendo && bookKey ? (
+      {(anadiendo || editandoIndice !== null) && bookKey ? (
         <AddUnitWizard
           bookKey={bookKey}
           busy={busy}
-          onCancel={() => setAnadiendo(false)}
-          onConfirm={(entry, book, packages, catalogo) => void onAddUnit(entry, book, packages, catalogo)}
+          editando={editandoIndice === null ? null : entradasGuardadas[editandoIndice]}
+          unidadesDelEjercito={unidadesParaUnir}
+          onCancel={() => {
+            setAnadiendo(false);
+            setEditandoIndice(null);
+          }}
+          onConfirm={(entry, book, packages, catalogo, unirA) =>
+            void onAddUnit(entry, book, packages, catalogo, editandoIndice, unirA)
+          }
         />
       ) : null}
 

@@ -274,9 +274,10 @@ del catalogo, 609 salen a tamano completo, 55 densas, 34 muy densas y 42 en el
 ultimo escalon, donde los chips pierden el marco y se quedan en subrayado
 punteado: se cae el marco, no la funcion —siguen abriendo la carta de la regla.
 
-El comprobador carga el glosario aunque no lo necesite para medir texto: sin el
-no hay chips dobles de aura, que es lo que mas ensancha una fila, y estaria
-midiendo otra pagina.
+El comprobador pinta las cartas **como se ven**: con el glosario cargado, que es
+lo que hace salir los chips dobles de aura, y con el boton de la esquina. Las
+dos veces que se le olvido alguna de esas dos cosas estaba midiendo una pagina
+que nadie ve, y aparecieron recortes en cuanto se anadio.
 
 ## Inconsistencias del catalogo
 
@@ -336,6 +337,23 @@ Con `all` el tope de uno es **por opcion**: alcanzar a todos ya lo hace a la
 primera, y comprarlo dos veces solo cobra dos veces. La excepcion es el
 reemplazo, donde si es por seccion: "Replace all Bio-Spiners" se lleva los
 Bio-Spiners enteros y un segundo reemplazo no tendria nada que quitar.
+
+## Reconfigurar una unidad puesta
+
+Cada carta del ejercito lleva en su esquina inferior derecha un boton que abre
+el asistente sobre **esa** unidad, ya elegida y con lo que tenia puesto, para
+cambiarlo. Es el mismo asistente que anade unidades, sin el paso de elegirla.
+
+Va dentro del marco de la carta y no en su pie porque es una accion sobre esta
+unidad, no sobre la lista. Al imprimir no sale.
+
+Lo que hay que mirar con lupa aqui es **a que unidad se aplica el cambio**. El
+`sortOrder` de una carta es su indice en `entries`, porque `composeArmyPayload`
+escribe `units` y `entries` del mismo array. Pero rehidratar descarta las
+unidades que ya no estan en el libro, asi que el indice deja de valer en cuanto
+se rehidrata: se aplica sobre lo guardado y se rehidrata despues. Aplicarlo al
+reves reconfigura otra unidad sin que nada avise, y eso es lo que comprueba
+`pnpm test:reconfigurar`, con el caso malo incluido.
 
 ## Unidades combinadas y notas
 

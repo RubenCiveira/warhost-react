@@ -51,12 +51,20 @@ const ARMAS_VISIBLES = 6;
  * el numero de armas sino los renglones que ocupan: un arma con cuatro reglas
  * envuelve y cuenta por dos.
  */
-function densidad(weapons: LoadoutEntry[], rules: string[], gear: LoadoutEntry[]): "" | " denso" | " muy-denso" {
+function densidad(
+  weapons: LoadoutEntry[],
+  rules: string[],
+  gear: LoadoutEntry[],
+  conAccion: boolean,
+): "" | " denso" | " muy-denso" {
   const renglones =
     weapons.reduce((suma, arma) => suma + Math.ceil((arma.rules.join(", ").length || 1) / 28), 0) +
     weapons.length +
     Math.ceil(rules.length / 2) +
-    gear.reduce((suma, item) => suma + Math.ceil((item.name.length + item.rules.join(", ").length) / 26), 0);
+    gear.reduce((suma, item) => suma + Math.ceil((item.name.length + item.rules.join(", ").length) / 26), 0) +
+    // El boton de la esquina ocupa lo suyo: sin contarlo, la carta mas cargada
+    // del catalogo se pasa siete pixeles.
+    (conAccion ? 2 : 0);
 
   if (renglones >= 11) return " muy-denso";
   if (renglones >= 8) return " denso";
@@ -95,6 +103,12 @@ interface Props {
    * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
    * marcan como del reglamento basico y no invitan a pulsar.
    */
+  /**
+   * Accion propia de la carta, en su esquina inferior derecha: para la unidad
+   * ya configurada de un ejercito, volver a configurarla. Va dentro del marco y
+   * no en el pie porque es sobre esta unidad, no sobre la lista.
+   */
+  accion?: ReactNode;
   /** Unidad combinada: se avisa en la carta porque el perfil ya viene doblado. */
   combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
@@ -408,6 +422,7 @@ export default function UnitCard({
   optionsLabel,
   formato = "tarot",
   footer,
+  accion,
   combinada = false,
   notas,
   glosario,
@@ -494,7 +509,7 @@ export default function UnitCard({
     <div className={hoja ? "ucard-wrap hoja" : "ucard-wrap"}>
       <div className={hoja ? "ucard-frame hoja" : "ucard-frame"}>
         <article
-          className={`ucard ucard-${variant}${hoja ? ` hoja${densidadOpciones}` : densidad(weapons, unit.rules, gear)}`}
+          className={`ucard ucard-${variant}${hoja ? ` hoja${densidadOpciones}` : densidad(weapons, unit.rules, gear, Boolean(accion))}`}
         >
           <header className="ucard-head">
             <h3 className="ucard-title">
@@ -637,6 +652,8 @@ export default function UnitCard({
             ) : null}
 
             {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
+
+            {accion ? <div className="ucard-accion">{accion}</div> : null}
           </div>
         </article>
       </div>

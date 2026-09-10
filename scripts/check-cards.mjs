@@ -79,7 +79,11 @@ await build({
       globalThis.__HTML__ =
         UNITS.map((u) =>
           renderToStaticMarkup(
-            <UnitCard variant="ejercito" glosario={GLOSARIO} unit={{
+            // Con el boton de configurar, que es como sale en el ejercito: sin
+            // el se estaria midiendo una carta que nadie ve.
+            <UnitCard variant="ejercito" glosario={GLOSARIO}
+              accion={<button type="button">Configurar</button>}
+              unit={{
               name: u.name, size: u.size, quality: u.quality, defense: u.defense,
               cost: u.cost, maxWounds: u.size, rules: u.rules,
               loadout: baseLoadout(u.weapons, u.items),

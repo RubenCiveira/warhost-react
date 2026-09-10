@@ -11,7 +11,9 @@ import {
   entriesFromForgeList,
   entryCost,
   entryLoadoutFinal,
+  esHeroe,
   sePuedeCombinar,
+  puedeAdjuntarse,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -161,6 +163,22 @@ export default function ArmyBuilder() {
   const built = useMemo(() => buildArmy(entries, packages), [entries, packages]);
   const bookSystem = getGameSystem(book?.gameSystem);
 
+  // Un heroe solo se une a una unidad de verdad, no a otro heroe. El conjunto
+  // se calcula una vez y no por cada tarjeta.
+  const heroKeys = useMemo(
+    () =>
+      new Set(
+        entries
+          .filter((entry) => esHeroe(entryRules(entry, sectionsForUnit(entry.unit, packages))))
+          .map((entry) => entry.key),
+      ),
+    [entries, packages],
+  );
+  const unidadesParaUnir = useCallback(
+    (heroKey: string) => entries.filter((entry) => entry.key !== heroKey && !heroKeys.has(entry.key)),
+    [entries, heroKeys],
+  );
+
   const visibleUnits = useMemo(() => {
     const needle = unitSearch.trim().toLowerCase();
     if (!needle) return units;
@@ -186,7 +204,12 @@ export default function ArmyBuilder() {
   }, []);
 
   const removeEntry = useCallback((key: string) => {
-    setEntries((prev) => prev.filter((entry) => entry.key !== key));
+    setEntries((prev) =>
+      prev
+        .filter((entry) => entry.key !== key)
+        // Un heroe que estaba unido a la unidad que se quita se queda suelto.
+        .map((entry) => (entry.attachedTo === key ? { ...entry, attachedTo: undefined } : entry)),
+    );
   }, []);
 
   const setEntryField = useCallback((key: string, patch: Partial<BuilderEntry>) => {
@@ -397,6 +420,24 @@ export default function ArmyBuilder() {
                             onChange={(event) => setEntryField(entry.key, { combined: event.target.checked })}
                           />
                           Combinar
+                        </label>
+                      ) : null}
+                      {puedeAdjuntarse(entry, sections) && unidadesParaUnir(entry.key).length > 0 ? (
+                        <label className="check tiny">
+                          Unir a
+                          <select
+                            value={entry.attachedTo ?? ""}
+                            onChange={(event) =>
+                              setEntryField(entry.key, { attachedTo: event.target.value || undefined })
+                            }
+                          >
+                            <option value="">— suelto —</option>
+                            {unidadesParaUnir(entry.key).map((otra) => (
+                              <option key={otra.key} value={otra.key}>
+                                {otra.unit.name}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                       ) : null}
                       <input

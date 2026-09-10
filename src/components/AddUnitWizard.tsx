@@ -6,6 +6,7 @@ import {
   entryCost,
   entryLoadoutFinal,
   sePuedeCombinar,
+  puedeAdjuntarse,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -22,6 +23,22 @@ import type { Habilidad } from "../lib/reglas";
 
 type Paso = "elegir" | "configurar" | "revisar";
 
+/** Una unidad que ya esta en el ejercito, para volver a configurarla. */
+export interface UnidadEnEdicion {
+  unitId: string;
+  choices: Record<string, number>;
+  combined?: boolean;
+  notes?: string;
+  /** Indice, en la lista guardada, de la unidad a la que se unio el heroe. */
+  attachedTo?: number;
+}
+
+/** Una unidad del ejercito a la que un heroe puede unirse. */
+export interface UnidadDelEjercito {
+  indice: number;
+  nombre: string;
+}
+
 interface Props {
   bookKey: string;
   onCancel: () => void;
@@ -31,7 +48,18 @@ interface Props {
     book: ArmyBook,
     packages: Map<string, UpgradeSection[]>,
     units: ArmyUnit[],
+    unirA: number | null,
   ) => void;
+  /**
+   * Con esto el asistente no elige unidad: abre directamente la que ya esta
+   * puesta, con su configuracion, para cambiarla.
+   */
+  editando?: UnidadEnEdicion | null;
+  /**
+   * Unidades del ejercito a las que un heroe de `Tough(6)` o menos puede
+   * unirse. Vienen ya sin heroes y sin la propia unidad que se edita.
+   */
+  unidadesDelEjercito?: UnidadDelEjercito[];
   busy?: boolean;
 }
 
@@ -42,15 +70,24 @@ interface Props {
  * Trabaja sobre una copia: hasta que no se confirma no sale nada de aqui, asi
  * que abandonar a medias no deja rastro en el ejercito.
  */
-export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = false }: Props) {
+export default function AddUnitWizard({
+  bookKey,
+  onCancel,
+  onConfirm,
+  editando = null,
+  unidadesDelEjercito = [],
+  busy = false,
+}: Props) {
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [paso, setPaso] = useState<Paso>("elegir");
+  const [paso, setPaso] = useState<Paso>(editando ? "configurar" : "elegir");
   const [entry, setEntry] = useState<BuilderEntry | null>(null);
+  /** Indice de la unidad a la que se une el heroe, o null si va suelto. */
+  const [unirA, setUnirA] = useState<number | null>(editando?.attachedTo ?? null);
   const [busqueda, setBusqueda] = useState("");
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
@@ -64,6 +101,24 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
         setBook(b);
         setUnits(u);
         setPackages(p);
+        // Al editar, la unidad ya esta elegida: se rehace su entrada con lo
+        // que tenia puesto. Si su unidad ya no esta en el libro no hay nada
+        // que configurar, y se dice en vez de abrir el asistente en blanco.
+        if (editando) {
+          const suya = u.find((unit) => unit.unitId === editando.unitId);
+          if (!suya) {
+            setError("Esta unidad ya no existe en la version actual del libro de ejercito.");
+          } else {
+            setEntry({
+              key: `${suya.unitId}-editar`,
+              unit: suya,
+              choices: { ...editando.choices },
+              combined: editando.combined,
+              notes: editando.notes,
+            });
+            setUnirA(editando.attachedTo ?? null);
+          }
+        }
         // Sin bloquear el asistente: sin glosario los chips siguen ahi, solo que
         // no saben cuales tienen descripcion.
         listRuleGlossary(b.gameSystem)
@@ -78,7 +133,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
     return () => {
       cancelled = true;
     };
-  }, [bookKey]);
+  }, [bookKey, editando]);
 
   useEffect(() => {
     const conEscape = (event: KeyboardEvent) => {
@@ -142,6 +197,19 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
           Combinar
         </label>
       ) : null}
+      {puedeAdjuntarse(actual, sections) && unidadesDelEjercito.length > 0 ? (
+        <label className="check tiny">
+          Unir a
+          <select value={unirA ?? ""} onChange={(event) => setUnirA(event.target.value === "" ? null : Number(event.target.value))}>
+            <option value="">— suelto —</option>
+            {unidadesDelEjercito.map((u) => (
+              <option key={u.indice} value={u.indice}>
+                {u.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <input
         className="tiny nota"
         type="text"
@@ -152,18 +220,23 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
     </>
   );
 
-  const pasos: Array<[Paso, string]> = [
-    ["elegir", "Elegir unidad"],
-    ["configurar", "Configurar"],
-    ["revisar", "Revisar"],
-  ];
+  const pasos: Array<[Paso, string]> = editando
+    ? [
+        ["configurar", "Configurar"],
+        ["revisar", "Revisar"],
+      ]
+    : [
+        ["elegir", "Elegir unidad"],
+        ["configurar", "Configurar"],
+        ["revisar", "Revisar"],
+      ];
 
   return (
     <div
       className="modal-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="Anadir unidad"
+      aria-label={editando ? "Configurar unidad" : "Anadir unidad"}
       onClick={() => !habilidad && onCancel()}
     >
       <div className="modal wide wizard" onClick={(event) => event.stopPropagation()}>
@@ -286,8 +359,8 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
               />
             </div>
             <footer className="wizard-foot">
-              <button type="button" onClick={() => setPaso("elegir")}>
-                Volver
+              <button type="button" onClick={() => (editando ? onCancel() : setPaso("elegir"))}>
+                {editando ? "Cancelar" : "Volver"}
               </button>
               <button type="button" className="primary" onClick={() => setPaso("revisar")}>
                 Revisar
@@ -298,7 +371,11 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
 
         {!loading && entry && paso === "revisar" ? (
           <>
-            <p className="muted small">Asi queda la unidad. Al confirmar se anade al borrador del ejercito.</p>
+            <p className="muted small">
+              {editando
+                ? "Asi queda la unidad. Al confirmar se guarda en el borrador del ejercito."
+                : "Asi queda la unidad. Al confirmar se anade al borrador del ejercito."}
+            </p>
             <div className="wizard-single">
               <UnitCard
                 variant="ejercito"
@@ -318,9 +395,9 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                 type="button"
                 className="primary"
                 disabled={busy || !book}
-                onClick={() => book && onConfirm(entry, book, packages, units)}
+                onClick={() => book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sections) ? unirA : null)}
               >
-                {busy ? "Anadiendo…" : "Confirmar"}
+                {busy ? "Guardando…" : "Confirmar"}
               </button>
             </footer>
           </>

@@ -27,7 +27,9 @@
     "test:unidades": "node scripts/test-unidades.mjs",
     "audit:opciones": "node scripts/audit-opciones.mjs",
     "test:combinada": "node scripts/test-combinada.mjs",
-    "test:auras": "node scripts/test-auras.mjs"
+    "test:auras": "node scripts/test-auras.mjs",
+    "test:reconfigurar": "node scripts/test-reconfigurar.mjs",
+    "test:adjuntar": "node scripts/test-adjuntar.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

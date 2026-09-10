@@ -64,6 +64,11 @@ export interface BuilderEntry {
   combined?: boolean;
   /** Anotacion del jugador sobre esta unidad concreta. */
   notes?: string;
+  /**
+   * `key` de la entrada a la que se une este heroe. Solo lo llevan los heroes
+   * de `Tough(6)` o menos, que en el juego se despliegan dentro de otra unidad.
+   */
+  attachedTo?: string;
 }
 
 /**
@@ -288,6 +293,20 @@ function toughOf(rules: string[]): number {
   return 1;
 }
 
+export function esHeroe(rules: string[]): boolean {
+  return rules.some((rule) => rule.trim().toLowerCase() === "hero");
+}
+
+/**
+ * Un heroe de `Tough(6)` o menos puede unirse a otra unidad en el despliegue.
+ * Se mira sobre las reglas ya resueltas: una mejora podria darle o quitarle
+ * `Hero`, o subirle el `Tough`.
+ */
+export function puedeAdjuntarse(entry: BuilderEntry, sections: UpgradeSection[]): boolean {
+  const rules = entryRules(entry, sections);
+  return esHeroe(rules) && toughOf(rules) <= 6;
+}
+
 /** Las opciones elegidas, con la seccion que dice a que sustituyen. */
 export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]): AppliedOption[] {
   const applied: AppliedOption[] = [];
@@ -392,15 +411,25 @@ export interface StoredEntry {
   /** Solo se guarda cuando es cierto, para no engordar el JSON. */
   combined?: boolean;
   notes?: string;
+  /**
+   * Indice, en este mismo array, de la unidad a la que se une el heroe. Se
+   * guarda por posicion porque la `key` de cada entrada es de usar y tirar.
+   */
+  attachedTo?: number;
 }
 
 export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
-  return entries.map((entry) => ({
-    unitId: entry.unit.unitId,
-    choices: { ...entry.choices },
-    ...(entry.combined ? { combined: true } : {}),
-    ...(entry.notes ? { notes: entry.notes } : {}),
-  }));
+  const indicePorKey = new Map(entries.map((entry, index) => [entry.key, index]));
+  return entries.map((entry) => {
+    const indiceUnion = entry.attachedTo ? indicePorKey.get(entry.attachedTo) : undefined;
+    return {
+      unitId: entry.unit.unitId,
+      choices: { ...entry.choices },
+      ...(entry.combined ? { combined: true } : {}),
+      ...(entry.notes ? { notes: entry.notes } : {}),
+      ...(indiceUnion !== undefined ? { attachedTo: indiceUnion } : {}),
+    };
+  });
 }
 
 function newKey(unitId: string, index: number): string {
@@ -415,7 +444,10 @@ export function rehydrateEntries(stored: unknown, units: CatalogUnitLike[]): Bui
   if (!Array.isArray(stored)) return [];
   const byId = new Map(units.map((unit) => [unit.unitId, unit]));
 
-  return stored.flatMap((raw, index) => {
+  // Primero se materializan las entradas, guardando de que posicion vienen: los
+  // adjuntos se apuntan por indice y hay que reconvertirlos a la `key` nueva
+  // saltandose las unidades que ya no existan en el libro.
+  const conOrigen = stored.flatMap((raw, indice) => {
     const item = raw as Partial<StoredEntry>;
     const unit = item.unitId ? byId.get(item.unitId) : undefined;
     if (!unit) return [];
@@ -423,15 +455,20 @@ export function rehydrateEntries(stored: unknown, units: CatalogUnitLike[]): Bui
     for (const [id, count] of Object.entries(item.choices ?? {})) {
       if (typeof count === "number" && count > 0) choices[id] = count;
     }
-    return [
-      {
-        key: newKey(unit.unitId, index),
-        unit,
-        choices,
-        ...(item.combined ? { combined: true } : {}),
-        ...(typeof item.notes === "string" && item.notes ? { notes: item.notes } : {}),
-      },
-    ];
+    const entry: BuilderEntry = {
+      key: newKey(unit.unitId, indice),
+      unit,
+      choices,
+      ...(item.combined ? { combined: true } : {}),
+      ...(typeof item.notes === "string" && item.notes ? { notes: item.notes } : {}),
+    };
+    return [{ entry, indice, attachedTo: typeof item.attachedTo === "number" ? item.attachedTo : undefined }];
+  });
+
+  const keyPorIndice = new Map(conOrigen.map(({ entry, indice }) => [indice, entry.key]));
+  return conOrigen.map(({ entry, attachedTo }) => {
+    const destino = attachedTo === undefined ? undefined : keyPorIndice.get(attachedTo);
+    return destino ? { ...entry, attachedTo: destino } : entry;
   });
 }
 
