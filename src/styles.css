@@ -220,28 +220,6 @@ a.button-link {
 }
 a.button-link:hover { text-decoration: none; opacity: 0.9; }
 
-/* Ficha de unidad ----------------------------------------------------------- */
-
-.profile { margin-bottom: 10px; }
-
-.table-wrap { overflow-x: auto; margin: 0 0 10px; }
-.profile-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
-.profile-table th, .profile-table td { padding: 5px 10px 5px 0; text-align: left; }
-.profile-table th { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
-.profile-table td.num, .profile-table th.num { text-align: right; padding-right: 16px; }
-.profile-table tbody tr + tr td { border-top: 1px solid var(--border); }
-
-.upgrades-details { margin-top: 8px; }
-.upgrades-details summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
-.upgrades-details .section { margin-top: 8px; }
-.section-head { margin: 0 0 4px; }
-
-.option-list { list-style: none; margin: 0; padding: 0; }
-.option-list li {
-  display: flex; justify-content: space-between; gap: 12px; padding: 3px 0;
-}
-.option-list li + li { border-top: 1px solid var(--border); }
-
 /* Hechizos ------------------------------------------------------------------ */
 
 .inline-search { width: auto; max-width: 220px; }
@@ -251,14 +229,6 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
   font-size: 0.85rem; color: var(--accent); text-transform: uppercase;
   letter-spacing: 0.06em; margin: 0 0 6px;
 }
-
-/* Unidades de un ejercito guardado ------------------------------------------ */
-
-.army-unit { padding: 10px 0; }
-.army-unit + .army-unit { border-top: 1px solid var(--border); }
-
-.loadout-missing { margin: 6px 0; font-style: italic; }
-.upgrades-label { color: var(--accent); }
 
 /* Carta de unidad ----------------------------------------------------------- */
 /* Apaisada y clara sobre el fondo oscuro, con banda de titulo, atributos en
@@ -364,10 +334,6 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 .ucard-spell .ucard-title { font-size: 0.95rem; }
 .ucard-spell .ucard-body { padding: 10px 12px; }
 .ucard-effect { margin: 0; font-size: 0.88rem; line-height: 1.5; }
-
-/* En el constructor las cartas van a una por fila: la pantalla ya esta partida
-   en dos columnas, y a dos cartas por columna no se lee la tabla de armas. */
-.ucard-grid.one-per-row { grid-template-columns: 1fr; }
 
 .ucard-option-controls { gap: 6px; flex-wrap: nowrap; }
 .ucard-option-controls .mono { min-width: 1.5ch; text-align: center; }
