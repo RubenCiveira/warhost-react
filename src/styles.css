@@ -1081,7 +1081,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-opciones-dentro { flex: 1; min-height: 0; overflow: hidden; }
 .ucard.hoja .ucard-options { margin-top: 0; border-top: 0.3mm solid var(--ucard-filete); padding-top: 1.6mm; }
 .ucard.hoja .ucard-options summary { font-size: 2.6mm; color: var(--ucard-tenue); cursor: default; }
-.ucard.hoja .ucard-secciones { columns: 2; column-gap: 5mm; margin-top: 1.4mm; }
+.ucard.hoja .ucard-secciones { columns: 3; column-gap: 4mm; margin-top: 1.4mm; }
 .ucard.hoja .ucard-section { margin: 0 0 2mm; break-inside: avoid; }
 .ucard.hoja .ucard-section-head { font-size: 2.9mm; }
 .ucard.hoja .ucard-option-list { font-size: 2.9mm; }

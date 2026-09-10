@@ -226,19 +226,34 @@ dentro de la propia ficha en tres columnas. Dos por hoja, sin cortar ninguna.
 `@page` fija A4 vertical con 10 mm de margen y `--uhoja-esc` vuelve a 1 al
 imprimir, para que salga a tamano real.
 
-Lo que decide si desborda no es cuantas opciones hay sino cuanto ocupan, y eso
-pide cuatro cosas —saltarse cualquiera deja fichas recortadas:
+Cuando las opciones no caben, la ficha aprieta la tipografia, en cuatro
+escalones. Elegir el escalon contando opciones y poniendo umbrales a ojo no
+funciona: falla en las dos direcciones, aprieta fichas con sitio de sobra y
+recorta las que no. Asi que `pasoDeOpciones` estima en **milimetros**, que es la
+unidad en la que esta escrita la carta, y coge el escalon mas grande que quepa.
 
-1. Cuanto ocupa cada opcion, no cuantas hay: "Jetpacks (Ambush, Flying)" es un
-   renglon y "Energy Hammer (A1, Blast(3)), Combat Shield (Shielded)" son tres.
-2. Que las secciones no se parten entre columnas, asi que el alto es el de la
-   columna mas alta una vez repartidas enteras, no el total entre tres.
-3. Que las opciones heredan el hueco que dejen armas, reglas y equipo: un titan
-   con ocho armas desborda antes que un capitan con treinta y cinco opciones.
-4. Que un chip ocupa mas que su texto: lleva marco y no se parte.
+Lo que hay que modelar, y lo que pasa si te lo saltas:
 
-Con eso, la ficha aprieta la tipografia en cuatro escalones. De 740 fichas del
-catalogo, 404 salen a tamano normal, 201 densas, 92 muy densas y 43 en el
+1. **Cuanto ocupa cada opcion**, no cuantas hay: "Jetpacks (Ambush, Flying)" es
+   un renglon y "Energy Hammer (A1, Blast(3)), Combat Shield (Shielded)" son
+   tres.
+2. **Como reparte el navegador las columnas.** Las secciones no se parten
+   (`break-inside: avoid`) y se reparten *en orden*, buscando la altura minima
+   que quepa en tres. Repartirlas de mayor a menor, que es lo que sale solo, da
+   un minimo teorico que el navegador no alcanza.
+3. **El hueco que dejan armas, reglas y equipo.** Un titan con ocho armas
+   desborda antes que un capitan con treinta y cinco opciones. Estos numeros
+   estan *medidos* en el navegador, no estimados: la cabecera son 12,2 mm
+   clavados y la zona de opciones va de 96 mm con un arma a 61 mm en la ficha
+   mas cargada.
+4. **Que un chip ocupa mas que su texto**, y que el texto se parte por palabras:
+   una linea casi nunca se llena del todo. El ancho de letra que sale de medir
+   (0,68 em) no es el ancho real de la letra (0,52 em).
+
+Las constantes salen de comparar el modelo con lo que pinta el navegador:
+`MEDIR=1 pnpm check:cards` vuelca las alturas reales de cada ficha a
+`/tmp/medidas.json`. Sin eso serian numeros inventados. De 740 fichas del
+catalogo, 643 salen a tamano completo, 39 densas, 37 muy densas y 21 en el
 ultimo escalon, donde los chips pierden el marco y se quedan en subrayado
 punteado: se cae el marco, no la funcion —siguen abriendo la carta de la regla.
 

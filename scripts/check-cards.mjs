@@ -124,6 +124,39 @@ const malas = await p.evaluate(() => {
 });
 // Contar por tipo: ahora hay tres piezas distintas en la pagina y sumarlas
 // todas y restar hacia atras daba cifras falsas.
+// MEDIR=1 vuelca las alturas reales de cada ficha a /tmp/medidas.json, que es
+// como se calibran las constantes de `pasoDeOpciones` en UnitCard: el modelo
+// estima en milimetros y aqui se ve cuanto se aleja de lo que pinta el
+// navegador. Sin esto, las constantes serian numeros inventados.
+if (process.env.MEDIR) {
+  const m = await p.evaluate(() =>
+    [...document.querySelectorAll(".ucard.hoja")].map((c, i) => ({
+      i,
+      n: c.querySelector(".ucard-title")?.textContent ?? "?",
+      cab: c.querySelector("header")?.offsetHeight ?? 0,
+      cuerpo: c.querySelector(".ucard-body")?.clientHeight ?? 0,
+      zona: c.querySelector(".ucard-opciones-dentro")?.clientHeight ?? 0,
+      usa: c.querySelector(".ucard-secciones")?.scrollHeight ?? 0,
+      armas: c.querySelectorAll(".ucard-armas tbody tr").length,
+      reglas: c.querySelectorAll(".ucard-bloque .ucard-chips .ucard-chip").length,
+      equipo: c.querySelectorAll(".ucard-equipo-tabla tbody tr").length,
+      paso: c.className.match(/opciones-[a-z-]+/)?.[0] ?? "normal",
+    })),
+  );
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(
+    "/tmp/medidas.json",
+    JSON.stringify({
+      medidas: m,
+      // En el mismo orden en que se han pintado, para poder unir sin fiarse
+      // del nombre: hay unidades homonimas en libros distintos.
+      unidades: unidades.map((u) => ({ nombre: u.name, paquetes: u.upgradePackageUids })),
+      paquetes: Object.fromEntries(paquetes),
+    }),
+  );
+  await navegador.close();
+  process.exit(0);
+}
 // Cuantas fichas caen en cada escalon de densidad: si todas acaban en el mas
 // apretado, el umbral esta mal puesto y se esta encogiendo la letra de balde.
 const escalones = await p.evaluate(() =>

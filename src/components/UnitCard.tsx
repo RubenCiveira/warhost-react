@@ -142,6 +142,127 @@ function Chip({
 }
 
 /**
+ * Que tan apretadas tienen que ir las opciones en la ficha de catalogo.
+ *
+ * La ficha mide lo que mide, asi que lo que no cabe desaparece en silencio. La
+ * tentacion es contar opciones y poner umbrales a ojo, pero eso falla en las
+ * dos direcciones: aprieta fichas que tenian sitio de sobra y recorta las que
+ * no. Asi que se estima en milimetros, que es la unidad en la que esta escrita
+ * la carta, y se elige el paso mas grande que quepa.
+ *
+ * Los tamanos de cada paso son los del CSS: si se tocan alli, hay que tocarlos
+ * aqui. `pnpm check:cards` avisa si dejan de cuadrar.
+ */
+const ANCHO_OPCIONES = 182; // mm utiles de la ficha
+const COLUMNAS = 3;
+/**
+ * Alto libre para las opciones, en mm, segun lo que ocupe el cuerpo.
+ *
+ * Medido en el navegador sobre las fichas del catalogo, no estimado: la
+ * cabecera son 12,2 mm clavados y la zona va de 96 mm en una unidad de un arma
+ * a 61 mm en la mas cargada. Cada arma de mas se come 6 mm, la tabla de equipo
+ * 9 mas 6 por fila, y las reglas otros 6 cada vez que pasan de renglon.
+ */
+function altoLibre(armas: number, reglas: number, equipo: number): number {
+  const MARGEN = 16; // lo que el modelo se queda corto en el peor caso medido
+  return (
+    96 -
+    6 * Math.max(0, armas - 1) -
+    6 * Math.max(0, Math.ceil(reglas / 8) - 1) -
+    (equipo > 0 ? 9 + 6 * equipo : 0) -
+    MARGEN
+  );
+}
+
+interface PasoOpciones {
+  clase: string;
+  fuente: number;
+  interlineado: number;
+  /** Relleno vertical de cada fila de opcion, en mm. */
+  relleno: number;
+  /** En el ultimo paso los chips pierden el marco y ocupan casi como el texto. */
+  planos?: boolean;
+}
+
+const PASOS: PasoOpciones[] = [
+  { clase: "", fuente: 2.9, interlineado: 1.25, relleno: 1 },
+  { clase: " opciones-densas", fuente: 2.6, interlineado: 1.25, relleno: 1 },
+  { clase: " opciones-muy-densas", fuente: 2.35, interlineado: 1.25, relleno: 0.3 },
+  { clase: " opciones-extremas", fuente: 1.9, interlineado: 1.1, relleno: 0.2, planos: true },
+];
+
+/**
+ * Ancho medio de un caracter, en ems, ya inflado.
+ *
+ * El ancho real de la letra ronda 0,52 em, pero el texto se parte por palabras
+ * y una linea casi nunca se llena del todo: medido contra lo que pinta el
+ * navegador, sale a 0,68. Usar el ancho de la letra a secas se queda corto y
+ * recorta fichas.
+ */
+const ANCHO_CARACTER = 0.68;
+
+function lineasDeOpcion(option: UpgradeOption, porLinea: number, planos: boolean): number {
+  const desglose = desglosarOpcion(option);
+  const ancho = desglose.crudo
+    ? (option.label?.length ?? 20) + 6
+    : desglose.ganancias.reduce(
+        (suma, ganancia) => suma + ganancia.nombre.length + (ganancia.perfil?.length ?? 0) + 3,
+        0,
+      ) +
+      [...desglose.reglas, ...desglose.ganancias.flatMap((ganancia) => ganancia.reglas)].reduce(
+        (suma, chip) => suma + chip.etiqueta.length + (planos ? 1 : 3),
+        0,
+      ) +
+      6; // el precio, a la derecha de la fila
+  return Math.max(1, Math.ceil(ancho / porLinea));
+}
+
+/** Lo que ocupa una seccion entera, en mm. No se parte entre columnas. */
+function altoDeSeccion(section: UpgradeSection, paso: PasoOpciones, porLinea: number): number {
+  const renglon = paso.fuente * paso.interlineado;
+  const cabecera = Math.ceil((section.label?.length ?? 20) / porLinea) * renglon + 1;
+  return (
+    cabecera +
+    (section.options ?? []).reduce(
+      (alto, option) => alto + lineasDeOpcion(option, porLinea, paso.planos ?? false) * renglon + paso.relleno,
+      0,
+    ) +
+    1.4 // el hueco hasta la siguiente seccion
+  );
+}
+
+/**
+ * Que tan apretadas van las opciones: se elige el paso mas grande que quepa.
+ *
+ * La tentacion es contar opciones y poner umbrales a ojo, pero eso falla en las
+ * dos direcciones —aprieta fichas con sitio de sobra y recorta las que no—, asi
+ * que se estima en milimetros, que es la unidad en la que esta escrita la
+ * carta. Los tamanos de cada paso son los del CSS: si se tocan alli hay que
+ * tocarlos aqui, y `pnpm check:cards` avisa si dejan de cuadrar.
+ */
+function pasoDeOpciones(
+  sections: UpgradeSection[],
+  armas: number,
+  reglas: number,
+  equipo: number,
+): string {
+  if (sections.length === 0) return "";
+  const disponible = altoLibre(armas, reglas, equipo);
+  const anchoColumna = (ANCHO_OPCIONES - 4 * (COLUMNAS - 1)) / COLUMNAS;
+
+  for (const paso of PASOS) {
+    const porLinea = anchoColumna / (paso.fuente * ANCHO_CARACTER);
+    // Las secciones se reparten enteras, asi que manda la columna mas alta.
+    const columnas = new Array<number>(COLUMNAS).fill(0);
+    for (const alto of sections.map((s) => altoDeSeccion(s, paso, porLinea)).sort((a, b) => b - a)) {
+      columnas[columnas.indexOf(Math.min(...columnas))] += alto;
+    }
+    if (Math.max(...columnas) <= disponible) return paso.clase;
+  }
+  return PASOS[PASOS.length - 1].clase;
+}
+
+/**
  * Una opcion de mejora, con sus reglas como chips.
  *
  * Se elige antes de comprarla, y para eso hay que saber que hace: "Chain-Fist
@@ -208,54 +329,7 @@ export default function UnitCard({
   if (unit.cost !== undefined) stats.push(["Pts", String(unit.cost)]);
 
   const hoja = formato === "hoja";
-  // El bloque de opciones es lo que decide si una ficha de catalogo desborda:
-  // hay unidades con 36 repartidas en 8 secciones. Estimar cuanto ocupa pide
-  // tres cosas, y saltarse cualquiera deja fichas recortadas:
-  //
-  //  1. Cuanto ocupa cada opcion, no cuantas hay: "Jetpacks (Ambush, Flying)"
-  //     es un renglon y "Energy Hammer (A1, Blast(3)), Combat Shield
-  //     (Shielded)" son tres.
-  //  2. Que las secciones no se parten entre columnas (`break-inside: avoid`),
-  //     asi que el alto no es el total entre tres: es el de la columna mas
-  //     alta una vez repartidas enteras.
-  //  3. Que las opciones heredan el hueco que dejen las armas, las reglas y el
-  //     equipo. Un titan con ocho armas y trece opciones desborda antes que un
-  //     capitan con dos armas y treinta y cinco.
-  //  4. Que las reglas de la opcion van como chips, y un chip ocupa mas que su
-  //     texto: lleva marco, relleno y no se parte a mitad.
-  const lineasOpcion = (option: UpgradeOption) => {
-    const desglose = desglosarOpcion(option);
-    if (desglose.crudo) return Math.ceil(((option.label?.length ?? 20) + 5) / 26);
-    const chips = [...desglose.reglas, ...desglose.ganancias.flatMap((ganancia) => ganancia.reglas)];
-    const ancho =
-      desglose.ganancias.reduce(
-        (suma, ganancia) => suma + ganancia.nombre.length + (ganancia.perfil?.length ?? 0) + 3,
-        0,
-      ) + chips.reduce((suma, chip) => suma + chip.etiqueta.length + 4, 0);
-    const lineas = Math.ceil((ancho + 5) / 24);
-    return chips.length > 0 ? Math.ceil(lineas * 1.2) : lineas;
-  };
-
-  const lineasSeccion = (section: UpgradeSection) =>
-    1 +
-    Math.ceil(((section.label?.length ?? 20) + 1) / 30) +
-    (section.options ?? []).reduce((lineas, option) => lineas + lineasOpcion(option), 0);
-
-  const columnas = [0, 0, 0];
-  for (const alto of sections.map(lineasSeccion).sort((a, b) => b - a)) {
-    columnas[columnas.indexOf(Math.min(...columnas))] += alto;
-  }
-  const pesoOpciones =
-    Math.max(...columnas) + weapons.length * 2 + Math.ceil(unit.rules.length / 5) + gear.length * 2;
-
-  const densidadOpciones =
-    pesoOpciones >= 40
-      ? " opciones-extremas"
-      : pesoOpciones >= 30
-        ? " opciones-muy-densas"
-        : pesoOpciones >= 21
-          ? " opciones-densas"
-          : "";
+  const densidadOpciones = hoja ? pasoDeOpciones(sections, weapons.length, unit.rules.length, gear.length) : "";
   // En la ficha grande las opciones van dentro; en la de mesa no caben y
   // cuelgan del marco.
   const opciones =

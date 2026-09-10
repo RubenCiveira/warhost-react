@@ -14,6 +14,8 @@ import { join } from "node:path";
 
 const CLI_CWD = process.env.APPWRITE_DIR ?? "../warhost-appwrite";
 const BOOK = process.argv[2] ?? "rvvb3kdn2x2pqkki_gf";
+/** Con nombres, dibuja esas unidades en vez de las que mas opciones tienen. */
+const PEDIDAS = process.argv.slice(3);
 const SALIDA = process.env.PREVIEW_OUT ?? join(tmpdir(), "warhost-hoja.png");
 const filas = (t, q) =>
   JSON.parse(execFileSync("appwrite", ["tables-db", "list-rows", "--database-id", "warhost", "--table-id", t, "--json",
@@ -33,7 +35,9 @@ await build({
       import { parseSections, sectionsForUnit } from "./src/lib/builder";
       const UNITS = ${JSON.stringify(unidades)};
       const PK = new Map(${JSON.stringify(paquetes.map((p) => [p.packageUid, p.sections]))}.map(([k, v]) => [k, parseSections(v)]));
+      const PEDIDAS = ${JSON.stringify(PEDIDAS)};
       const conOpciones = UNITS
+        .filter((u) => PEDIDAS.length === 0 || PEDIDAS.includes(u.name))
         .map((u) => ({ u, secs: sectionsForUnit(u, PK) }))
         .sort((a, b) => b.secs.reduce((n, s) => n + (s.options?.length ?? 0), 0) - a.secs.reduce((n, s) => n + (s.options?.length ?? 0), 0))
         .slice(0, 2);
