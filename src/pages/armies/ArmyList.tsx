@@ -67,7 +67,7 @@ export default function ArmyList() {
       ) : (
         <div className="grid">
           {armies.map((army) => (
-            <Link key={army.$id} to={`/ejercitos/${army.$id}`} className="card card-link">
+            <Link key={army.$id} to={`/ejercitos/${army.lineageId ?? army.$id}`} className="card card-link">
               {army.coverId ? (
                 <img
                   src={imageUrl(army.coverId)}

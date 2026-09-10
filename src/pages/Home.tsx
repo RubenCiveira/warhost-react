@@ -149,7 +149,7 @@ function Dashboard({ userId }: { userId: string }) {
             ) : (
               <div className="grid">
                 {armies.slice(0, 6).map((army) => (
-                  <Link key={army.$id} to={`/ejercitos/${army.$id}`} className="card card-link">
+                  <Link key={army.$id} to={`/ejercitos/${army.lineageId ?? army.$id}`} className="card card-link">
                     <strong>{army.name}</strong>
                     <p className="muted small" style={{ margin: "4px 0 0" }}>
                       {army.faction ?? "Sin faccion"} · {army.points} pts · {formatDate(army.updatedAt)}

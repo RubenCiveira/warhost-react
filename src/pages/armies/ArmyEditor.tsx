@@ -9,9 +9,12 @@ import {
   createArmy,
   deleteArmy,
   deleteImage,
-  getArmy,
+  discardDraft,
   imageUrl,
-  updateArmy,
+  publishDraft,
+  resolveArmy,
+  saveDraft,
+  startDraft,
   uploadImage,
 } from "../../api/armies";
 import {
@@ -60,27 +63,34 @@ export default function ArmyEditor() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** Borrador en curso de este ejercito, si lo hay. */
+  const [draft, setDraft] = useState<Army | null>(null);
 
   useEffect(() => {
     if (!armyId) return;
     let cancelled = false;
-    getArmy(armyId)
-      .then((row) => {
+    resolveArmy(armyId)
+      .then(({ active: row, draft: pendiente }) => {
         if (cancelled) return;
         setArmy(row);
+        // Si hay borrador, es lo que se enseña: es la version en la que estas
+        // trabajando. El activo sigue intacto por debajo.
+        setDraft(pendiente);
+
+        const visible = pendiente ?? row;
         setForm({
-          name: row.name,
-          gameSystem: row.gameSystem,
-          faction: row.faction ?? "",
-          points: row.points,
-          modelCount: row.modelCount,
-          listId: row.listId ?? "",
-          notes: row.notes ?? "",
-          shared: row.shared,
+          name: visible.name,
+          gameSystem: visible.gameSystem,
+          faction: visible.faction ?? "",
+          points: visible.points,
+          modelCount: visible.modelCount,
+          listId: visible.listId ?? "",
+          notes: visible.notes ?? "",
+          shared: visible.shared,
         });
-        setListJson(row.listJson);
-        setImages(row.imageIds ?? []);
-        setCoverId(row.coverId);
+        setListJson(visible.listJson);
+        setImages(visible.imageIds ?? []);
+        setCoverId(visible.coverId);
       })
       .catch((err: unknown) => !cancelled && setError(errorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
@@ -184,14 +194,62 @@ export default function ArmyEditor() {
         coverId,
         imageIds: images,
       };
-      if (army) {
-        await updateArmy(army.$id, payload);
-      } else {
+      if (!army) {
         const created = await createArmy(user.$id, payload);
         navigate(`/ejercitos/${created.$id}`, { replace: true });
         return;
       }
-      setNotice("Ejercito guardado.");
+      // Editar no toca el ejercito activo: los cambios van a su borrador, y de
+      // ahi no salen hasta que se aceptan.
+      const destino = draft ?? (await startDraft(army, user.$id));
+      const guardado = await saveDraft(destino.$id, payload);
+      setDraft(guardado);
+      setNotice("Cambios guardados en el borrador. Pulsa Guardar para aplicarlos.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Acepta el borrador: pasa a ser el ejercito y el anterior queda archivado. */
+  async function onPublish() {
+    if (!draft) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const publicado = await publishDraft(draft);
+      setArmy(publicado);
+      setDraft(null);
+      setNotice("Cambios aplicados. La version anterior queda archivada.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDiscard() {
+    if (!draft || !army) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await discardDraft(draft);
+      setDraft(null);
+      setForm({
+        name: army.name,
+        gameSystem: army.gameSystem,
+        faction: army.faction ?? "",
+        points: army.points,
+        modelCount: army.modelCount,
+        listId: army.listId ?? "",
+        notes: army.notes ?? "",
+        shared: army.shared,
+      });
+      setListJson(army.listJson);
+      setImages(army.imageIds ?? []);
+      setCoverId(army.coverId);
+      setNotice("Borrador descartado.");
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -246,12 +304,18 @@ export default function ArmyEditor() {
         </div>
 
         <div className="army-bar-actions">
-          {armyId && bookKey ? (
-            <Link to={`/ejercitos/${armyId}/unidades`} className="button-link">
-              Anadir o cambiar unidades
-            </Link>
+          {draft ? (
+            <button type="button" className="ghost tiny" onClick={() => void onDiscard()} disabled={busy}>
+              Descartar
+            </button>
           ) : null}
-          <button type="submit" form="army-form" className="primary" disabled={busy}>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => void onPublish()}
+            disabled={busy || !draft}
+            title={draft ? undefined : "No hay cambios pendientes que guardar"}
+          >
             {busy ? "Guardando…" : "Guardar"}
           </button>
           {army ? (
@@ -269,6 +333,13 @@ export default function ArmyEditor() {
           Este ejercito se importo de Army Forge y no guarda de que faccion del catalogo viene, asi que no se pueden
           anadir unidades desde aqui. Editalo en Army Forge y vuelve a importarlo, o crea uno nuevo desde su faccion.
         </p>
+      ) : null}
+
+      {draft ? (
+        <div className="banner">
+          Estas viendo un <strong>borrador</strong> con cambios sin aplicar. El ejercito sigue como estaba hasta que
+          pulses Guardar.
+        </div>
       ) : null}
 
       {units.length > 0 ? (
@@ -301,6 +372,17 @@ export default function ArmyEditor() {
           </p>
         </EmptyState>
       )}
+
+      {armyId && bookKey ? (
+        <Link
+          to={`/ejercitos/${armyId}/unidades`}
+          className="fab"
+          title="Anadir o cambiar unidades"
+          aria-label="Anadir o cambiar unidades"
+        >
+          +
+        </Link>
+      ) : null}
 
       {/* La vista es de consulta: los datos y las imagenes se pliegan para que
           las cartas lleven el peso, y se abren cuando hay algo que cambiar. */}

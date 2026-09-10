@@ -268,3 +268,24 @@ async function prunerHistorial(lineageId: string): Promise<void> {
     ),
   );
 }
+
+/**
+ * Resuelve un ejercito desde una URL. Al publicar cambia la fila activa, asi
+ * que un enlace guardado apuntaria a una version archivada: se acepta tanto el
+ * id de una fila cualquiera de la linea como el propio `lineageId`, y siempre
+ * se devuelve la version activa con su borrador si lo hay.
+ */
+export async function resolveArmy(idOrLineage: string): Promise<{ active: Army; draft: Army | null }> {
+  let row: Army | null = null;
+  try {
+    row = await getArmy(idOrLineage);
+  } catch {
+    // La fila pudo caer del historial al podarlo; queda intentarlo como linea.
+  }
+
+  const lineageId = row?.lineageId ?? idOrLineage;
+  const active = row?.status === "active" ? row : await getActiveFor(lineageId);
+  if (!active) throw new Error("Este ejercito ya no existe.");
+
+  return { active, draft: await getDraftFor(active.lineageId ?? active.$id) };
+}

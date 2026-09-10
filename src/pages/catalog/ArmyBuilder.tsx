@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getBook, listUnits, listUpgradePackages } from "../../api/catalog";
 import type { ArmyBook, ArmyUnit } from "../../api/catalog";
-import { createArmy, getArmy, updateArmy } from "../../api/armies";
+import { createArmy, getArmy, getDraftFor, saveDraft, startDraft } from "../../api/armies";
 import type { Army } from "../../lib/types";
 import {
   blockReason,
@@ -77,7 +77,10 @@ export default function ArmyBuilder() {
         let stored: StoredList | null = null;
 
         if (editing) {
-          loadedArmy = await getArmy(armyId);
+          const activo = await getArmy(armyId);
+          // Si ya hay borrador, se sigue editando ese: crear otro lo impide el
+          // indice unico, y ademas se perderia lo que llevabas.
+          loadedArmy = (activo.lineageId ? await getDraftFor(activo.lineageId) : null) ?? activo;
           stored = parseStored(loadedArmy.listJson);
           key = stored?.source?.bookKey ?? "";
           if (!key) {
@@ -221,8 +224,15 @@ export default function ArmyBuilder() {
         listJson,
       };
 
-      const saved = army ? await updateArmy(army.$id, data) : await createArmy(user.$id, data);
-      navigate(`/ejercitos/${saved.$id}`);
+      if (!army) {
+        const creado = await createArmy(user.$id, data);
+        navigate(`/ejercitos/${creado.$id}`);
+        return;
+      }
+      // Los cambios de unidades tampoco tocan el activo: van a su borrador.
+      const destino = army.status === "draft" ? army : await startDraft(army, user.$id);
+      await saveDraft(destino.$id, data);
+      navigate(`/ejercitos/${army.lineageId ?? armyId}`);
     } catch (err) {
       setError(errorMessage(err));
       setSaving(false);
@@ -297,10 +307,10 @@ export default function ArmyBuilder() {
             disabled={saving || entries.length === 0}
             onClick={() => void save()}
           >
-            {saving ? "Guardando…" : editing ? "Guardar" : "Crear"}
+            {saving ? "Guardando…" : editing ? "Guardar en borrador" : "Crear"}
           </button>
           {editing && army ? (
-            <Link to={`/ejercitos/${army.$id}`} className="small">
+            <Link to={`/ejercitos/${army.lineageId ?? army.$id}`} className="small">
               Salir
             </Link>
           ) : (

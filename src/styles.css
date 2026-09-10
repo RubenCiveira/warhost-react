@@ -441,3 +441,22 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
   font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
 }
 .army-details > form { margin-top: 8px; }
+
+/* Boton flotante ------------------------------------------------------------ */
+/* Por encima del carrusel, fijo abajo a la derecha: la accion principal de la
+   vista del ejercito esta siempre a mano sin robarle sitio a las cartas. */
+
+.fab {
+  position: fixed; right: 24px; bottom: 24px; z-index: 25;
+  width: 56px; height: 56px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: #14100d;
+  font-size: 2rem; line-height: 1; font-weight: 600;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+.fab:hover { text-decoration: none; transform: translateY(-1px); }
+.fab:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
+}
