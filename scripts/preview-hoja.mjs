@@ -61,7 +61,7 @@ await writeFile(html, `<!doctype html><html lang="es" data-setting="grimdark"><h
 
 const { chromium } = await import("playwright");
 const nav = await chromium.launch({ channel: "chrome" });
-const p = await nav.newPage({ viewport: { width: 760, height: 1100 }, deviceScaleFactor: 2 });
+const p = await nav.newPage({ viewport: { width: 1400, height: 1100 }, deviceScaleFactor: 2 });
 await p.goto(`file://${html}`);
 const recortes = await p.evaluate(() =>
   [...document.querySelectorAll(".ucard.hoja")].map((c) => ({

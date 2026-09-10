@@ -167,7 +167,9 @@ la espada en una mota. Una silueta rellena se reconoce; una linea no.
 
 La carta de unidad mide **120 x 70 mm**, que es una carta de tarot, y esta
 definida en milimetros y no en pixeles con una proporcion parecida. En pantalla
-se mira con un aumento (`--ucard-esc`, 1.15 por defecto); al imprimir vuelve a 1
+se mira con un aumento (`--ucard-esc`, 1.45 en escritorio y menos segun baja el
+ancho; los hechizos llevan el suyo, `--scard-esc`, porque son verticales y con
+1.45 no cabrian de alto); al imprimir vuelve a 1
 y sale a tamano real. Eso significa que el diseno solo se puede juzgar viendola llena, y con
 las unidades que mas la aprietan, no con una de dos lineas:
 

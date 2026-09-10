@@ -38,6 +38,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: SPA fallback for deep links
+        run: cp dist/index.html dist/404.html
+
       - name: Publish to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:

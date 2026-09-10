@@ -101,7 +101,7 @@ await writeFile(
 const { chromium } = await import("playwright");
 // Con el Chrome del sistema: no hace falta que Playwright se baje el suyo.
 const navegador = await chromium.launch({ channel: "chrome" });
-const pagina = await navegador.newPage({ viewport: { width: 640, height: 1200 }, deviceScaleFactor: 2 });
+const pagina = await navegador.newPage({ viewport: { width: 1000, height: 1200 }, deviceScaleFactor: 2 });
 await pagina.goto(`file://${html}`);
 // Con tamano fijo lo que no cabe se recorta en silencio: hay que preguntarlo.
 const recortes = await pagina.evaluate(() =>

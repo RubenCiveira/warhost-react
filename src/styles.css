@@ -506,10 +506,15 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
  * armamento y los iconos. Va en un tono medio a proposito, porque el color de
  * realce del tema como relleno de media carta se come todo lo demas. */
 
-:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.15; }
-@media (max-width: 620px) { :root { --ucard-esc: 0.76; } }
-@media (max-width: 400px) { :root { --ucard-esc: 0.63; } }
-@media print { :root { --ucard-esc: 1; } }
+/* El aumento es solo de pantalla: al imprimir vuelve a 1 y la carta sale a los
+   120 x 70 mm de una tarot de verdad. En pantalla se mira de lejos y con el
+   raton, asi que se agranda; los chips se pulsan mejor y las reglas de arma se
+   leen sin acercarse. */
+:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.45; --scard-esc: 1.15; }
+@media (max-width: 900px) { :root { --ucard-esc: 1.15; } }
+@media (max-width: 620px) { :root { --ucard-esc: 0.76; --scard-esc: 0.76; } }
+@media (max-width: 400px) { :root { --ucard-esc: 0.63; --scard-esc: 0.63; } }
+@media print { :root { --ucard-esc: 1; --scard-esc: 1; } }
 
 .ucard-wrap { width: calc(var(--ucard-w) * var(--ucard-esc)); }
 
@@ -898,8 +903,8 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 :root { --scard-w: 70mm; --scard-h: 120mm; }
 
 .scard-frame {
-  width: calc(var(--scard-w) * var(--ucard-esc));
-  height: calc(var(--scard-h) * var(--ucard-esc));
+  width: calc(var(--scard-w) * var(--scard-esc));
+  height: calc(var(--scard-h) * var(--scard-esc));
   overflow: hidden;
 }
 
@@ -914,7 +919,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   --ucard-realce: var(--accent);
   width: var(--scard-w);
   height: var(--scard-h);
-  transform: scale(var(--ucard-esc));
+  transform: scale(var(--scard-esc));
   transform-origin: top left;
   display: flex; flex-direction: column;
   background: var(--ucard-papel);
@@ -1032,7 +1037,8 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
  * Comparte todo con la carta de tarot —banda, tabla de armas, chips— y solo
  * cambia de caja y mete las opciones dentro. */
 
-:root { --uhoja-w: 190mm; --uhoja-h: 134mm; --uhoja-esc: 0.86; }
+:root { --uhoja-w: 190mm; --uhoja-h: 134mm; --uhoja-esc: 1.05; }
+@media (max-width: 1300px) { :root { --uhoja-esc: 0.86; } }
 @media (max-width: 1000px) { :root { --uhoja-esc: 0.6; } }
 @media (max-width: 700px) { :root { --uhoja-esc: 0.44; } }
 
