@@ -1012,3 +1012,8 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 
 .scard-concede { margin: 2.4mm 0 0; font-size: 3mm; color: var(--ucard-tenue); }
 
+
+/* Una carta de habilidad abierta desde dentro de un dialogo: tiene que quedar
+   por encima de el, no debajo. */
+.sobre-modal { position: relative; z-index: 50; }
+.sobre-modal .modal-backdrop { z-index: 50; }

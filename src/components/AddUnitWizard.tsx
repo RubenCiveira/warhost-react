@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getBook, listUnits, listUpgradePackages } from "../api/catalog";
-import type { ArmyBook, ArmyUnit } from "../api/catalog";
+import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
 import {
   blockReason,
   entryCost,
@@ -16,6 +16,8 @@ import { baseLoadout } from "../lib/loadout";
 import { errorMessage } from "../lib/format";
 import { ErrorBanner, Spinner } from "./ui";
 import UnitCard from "./UnitCard";
+import RuleCardModal from "./RuleCardModal";
+import type { Habilidad } from "../lib/reglas";
 
 type Paso = "elegir" | "configurar" | "revisar";
 
@@ -49,6 +51,8 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
   const [paso, setPaso] = useState<Paso>("elegir");
   const [entry, setEntry] = useState<BuilderEntry | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +63,11 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
         setBook(b);
         setUnits(u);
         setPackages(p);
+        // Sin bloquear el asistente: sin glosario los chips siguen ahi, solo que
+        // no saben cuales tienen descripcion.
+        listRuleGlossary(b.gameSystem)
+          .then((g) => !cancelled && setGlosario(g))
+          .catch(() => undefined);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err));
       } finally {
@@ -71,10 +80,16 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
   }, [bookKey]);
 
   useEffect(() => {
-    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && onCancel();
+    const conEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Con una carta de habilidad abierta encima, Escape la cierra a ella: si
+      // no, se cerraria el asistente entero y se perderia lo elegido.
+      if (habilidad) return;
+      onCancel();
+    };
     document.addEventListener("keydown", conEscape);
     return () => document.removeEventListener("keydown", conEscape);
-  }, [onCancel]);
+  }, [onCancel, habilidad]);
 
   const visibles = useMemo(() => {
     const aguja = busqueda.trim().toLowerCase();
@@ -119,7 +134,13 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
   ];
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Anadir unidad" onClick={onCancel}>
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Anadir unidad"
+      onClick={() => !habilidad && onCancel()}
+    >
       <div className="modal wide wizard" onClick={(event) => event.stopPropagation()}>
         <header className="spread">
           <ol className="wizard-steps">
@@ -161,6 +182,8 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                     <UnitCard
                       variant="catalogo"
                       unitId={unit.unitId}
+                      conTexto={new Set(glosario.keys())}
+                      onHabilidad={setHabilidad}
                       sections={sectionsForUnit(unit, packages)}
                       unit={{
                         name: unit.name,
@@ -194,6 +217,8 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
               <UnitCard
                 variant="ejercito"
                 unitId={entry.unit.unitId}
+                conTexto={new Set(glosario.keys())}
+                onHabilidad={setHabilidad}
                 sections={sections}
                 upgrades={entryUpgradeLabels(entry, sections)}
                 optionsOpen
@@ -246,7 +271,13 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
           <>
             <p className="muted small">Asi queda la unidad. Al confirmar se anade al borrador del ejercito.</p>
             <div className="wizard-single">
-              <UnitCard variant="ejercito" unit={tarjeta(entry)} upgrades={entryUpgradeLabels(entry, sections)} />
+              <UnitCard
+                variant="ejercito"
+                unit={tarjeta(entry)}
+                upgrades={entryUpgradeLabels(entry, sections)}
+                conTexto={new Set(glosario.keys())}
+                onHabilidad={setHabilidad}
+              />
             </div>
             <footer className="wizard-foot">
               <button type="button" onClick={() => setPaso("configurar")}>
@@ -264,6 +295,12 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
           </>
         ) : null}
       </div>
+
+      {habilidad ? (
+        <div className="sobre-modal">
+          <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+        </div>
+      ) : null}
     </div>
   );
 }

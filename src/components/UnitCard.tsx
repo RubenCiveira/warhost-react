@@ -111,8 +111,9 @@ function Chip({
   onAbrir?: (habilidad: Habilidad) => void;
 }) {
   // Sin glosario cargado no se sabe cuales tienen texto: se dejan todas
-  // pulsables antes que marcarlas en falso.
-  const tieneTexto = !conTexto || conTexto.has(habilidad.nombre.toLowerCase());
+  // pulsables antes que marcarlas en falso. Un conjunto vacio es justo eso —
+  // todavia cargando, o no llego—, no "ninguna tiene descripcion".
+  const tieneTexto = !conTexto || conTexto.size === 0 || conTexto.has(habilidad.nombre.toLowerCase());
   const clases = ["ucard-chip", habilidad.tipo === "equipo" ? "equipo" : "", tieneTexto ? "" : "sin-texto"]
     .filter(Boolean)
     .join(" ");

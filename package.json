@@ -18,7 +18,8 @@
     "test:reemplazos": "node scripts/test-reemplazos.mjs",
     "audit:armies": "node scripts/audit-armies.mjs",
     "preview:spells": "node scripts/preview-spells.mjs",
-    "test:faccion": "node scripts/test-faccion.mjs"
+    "test:faccion": "node scripts/test-faccion.mjs",
+    "test:chip": "node scripts/test-chip-click.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",
