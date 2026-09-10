@@ -620,7 +620,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 0.6mm; }
 /* Va en la banda de titulo, con su tipografia, no como una pegatina encima: es
    parte de lo que la unidad es, igual que su nombre. */
-.ucard-reforzada {
+.ucard-combinada {
   margin-left: 2mm; padding: 0.3mm 1.4mm;
   font-size: 2.1mm; letter-spacing: 0.08em; text-transform: uppercase;
   border: 0.3mm solid currentColor; border-radius: 0.8mm;

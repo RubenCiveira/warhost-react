@@ -1,12 +1,12 @@
 /**
- * Una unidad reforzada ("combined" en Army Forge) se configura como la normal
+ * Una unidad combinada ("combined" en Army Forge) se configura como la normal
  * y se dobla el resultado: el doble de miniaturas, el doble de todo el equipo
  * y el doble de puntos.
  *
  * Se comprueba con la aritmetica del caso que lo motivo: unos Pathfinders con
  * Heavy Rifle a los que se les ponen Sniper Rifles.
  *
- *   pnpm test:refuerzo
+ *   pnpm test:combinada
  */
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const CLI_CWD = process.env.APPWRITE_DIR ?? "../warhost-appwrite";
-const dir = await mkdtemp(join(tmpdir(), "warhost-ref-"));
+const dir = await mkdtemp(join(tmpdir(), "warhost-comb-"));
 const carga = async (entrada, nombre) => {
   const salida = join(dir, nombre);
   await build({ entryPoints: [entrada], outfile: salida, format: "esm", bundle: true, platform: "node", logLevel: "error" });
@@ -47,7 +47,7 @@ const paquetes = new Map(
 );
 
 // El caso exacto: los Pathfinders salen con Heavy Pistol, cambian todas por
-// Heavy Rifle, y luego tres de esos rifles por Sniper Rifle. Reforzados, eso
+// Heavy Rifle, y luego tres de esos rifles por Sniper Rifle. Combinados, eso
 // son 10 miniaturas con 4 Heavy Rifle y 6 Sniper Rifle.
 const pathfinders = unidades.find((u) => u.name === "Pathfinders");
 const secciones = B.sectionsForUnit(pathfinders, paquetes);
@@ -65,12 +65,12 @@ console.log(`${pathfinders.name}: ${pathfinders.size} miniaturas · ${pathfinder
 
 const choices = { [B.optionId(opRifle)]: 1, [B.optionId(opSniper)]: 3 };
 const normal = { key: "n", unit: pathfinders, choices };
-const reforzada = { key: "r", unit: pathfinders, choices, combined: true };
+const combinada = { key: "r", unit: pathfinders, choices, combined: true };
 
 const eqNormal = B.entryLoadoutFinal(normal, secciones);
-const eqReforzada = B.entryLoadoutFinal(reforzada, secciones);
+const eqCombinada = B.entryLoadoutFinal(combinada, secciones);
 console.log(`  normal    : ${eqNormal.map((e) => `${e.count}× ${e.name}`).join(", ")} · ${B.entryCost(normal, secciones)} pts`);
-console.log(`  reforzada : ${eqReforzada.map((e) => `${e.count}× ${e.name}`).join(", ")} · ${B.entryCost(reforzada, secciones)} pts`);
+console.log(`  combinada : ${eqCombinada.map((e) => `${e.count}× ${e.name}`).join(", ")} · ${B.entryCost(combinada, secciones)} pts`);
 
 comprobar(
   cuantos(eqNormal, "Heavy Rifle") === 2 && cuantos(eqNormal, "Sniper Rifle") === 3,
@@ -78,24 +78,24 @@ comprobar(
   `${cuantos(eqNormal, "Heavy Rifle")} y ${cuantos(eqNormal, "Sniper Rifle")}`,
 );
 comprobar(
-  cuantos(eqReforzada, "Heavy Rifle") === 4 && cuantos(eqReforzada, "Sniper Rifle") === 6,
-  "reforzada, el resultado se dobla entero: 4 Heavy Rifle y 6 Sniper",
-  `${cuantos(eqReforzada, "Heavy Rifle")} y ${cuantos(eqReforzada, "Sniper Rifle")}`,
+  cuantos(eqCombinada, "Heavy Rifle") === 4 && cuantos(eqCombinada, "Sniper Rifle") === 6,
+  "combinada, el resultado se dobla entero: 4 Heavy Rifle y 6 Sniper",
+  `${cuantos(eqCombinada, "Heavy Rifle")} y ${cuantos(eqCombinada, "Sniper Rifle")}`,
 );
 comprobar(
-  eqReforzada.reduce((n, e) => n + (e.kind === "weapon" ? e.count : 0), 0) ===
+  eqCombinada.reduce((n, e) => n + (e.kind === "weapon" ? e.count : 0), 0) ===
     eqNormal.reduce((n, e) => n + (e.kind === "weapon" ? e.count : 0), 0) * 2,
   "no aparece ni desaparece nada por el camino",
 );
 comprobar(
-  B.entryCost(reforzada, secciones) === B.entryCost(normal, secciones) * 2,
+  B.entryCost(combinada, secciones) === B.entryCost(normal, secciones) * 2,
   "el coste se dobla con las mejoras dentro",
-  `${B.entryCost(normal, secciones)} -> ${B.entryCost(reforzada, secciones)}`,
+  `${B.entryCost(normal, secciones)} -> ${B.entryCost(combinada, secciones)}`,
 );
 
-const resuelta = B.toResolvedUnit(reforzada, secciones, 0);
+const resuelta = B.toResolvedUnit(combinada, secciones, 0);
 comprobar(resuelta.size === 10, "el doble de miniaturas", `${resuelta.size}`);
-comprobar(resuelta.combined === true, "y queda marcada como reforzada");
+comprobar(resuelta.combined === true, "y queda marcada como combinada");
 
 // Elegir de mas en lo guardado no puede pintar cosas imposibles.
 const pasado = { key: "x", unit: pathfinders, choices: { ...choices, [B.optionId(opSniper)]: 99 } };
@@ -109,21 +109,33 @@ const seccion = aSnipers;
 // Los limites siguen contando sobre la unidad normal.
 const tope = B.maxPicks(seccion, pathfinders.size);
 comprobar(
-  B.maxPicks(seccion, reforzada.unit.size) === tope,
-  "los limites de cada seccion no cambian al reforzar",
+  B.maxPicks(seccion, combinada.unit.size) === tope,
+  "los limites de cada seccion no cambian al combinar",
   `${tope}`,
 );
 
 // Y sobrevive a guardar y recuperar.
-const guardado = B.serializeEntries([reforzada]);
+const guardado = B.serializeEntries([combinada]);
 const vuelta = B.rehydrateEntries(guardado, [pathfinders]);
-comprobar(vuelta[0]?.combined === true, "el refuerzo sobrevive a guardar el ejercito");
-const conNota = B.rehydrateEntries(B.serializeEntries([{ ...reforzada, notes: "va con el capitan" }]), [pathfinders]);
+comprobar(vuelta[0]?.combined === true, "lo combinado sobrevive a guardar el ejercito");
+const conNota = B.rehydrateEntries(B.serializeEntries([{ ...combinada, notes: "va con el capitan" }]), [pathfinders]);
 comprobar(conNota[0]?.notes === "va con el capitan", "y las notas tambien");
 
-// Un Heroe es una miniatura: no se refuerza.
+// Y llega entera a la vista del ejercito, que no lee las elecciones sino las
+// unidades ya resueltas del JSON guardado.
+{
+  const { parseStoredList } = await carga("src/lib/armyForgeResolve.ts", "resolve.mjs");
+  const conNotas = { key: "r", unit: pathfinders, choices, combined: true, notes: "flanco derecho" };
+  const guardadas = JSON.stringify({ units: [B.toResolvedUnit(conNotas, secciones, 0)] });
+  const leidas = parseStoredList(guardadas);
+  comprobar(leidas[0]?.combined === true, "la marca de combinada llega a la vista del ejercito");
+  comprobar(leidas[0]?.notes === "flanco derecho", "y la nota tambien");
+  comprobar(leidas[0]?.size === 10, "con el tamano ya doblado", `${leidas[0]?.size}`);
+}
+
+// Un Heroe es una miniatura: no se combina.
 const heroe = unidades.find((u) => u.size === 1);
-comprobar(!B.sePuedeReforzar(heroe), `un Heroe no se puede reforzar (${heroe.name})`);
+comprobar(!B.sePuedeCombinar(heroe), `un Heroe no se puede combinar (${heroe.name})`);
 
 await rm(dir, { recursive: true, force: true });
 console.log(fallos === 0 ? "\nTodo correcto." : `\n${fallos} comprobaciones fallidas.`);

@@ -709,6 +709,8 @@ export default function ArmyEditor() {
                   rules: unit.rules,
                   loadout: unit.loadout,
                 }}
+                combinada={unit.combined}
+                notas={unit.notes}
               />
             </div>
           ))}

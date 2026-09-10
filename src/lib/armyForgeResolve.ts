@@ -24,9 +24,9 @@ export interface ForgeListUnit {
   customName?: string;
   selectionId?: string;
   selectedUpgrades?: ForgeSelectedUpgrade[];
-  /** Unidad reforzada: el doble de miniaturas y el doble de coste. */
+  /** Unidad combinada: el doble de miniaturas y el doble de coste. */
   combined?: boolean;
-  /** Puesto en la segunda mitad de una unidad reforzada. */
+  /** Puesto en la segunda mitad de una unidad combinada. */
   joinToUnit?: string | null;
   notes?: string | null;
 }
@@ -116,7 +116,7 @@ export interface ResolvedUnit {
   loadout: LoadoutEntry[];
   /** Las opciones elegidas, tal como las nombra Army Forge. */
   upgrades: string[];
-  /** Unidad reforzada: `size`, `cost` y `loadout` ya vienen doblados. */
+  /** Unidad combinada: `size`, `cost` y `loadout` ya vienen doblados. */
   combined?: boolean;
   /** Anotacion del jugador. */
   notes?: string;
@@ -169,7 +169,7 @@ export function resolveList(
   listId: string,
 ): ResolvedList {
   const list = raw.list ?? {};
-  // La segunda mitad de una unidad reforzada es la misma unidad, no otra: viene
+  // La segunda mitad de una unidad combinada es la misma unidad, no otra: viene
   // con `joinToUnit` apuntando a la primera y sin mejoras propias. Importarla
   // dejaria la unidad dos veces en la lista, y ademas sin configurar.
   const units = (list.units ?? []).filter((unit) => !unit.joinToUnit);
@@ -240,10 +240,10 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
   }
 
   const base = definition?.size ?? 1;
-  // Reforzada: se configura como la unidad normal y se dobla el resultado.
-  // Un Heroe es una miniatura y no se puede reforzar, aunque venga marcado.
-  const reforzada = Boolean(unit.combined) && base > 1;
-  const factor = reforzada ? 2 : 1;
+  // Combinada: se configura como la unidad normal y se dobla el resultado.
+  // Un Heroe es una miniatura y no se puede combinar, aunque venga marcado.
+  const combinada = Boolean(unit.combined) && base > 1;
+  const factor = combinada ? 2 : 1;
   const size = base * factor;
   const tough = ratingOf((definition?.rules ?? []).find((rule) => rule.name?.toLowerCase() === "tough")?.rating) ?? 1;
   const loadout = applyOptions(baseLoadout(definition?.weapons ?? [], definition?.items ?? []), applied).map((pieza) =>
@@ -262,7 +262,7 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
     loadout,
     upgrades,
     unresolvedUpgrades,
-    ...(reforzada ? { combined: true } : {}),
+    ...(combinada ? { combined: true } : {}),
     ...(unit.notes ? { notes: unit.notes } : {}),
     sortOrder: index,
   };

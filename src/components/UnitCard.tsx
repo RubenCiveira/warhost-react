@@ -87,8 +87,8 @@ interface Props {
    * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
    * marcan como del reglamento basico y no invitan a pulsar.
    */
-  /** Unidad reforzada: se avisa en la carta porque el perfil ya viene doblado. */
-  reforzada?: boolean;
+  /** Unidad combinada: se avisa en la carta porque el perfil ya viene doblado. */
+  combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
   notas?: string;
   conTexto?: Set<string>;
@@ -315,7 +315,7 @@ export default function UnitCard({
   optionsLabel,
   formato = "tarot",
   footer,
-  reforzada = false,
+  combinada = false,
   notas,
   conTexto,
   onHabilidad,
@@ -380,9 +380,9 @@ export default function UnitCard({
           <header className="ucard-head">
             <h3 className="ucard-title">
               {unit.name}
-              {/* El perfil de una reforzada ya viene doblado, asi que hay que
+              {/* El perfil de una combinada ya viene doblado, asi que hay que
                   decirlo o parecera que la unidad es de otro tamaño. */}
-              {reforzada ? <span className="ucard-reforzada">Reforzada</span> : null}
+              {combinada ? <span className="ucard-combinada">Combinada</span> : null}
             </h3>
             <div className="ucard-stats">
               {stats.map(([label, value]) => (

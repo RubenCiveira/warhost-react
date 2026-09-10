@@ -58,7 +58,7 @@ export interface BuilderEntry {
   /** optionId -> cuantas veces se ha cogido esa opcion. */
   choices: Record<string, number>;
   /**
-   * Unidad reforzada ("combined" en Army Forge): el doble de miniaturas y el
+   * Unidad combinada ("combined" en Army Forge): el doble de miniaturas y el
    * doble de coste.
    */
   combined?: boolean;
@@ -67,24 +67,24 @@ export interface BuilderEntry {
 }
 
 /**
- * Una unidad reforzada se **configura como la normal** y se duplica despues.
+ * Una unidad combinada se **configura como la normal** y se duplica despues.
  *
  * Los limites de cada seccion siguen contando sobre la unidad de siempre, asi
  * que unos Pathfinders de 5 con Heavy Rifle a los que se les ponen 3 Sniper
- * Rifle quedan en 2 Heavy y 3 Sniper; reforzados son 10 miniaturas, 4 Heavy y 6
+ * Rifle quedan en 2 Heavy y 3 Sniper; combinados son 10 miniaturas, 4 Heavy y 6
  * Sniper, y el doble de puntos.
  */
-export const FACTOR_REFUERZO = 2;
+export const FACTOR_COMBINADA = 2;
 
-export function refuerzo(entry: BuilderEntry): number {
-  return entry.combined ? FACTOR_REFUERZO : 1;
+export function factorCombinada(entry: BuilderEntry): number {
+  return entry.combined ? FACTOR_COMBINADA : 1;
 }
 
 /**
- * Una unidad de un solo modelo no se puede reforzar: reforzar es juntar dos
+ * Una unidad de un solo modelo no se puede combinar: combinar es juntar dos
  * unidades iguales, y un Heroe es una miniatura.
  */
-export function sePuedeReforzar(unit: CatalogUnitLike): boolean {
+export function sePuedeCombinar(unit: CatalogUnitLike): boolean {
   return unit.size > 1;
 }
 
@@ -250,8 +250,8 @@ export function entryCost(entry: BuilderEntry, sections: UpgradeSection[]): numb
       if (count > 0) cost += optionCost(option, entry.unit.unitId) * count;
     }
   }
-  // El refuerzo dobla el total, mejoras incluidas: son dos unidades iguales.
-  return cost * refuerzo(entry);
+  // El combinar dobla el total, mejoras incluidas: son dos unidades iguales.
+  return cost * factorCombinada(entry);
 }
 
 export function entryRules(entry: BuilderEntry, sections: UpgradeSection[]): string[] {
@@ -316,7 +316,7 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
 /**
  * El equipo de la unidad **normal**, ya configurada.
  *
- * Sin doblar aunque este reforzada, a proposito: de aqui sale con que cuenta la
+ * Sin doblar aunque este combinada, a proposito: de aqui sale con que cuenta la
  * unidad para decidir que reemplazos estan disponibles, y esos se resuelven
  * sobre la unidad de siempre. Doblar aqui haria que un "Replace all" tuviera
  * que quitar diez cosas donde el catalogo cuenta cinco.
@@ -326,10 +326,10 @@ export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): L
   return applyOptions(base, appliedOptions(entry, sections));
 }
 
-/** El equipo que sale a la mesa: el de la unidad normal, doblado si va reforzada. */
+/** El equipo que sale a la mesa: el de la unidad normal, doblado si va combinada. */
 export function entryLoadoutFinal(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
   const equipo = entryLoadout(entry, sections);
-  const factor = refuerzo(entry);
+  const factor = factorCombinada(entry);
   return factor === 1 ? equipo : equipo.map((pieza) => ({ ...pieza, count: pieza.count * factor }));
 }
 
@@ -339,7 +339,7 @@ export function toResolvedUnit(
   index: number,
 ): ResolvedUnit {
   const rules = entryRules(entry, sections);
-  const size = entry.unit.size * refuerzo(entry);
+  const size = entry.unit.size * factorCombinada(entry);
   return {
     name: entry.unit.name,
     unitKey: entry.unit.unitId,
@@ -443,7 +443,7 @@ interface ForgeListShape {
       selectedUpgrades?: Array<{ optionId?: string }>;
       combined?: boolean;
       notes?: string | null;
-      /** Puesto en la segunda mitad de una unidad reforzada. */
+      /** Puesto en la segunda mitad de una unidad combinada. */
       joinToUnit?: string | null;
     }>;
   };
@@ -461,7 +461,7 @@ export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): Bu
   const byId = new Map(units.map((unit) => [unit.unitId, unit]));
 
   return list.flatMap((forgeUnit, index) => {
-    // Army Forge guarda una unidad reforzada como **dos** selecciones: las dos
+    // Army Forge guarda una unidad combinada como **dos** selecciones: las dos
     // con `combined`, y la segunda apuntando a la primera con `joinToUnit`. Esa
     // segunda es la otra mitad, no otra unidad, y las mejoras van todas en la
     // primera: importarla aparte duplicaria la unidad en la lista.
@@ -478,7 +478,7 @@ export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): Bu
         key: newKey(unit.unitId, index),
         unit,
         choices,
-        ...(forgeUnit.combined && sePuedeReforzar(unit) ? { combined: true } : {}),
+        ...(forgeUnit.combined && sePuedeCombinar(unit) ? { combined: true } : {}),
         ...(typeof forgeUnit.notes === "string" && forgeUnit.notes ? { notes: forgeUnit.notes } : {}),
       },
     ];

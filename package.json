@@ -25,7 +25,7 @@
     "test:impresion": "node scripts/test-impresion.mjs",
     "test:opciones": "node scripts/test-opciones.mjs",
     "audit:opciones": "node scripts/audit-opciones.mjs",
-    "test:refuerzo": "node scripts/test-refuerzo.mjs"
+    "test:combinada": "node scripts/test-combinada.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

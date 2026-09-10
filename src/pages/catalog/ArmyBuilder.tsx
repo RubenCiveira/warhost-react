@@ -11,7 +11,7 @@ import {
   entriesFromForgeList,
   entryCost,
   entryLoadoutFinal,
-  sePuedeReforzar,
+  sePuedeCombinar,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -355,7 +355,7 @@ export default function ArmyBuilder() {
                     rules: entryRules(entry, sections),
                     loadout: entryLoadoutFinal(entry, sections),
                   }}
-                  reforzada={entry.combined}
+                  combinada={entry.combined}
                   notas={entry.notes}
                   optionAction={(section, option) => {
                     const id = optionId(option);
@@ -389,14 +389,14 @@ export default function ArmyBuilder() {
                   }}
                   footer={
                     <>
-                      {sePuedeReforzar(entry.unit) ? (
+                      {sePuedeCombinar(entry.unit) ? (
                         <label className="check tiny">
                           <input
                             type="checkbox"
                             checked={Boolean(entry.combined)}
                             onChange={(event) => setEntryField(entry.key, { combined: event.target.checked })}
                           />
-                          Reforzar
+                          Combinar
                         </label>
                       ) : null}
                       <input

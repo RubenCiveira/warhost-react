@@ -5,7 +5,7 @@ import {
   blockReason,
   entryCost,
   entryLoadoutFinal,
-  sePuedeReforzar,
+  sePuedeCombinar,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -118,7 +118,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
 
   const sections = entry ? sectionsForUnit(entry.unit, packages) : [];
 
-  // La carta ensena la unidad tal como sale a la mesa: si va reforzada, con el
+  // La carta ensena la unidad tal como sale a la mesa: si va combinada, con el
   // tamano, el coste y el equipo ya doblados.
   const tarjeta = (actual: BuilderEntry) => ({
     name: actual.unit.name,
@@ -132,14 +132,14 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
 
   const controlesDeUnidad = (actual: BuilderEntry) => (
     <>
-      {sePuedeReforzar(actual.unit) ? (
+      {sePuedeCombinar(actual.unit) ? (
         <label className="check tiny">
           <input
             type="checkbox"
             checked={Boolean(actual.combined)}
             onChange={(event) => setEntry((previo) => (previo ? { ...previo, combined: event.target.checked } : previo))}
           />
-          Reforzar
+          Combinar
         </label>
       ) : null}
       <input
@@ -250,7 +250,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                 optionsOpen
                 optionsLabel="Opciones de la unidad"
                 unit={tarjeta(entry)}
-                reforzada={entry.combined}
+                combinada={entry.combined}
                 notas={entry.notes}
                 footer={controlesDeUnidad(entry)}
                 optionAction={(section, option) => {
@@ -303,7 +303,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
               <UnitCard
                 variant="ejercito"
                 unit={tarjeta(entry)}
-                reforzada={entry.combined}
+                combinada={entry.combined}
                 notas={entry.notes}
                 upgrades={entryUpgradeLabels(entry, sections)}
                 conTexto={new Set(glosario.keys())}
