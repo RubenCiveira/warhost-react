@@ -11,20 +11,19 @@ import {
   entriesFromForgeList,
   entryCost,
   entryLoadout,
+  entryRules,
   entryUpgradeLabels,
-  maxDistinctOptions,
-  maxPicks,
   optionCost,
   optionId,
   rehydrateEntries,
-  sectionChosenCount,
   sectionsForUnit,
   serializeEntries,
 } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { baseLoadout, formatLoadout } from "../../lib/loadout";
+import { baseLoadout } from "../../lib/loadout";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
+import UnitCard from "../../components/UnitCard";
 
 /** Constructor de ejercitos a partir del catalogo propio. */
 /** Lo que guarda la columna `listJson` de un ejercito. */
@@ -228,25 +227,28 @@ export default function ArmyBuilder() {
       <div className="builder">
         <section>
           <h2>Unidades disponibles</h2>
-          <div className="stack">
+          <div className="ucard-grid one-per-row">
             {units.map((unit) => (
-              <div key={unit.$id} className="card spread">
-                <div>
-                  <strong>{unit.name}</strong>
-                  <div className="small muted mono">
-                    ×{unit.size} · C{unit.quality}+ D{unit.defense}+ · {unit.cost} pts
-                  </div>
-                  {unit.rules.length > 0 ? (
-                    <div className="small muted">{unit.rules.slice(0, 5).join(", ")}</div>
-                  ) : null}
-                  <div className="small muted">
-                    {formatLoadout(baseLoadout(unit.weapons, unit.items)).join(" · ")}
-                  </div>
-                </div>
-                <button type="button" className="tiny" onClick={() => addUnit(unit)}>
-                  Anadir
-                </button>
-              </div>
+              <UnitCard
+                key={unit.$id}
+                variant="catalogo"
+                unitId={unit.unitId}
+                sections={sectionsForUnit(unit, packages)}
+                unit={{
+                  name: unit.name,
+                  size: unit.size,
+                  quality: unit.quality,
+                  defense: unit.defense,
+                  cost: unit.cost,
+                  rules: unit.rules,
+                  loadout: baseLoadout(unit.weapons, unit.items),
+                }}
+                footer={
+                  <button type="button" className="primary tiny" onClick={() => addUnit(unit)}>
+                    Anadir al ejercito
+                  </button>
+                }
+              />
             ))}
           </div>
         </section>
@@ -292,102 +294,75 @@ export default function ArmyBuilder() {
           {entries.length === 0 ? (
             <p className="muted">Anade unidades desde la izquierda.</p>
           ) : (
-            <div className="stack">
+            <div className="ucard-grid one-per-row">
               {entries.map((entry) => {
                 const sections = sectionsForUnit(entry.unit, packages);
-                const labels = entryUpgradeLabels(entry, sections);
                 const open = openEntry === entry.key;
                 return (
-                  <div key={entry.key} className="card">
-                    <div className="spread">
-                      <div>
-                        <strong>{entry.unit.name}</strong>
-                        <div className="small muted mono">{entryCost(entry, sections)} pts</div>
-                      </div>
-                      <div className="row">
+                  <UnitCard
+                    key={entry.key}
+                    variant="ejercito"
+                    unitId={entry.unit.unitId}
+                    sections={sections}
+                    upgrades={entryUpgradeLabels(entry, sections)}
+                    optionsOpen={open}
+                    optionsLabel="Mejoras de esta unidad"
+                    unit={{
+                      name: entry.unit.name,
+                      size: entry.unit.size,
+                      quality: entry.unit.quality,
+                      defense: entry.unit.defense,
+                      cost: entryCost(entry, sections),
+                      rules: entryRules(entry, sections),
+                      loadout: entryLoadout(entry, sections),
+                    }}
+                    optionAction={(section, option) => {
+                      const id = optionId(option);
+                      const count = entry.choices[id] ?? 0;
+                      const blocked = blockReason(section, option, entry);
+                      return (
+                        <span className="row ucard-option-controls">
+                          <span className="ucard-price">+{optionCost(option, entry.unit.unitId)}</span>
+                          <button
+                            type="button"
+                            className="icon tiny"
+                            disabled={count === 0}
+                            onClick={() => changeChoice(entry.key, id, -1)}
+                            aria-label={`Quitar ${option.label}`}
+                          >
+                            −
+                          </button>
+                          <span className="mono">{count}</span>
+                          <button
+                            type="button"
+                            className="icon tiny"
+                            disabled={Boolean(blocked)}
+                            title={blocked ?? undefined}
+                            onClick={() => changeChoice(entry.key, id, 1)}
+                            aria-label={`Anadir ${option.label}`}
+                          >
+                            +
+                          </button>
+                        </span>
+                      );
+                    }}
+                    footer={
+                      <>
                         {sections.length > 0 ? (
                           <button
                             type="button"
-                            className="ghost tiny"
+                            className="tiny"
                             onClick={() => setOpenEntry(open ? null : entry.key)}
                           >
-                            {open ? "Cerrar" : "Mejoras"}
+                            {open ? "Cerrar mejoras" : "Mejoras"}
                           </button>
                         ) : null}
-                        <button type="button" className="ghost tiny danger" onClick={() => removeEntry(entry.key)}>
+                        <button type="button" className="tiny danger" onClick={() => removeEntry(entry.key)}>
                           Quitar
                         </button>
-                      </div>
-                    </div>
-                    <p className="small muted" style={{ margin: "4px 0 0" }}>
-                      {formatLoadout(entryLoadout(entry, sections)).join(" · ")}
-                    </p>
-                    {labels.length > 0 ? (
-                      <ul className="small muted upgrades">
-                        {labels.map((label) => (
-                          <li key={label}>{label}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-
-                    {open
-                      ? sections.map((section) => {
-                          const picked = sectionChosenCount(section, entry.choices);
-                          const cap = maxPicks(section, entry.unit.size);
-                          const distinct = maxDistinctOptions(section);
-                          return (
-                            <fieldset key={section.id ?? section.uid} className="section">
-                              <legend>
-                                {section.label}
-                                <span className="muted small">
-                                  {" "}
-                                  · {picked}/{cap}
-                                  {distinct !== Number.POSITIVE_INFINITY ? ` · ${distinct} opcion` : ""}
-                                </span>
-                              </legend>
-                              {(section.options ?? []).map((option) => {
-                                const id = optionId(option);
-                                const count = entry.choices[id] ?? 0;
-                                const blocked = blockReason(section, option, entry);
-                                return (
-                                  <div key={id} className="spread option">
-                                    <span className="small">
-                                      {option.label}
-                                      <span className="muted mono">
-                                        {" "}
-                                        +{optionCost(option, entry.unit.unitId)} pts
-                                      </span>
-                                    </span>
-                                    <span className="row">
-                                      <button
-                                        type="button"
-                                        className="icon tiny"
-                                        disabled={count === 0}
-                                        onClick={() => changeChoice(entry.key, id, -1)}
-                                        aria-label={`Quitar ${option.label}`}
-                                      >
-                                        −
-                                      </button>
-                                      <span className="mono">{count}</span>
-                                      <button
-                                        type="button"
-                                        className="icon tiny"
-                                        disabled={Boolean(blocked)}
-                                        title={blocked ?? undefined}
-                                        onClick={() => changeChoice(entry.key, id, 1)}
-                                        aria-label={`Anadir ${option.label}`}
-                                      >
-                                        +
-                                      </button>
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </fieldset>
-                          );
-                        })
-                      : null}
-                  </div>
+                      </>
+                    }
+                  />
                 );
               })}
             </div>

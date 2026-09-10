@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { normalizeLoadout } from "../lib/loadout";
 import type { LoadoutEntry } from "../lib/loadout";
 import { maxDistinctOptions, maxPicks, optionCost, optionId } from "../lib/builder";
-import type { UpgradeSection } from "../lib/builder";
+import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 
 /**
  * Ficha de unidad con aire de carta de juego: apaisada, clara sobre el fondo
@@ -27,11 +27,19 @@ export interface UnitCardData {
 interface Props {
   unit: UnitCardData;
   variant: "catalogo" | "ejercito";
-  /** Solo en `catalogo`: las opciones que se pueden comprar. */
+  /** Secciones de mejora de la unidad. */
   sections?: UpgradeSection[];
   unitId?: string;
   /** Solo en `ejercito`: las opciones que se compraron. */
   upgrades?: string[];
+  /**
+   * Sustituye el precio de cada opcion por un control propio. Es lo que
+   * convierte la carta de consulta en la del constructor, sin duplicarla.
+   */
+  optionAction?: (section: UpgradeSection, option: UpgradeOption) => ReactNode;
+  /** Abre el bloque de opciones de entrada. */
+  optionsOpen?: boolean;
+  optionsLabel?: string;
   footer?: ReactNode;
 }
 
@@ -49,7 +57,17 @@ function limitLabel(section: UpgradeSection, unitSize: number): string {
   return parts.join(" · ");
 }
 
-export default function UnitCard({ unit, variant, sections = [], unitId = "", upgrades = [], footer }: Props) {
+export default function UnitCard({
+  unit,
+  variant,
+  sections = [],
+  unitId = "",
+  upgrades = [],
+  optionAction,
+  optionsOpen = false,
+  optionsLabel,
+  footer,
+}: Props) {
   const loadout = normalizeLoadout(unit.loadout);
   const weapons = loadout.filter((entry) => entry.kind === "weapon");
   const gear = loadout.filter((entry) => entry.kind === "gear");
@@ -132,10 +150,11 @@ export default function UnitCard({ unit, variant, sections = [], unitId = "", up
           </p>
         ) : null}
 
-        {variant === "catalogo" && sections.length > 0 ? (
-          <details className="ucard-options">
+        {sections.length > 0 && (variant === "catalogo" || optionAction) ? (
+          <details className="ucard-options" open={optionsOpen}>
             <summary>
-              Como configurarla <span className="ucard-count">({sections.length} secciones)</span>
+              {optionsLabel ?? "Como configurarla"}{" "}
+              <span className="ucard-count">({sections.length} secciones)</span>
             </summary>
             {sections.map((section) => (
               <div key={section.id ?? section.uid} className="ucard-section">
@@ -149,9 +168,13 @@ export default function UnitCard({ unit, variant, sections = [], unitId = "", up
                   {(section.options ?? []).map((option) => (
                     <li key={optionId(option)}>
                       <span>{option.label}</span>
-                      <span className="ucard-price">
-                        {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
-                      </span>
+                      {optionAction ? (
+                        optionAction(section, option)
+                      ) : (
+                        <span className="ucard-price">
+                          {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
