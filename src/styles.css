@@ -479,3 +479,6 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 }
 .menu button:hover:not(:disabled) { background: var(--surface-2); }
 .menu button.danger:hover:not(:disabled) { background: rgba(201, 72, 63, 0.14); }
+
+/* En el popup de decision los botones van apilados y a todo el ancho. */
+.modal .stack button { width: 100%; }

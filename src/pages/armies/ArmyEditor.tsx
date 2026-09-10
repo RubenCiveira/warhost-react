@@ -24,7 +24,7 @@ import {
   parseStoredList,
 } from "../../api/armyForge";
 import type { Army } from "../../lib/types";
-import { errorMessage } from "../../lib/format";
+import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 
@@ -73,6 +73,10 @@ export default function ArmyEditor() {
    * la misma promesa.
    */
   const abriendoBorrador = useRef<Promise<Army> | null>(null);
+  /** Se esta trabajando sobre el borrador, o mirando la version publicada. */
+  const [viendoBorrador, setViendoBorrador] = useState(false);
+  /** Hay que preguntar que hacer con el borrador que se acaba de encontrar. */
+  const [decidirBorrador, setDecidirBorrador] = useState(false);
 
   useEffect(() => {
     if (!armyId) return;
@@ -81,24 +85,11 @@ export default function ArmyEditor() {
       .then(({ active: row, draft: pendiente }) => {
         if (cancelled) return;
         setArmy(row);
-        // Si hay borrador, es lo que se enseña: es la version en la que estas
-        // trabajando. El activo sigue intacto por debajo.
         setDraft(pendiente);
-
-        const visible = pendiente ?? row;
-        setForm({
-          name: visible.name,
-          gameSystem: visible.gameSystem,
-          faction: visible.faction ?? "",
-          points: visible.points,
-          modelCount: visible.modelCount,
-          listId: visible.listId ?? "",
-          notes: visible.notes ?? "",
-          shared: visible.shared,
-        });
-        setListJson(visible.listJson);
-        setImages(visible.imageIds ?? []);
-        setCoverId(visible.coverId);
+        // Se entra siempre viendo la version publicada; si hay un borrador a
+        // medias se pregunta que hacer con el antes de tocar nada.
+        mostrar(row);
+        setDecidirBorrador(Boolean(pendiente));
       })
       .catch((err: unknown) => !cancelled && setError(errorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
@@ -106,6 +97,23 @@ export default function ArmyEditor() {
       cancelled = true;
     };
   }, [armyId]);
+
+  /** Vuelca una version del ejercito en el formulario y en el carrusel. */
+  const mostrar = useCallback((version: Army) => {
+    setForm({
+      name: version.name,
+      gameSystem: version.gameSystem,
+      faction: version.faction ?? "",
+      points: version.points,
+      modelCount: version.modelCount,
+      listId: version.listId ?? "",
+      notes: version.notes ?? "",
+      shared: version.shared,
+    });
+    setListJson(version.listJson);
+    setImages(version.imageIds ?? []);
+    setCoverId(version.coverId);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -146,8 +154,8 @@ export default function ArmyEditor() {
    * escribir a cada tecla. Si no habia borrador, escribirlo es lo que lo abre.
    */
   useEffect(() => {
-    if (!army) return undefined;
-    const guardado = (draft ?? army).name;
+    if (!army || (draft && !viendoBorrador)) return undefined;
+    const guardado = (viendoBorrador && draft ? draft : army).name;
     const nuevo = form.name.trim();
     if (!nuevo || nuevo === guardado) return undefined;
 
@@ -157,6 +165,7 @@ export default function ArmyEditor() {
           const destino = await conBorrador();
           if (!destino) return;
           setDraft(await saveDraft(destino.$id, { name: nuevo }));
+          setViendoBorrador(true);
         } catch (err) {
           setError(errorMessage(err));
         }
@@ -164,7 +173,7 @@ export default function ArmyEditor() {
     }, 700);
 
     return () => window.clearTimeout(temporizador);
-  }, [form.name, army, draft, conBorrador]);
+  }, [form.name, army, draft, viendoBorrador, conBorrador]);
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
 
@@ -281,6 +290,18 @@ export default function ArmyEditor() {
     }
   }
 
+  function continuarBorrador() {
+    if (draft) mostrar(draft);
+    setViendoBorrador(true);
+    setDecidirBorrador(false);
+  }
+
+  function ignorarBorrador() {
+    if (army) mostrar(army);
+    setViendoBorrador(false);
+    setDecidirBorrador(false);
+  }
+
   /** Acepta el borrador: pasa a ser el ejercito y el anterior queda archivado. */
   async function onPublish() {
     if (!draft) return;
@@ -290,6 +311,7 @@ export default function ArmyEditor() {
       const publicado = await publishDraft(draft);
       setArmy(publicado);
       setDraft(null);
+      setViendoBorrador(false);
       setNotice("Cambios aplicados. La version anterior queda archivada.");
     } catch (err) {
       setError(errorMessage(err));
@@ -305,19 +327,9 @@ export default function ArmyEditor() {
     try {
       await discardDraft(draft);
       setDraft(null);
-      setForm({
-        name: army.name,
-        gameSystem: army.gameSystem,
-        faction: army.faction ?? "",
-        points: army.points,
-        modelCount: army.modelCount,
-        listId: army.listId ?? "",
-        notes: army.notes ?? "",
-        shared: army.shared,
-      });
-      setListJson(army.listJson);
-      setImages(army.imageIds ?? []);
-      setCoverId(army.coverId);
+      setViendoBorrador(false);
+      setDecidirBorrador(false);
+      mostrar(army);
       setNotice("Borrador descartado.");
     } catch (err) {
       setError(errorMessage(err));
@@ -349,6 +361,8 @@ export default function ArmyEditor() {
             value={form.name}
             aria-label="Nombre del ejercito"
             placeholder="Nombre del ejercito"
+            disabled={Boolean(draft) && !viendoBorrador}
+            title={draft && !viendoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <p className="army-bar-sub small muted">
@@ -382,7 +396,7 @@ export default function ArmyEditor() {
             type="button"
             className="primary"
             onClick={() => void onPublish()}
-            disabled={busy || !draft}
+            disabled={busy || !draft || !viendoBorrador}
             title={draft ? undefined : "No hay cambios pendientes que guardar"}
           >
             {busy ? "Guardando…" : "Guardar"}
@@ -439,10 +453,23 @@ export default function ArmyEditor() {
         </p>
       ) : null}
 
-      {draft ? (
+      {draft && viendoBorrador ? (
         <div className="banner">
-          Estas viendo un <strong>borrador</strong> con cambios sin aplicar. El ejercito sigue como estaba hasta que
-          pulses Guardar.
+          Estas editando un <strong>borrador</strong>. El ejercito sigue como estaba hasta que pulses Guardar.
+        </div>
+      ) : null}
+      {draft && !viendoBorrador ? (
+        <div className="banner">
+          Hay un <strong>borrador sin aplicar</strong> de este ejercito. Estas viendo la version publicada, y no se
+          puede editar sin decidir antes que hacer con el.{" "}
+          <span className="row" style={{ marginTop: 6 }}>
+            <button type="button" className="tiny" onClick={continuarBorrador}>
+              Editar el borrador
+            </button>
+            <button type="button" className="tiny danger" onClick={() => void onDiscard()} disabled={busy}>
+              Descartar el borrador
+            </button>
+          </span>
         </div>
       ) : null}
 
@@ -476,6 +503,32 @@ export default function ArmyEditor() {
           </p>
         </EmptyState>
       )}
+
+      {decidirBorrador && draft ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Borrador pendiente">
+          <div className="modal">
+            <h2 style={{ marginTop: 0 }}>Tienes un borrador sin aplicar</h2>
+            <p className="muted">
+              Dejaste cambios a medias en <strong>{draft.name}</strong>
+              {draft.updatedAt ? ` el ${formatDateTime(draft.updatedAt)}` : ""}. El ejercito publicado sigue intacto.
+            </p>
+            <div className="stack">
+              <button type="button" className="primary" onClick={continuarBorrador}>
+                Continuar editando el borrador
+              </button>
+              <button type="button" onClick={ignorarBorrador}>
+                Ignorar el borrador y ver el ejercito
+              </button>
+              <button type="button" className="danger" disabled={busy} onClick={() => void onDiscard()}>
+                Descartar el borrador
+              </button>
+            </div>
+            <p className="small muted" style={{ marginTop: 12, marginBottom: 0 }}>
+              Ignorarlo no lo borra: seguira ahi la proxima vez.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {importOpen ? (
         <div
@@ -521,7 +574,7 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && bookKey ? (
+      {armyId && bookKey && !(draft && !viendoBorrador) ? (
         <Link
           to={`/ejercitos/${armyId}/unidades`}
           className="fab"
@@ -590,8 +643,13 @@ export default function ArmyEditor() {
         </section>
 
         <div className="row">
-          <button type="submit" className="primary" disabled={busy}>
-            {busy ? "Guardando…" : "Guardar"}
+          <button
+            type="submit"
+            className="primary"
+            disabled={busy || (Boolean(draft) && !viendoBorrador)}
+            title={draft && !viendoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
+          >
+            {busy ? "Guardando…" : "Guardar en el borrador"}
           </button>
         </div>
       </form>
