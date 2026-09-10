@@ -684,6 +684,20 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-limit { color: var(--ucard-tenue); font-weight: 400; }
 .ucard-option-list { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
 .ucard-option-list li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 4px; }
+/* La opcion se elige antes de comprarla, asi que sus reglas van como chips y
+   se consultan igual que las de la unidad. El perfil —alcance y ataques— no:
+   ese se lee de un vistazo. */
+.ucard-option-cuerpo { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8mm; min-width: 0; }
+.ucard-option-gain { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8mm; }
+.ucard-option-gain + .ucard-option-gain::before {
+  content: "+"; color: var(--ucard-tenue); margin-right: 0.2mm;
+}
+.ucard-option-perfil { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* El chip se ata al tamano de su fila y no al de la ficha: si no, hereda los
+   2,8 mm de los chips de la unidad y sale mas grande que el nombre de la
+   opcion, que es justo al reves de lo que se quiere leer primero. */
+.ucard .ucard-option-cuerpo .ucard-chip { font-size: 1em; padding: 0.1mm 0.9mm; line-height: 1.2; }
+.ucard.hoja .ucard-option-cuerpo .ucard-chip { font-size: 1em; padding: 0.2mm 1mm; }
 .ucard-option-list li:nth-child(odd) { background: var(--ucard-cebra); }
 .ucard-price { font-variant-numeric: tabular-nums; color: var(--ucard-tenue); white-space: nowrap; padding-right: 1mm; }
 
@@ -1087,11 +1101,19 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 /* El ultimo escalon es para las tres o cuatro unidades del catalogo con seis
    secciones y treinta opciones largas. Antes que recortarlas en silencio,
    aprietan. */
-.ucard.hoja.opciones-extremas .ucard-secciones { columns: 3; column-gap: 4mm; }
+.ucard.hoja.opciones-extremas .ucard-secciones { columns: 3; column-gap: 3.5mm; }
 .ucard.hoja.opciones-extremas .ucard-section-head,
-.ucard.hoja.opciones-extremas .ucard-option-list { font-size: 2mm; line-height: 1.18; }
+.ucard.hoja.opciones-extremas .ucard-option-list { font-size: 1.9mm; line-height: 1.1; }
 .ucard.hoja.opciones-extremas .ucard-option-list li { padding: 0.1mm 0.5mm; }
-.ucard.hoja.opciones-extremas .ucard-section { margin-bottom: 1mm; }
+.ucard.hoja.opciones-extremas .ucard-section { margin-bottom: 0.7mm; }
+/* En la ficha mas cargada el marco del chip es justo lo que no cabe. Se cae el
+   marco, no la funcion: sigue siendo un boton y sigue abriendo la carta de la
+   regla, solo que subrayado en vez de encajonado. */
+.ucard.hoja.opciones-extremas .ucard-option-cuerpo .ucard-chip {
+  border: 0; background: transparent; padding: 0;
+  text-decoration: underline dotted; text-underline-offset: 0.3mm;
+}
+.ucard.hoja.opciones-extremas .ucard-option-cuerpo .ucard-chip.sin-texto { text-decoration: none; }
 
 /* Impresion: A4, dos fichas por hoja y a tamano real. Fuera todo lo que no sea
    la ficha, que en papel no se puede pulsar. */

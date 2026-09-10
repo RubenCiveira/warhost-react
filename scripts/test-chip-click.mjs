@@ -36,8 +36,32 @@ await build({
         }],
       ]);
 
+      // Una seccion de mejora como las del catalogo: la opcion trae sus reglas
+      // en sus gains, no solo en el texto de la etiqueta.
+      const SECCIONES = [{
+        id: "s1", uid: "s1", label: "Replace any CCW", variant: "replace", targets: ["CCW"],
+        options: [{
+          id: "o1", uid: "o1", costs: [{ cost: 10 }],
+          label: "Energy Sword (A2, AP(1))",
+          gains: [{
+            id: "g1", name: "Energy Sword", type: "ArmyBookWeapon", attacks: 2, range: 0,
+            specialRules: [{ name: "AP", type: "ArmyBookRule", rating: 1 }],
+            label: "Energy Sword (A2, AP(1))",
+          }],
+        }, {
+          id: "o2", uid: "o2", costs: [{ cost: 5 }],
+          label: "Combat Shield (Hive Bond)",
+          gains: [{
+            id: "g2", name: "Combat Shield", type: "ArmyBookItem",
+            content: [{ name: "Hive Bond", type: "ArmyBookRule" }],
+            label: "Combat Shield (Hive Bond)",
+          }],
+        }],
+      }];
+
       function App() {
         const [habilidad, setHabilidad] = useState(null);
+        const [compradas, setCompradas] = useState(0);
         return (
           <>
             <UnitCard
@@ -54,6 +78,28 @@ await build({
                 ],
               }}
             />
+            {/* La misma unidad en el asistente de anadir: las opciones se
+                eligen, y sus reglas tienen que consultarse antes de comprarlas. */}
+            <UnitCard
+              variant="ejercito"
+              unitId="u1"
+              sections={SECCIONES}
+              optionsOpen
+              conTexto={new Set(GLOSARIO.keys())}
+              onHabilidad={setHabilidad}
+              optionAction={(section, option) => (
+                <button type="button" className="icon tiny" aria-label={\`Anadir \${option.label}\`}
+                  onClick={() => setCompradas((n) => n + 1)}>+</button>
+              )}
+              unit={{
+                name: "Prueba", size: 1, quality: 3, defense: 3, cost: 100, maxWounds: 3,
+                rules: ["Hive Bond"],
+                loadout: [
+                  { name: "CCW", label: "CCW (A2)", count: 1, range: null, attacks: 2, rules: [], kind: "weapon" },
+                ],
+              }}
+            />
+            <p id="compradas">{compradas}</p>
             {habilidad ? (
               <RuleCardModal habilidad={habilidad} glosario={GLOSARIO} onCerrar={() => setHabilidad(null)} />
             ) : null}
@@ -121,6 +167,33 @@ await p.getByRole("button", { name: /^Fast$/ }).click();
 await comprobar(
   p.locator(".scard-sin-texto").isVisible(),
   "una regla sin descripcion abre carta y lo dice",
+);
+
+// Y las reglas de las opciones de mejora, que es lo que se mira para decidir
+// si compras la opcion.
+await p.keyboard.press("Escape");
+const chipOpcion = p.locator(".ucard-option-cuerpo .ucard-chip");
+await comprobar(
+  Promise.resolve((await chipOpcion.count()) === 2),
+  "las reglas de las opciones salen como chips",
+  `${await chipOpcion.count()}`,
+);
+await comprobar(
+  p.locator(".ucard-option-cuerpo").first().innerText().then((t) => t.includes("Energy Sword") && t.includes("A2")),
+  "la opcion conserva su nombre y su perfil",
+);
+await chipOpcion.first().click();
+await comprobar(p.locator(".scard").isVisible(), "pulsar la regla de una opcion abre su carta");
+await comprobar(
+  p.locator("#compradas").innerText().then((t) => t === "0"),
+  "consultar la regla no compra la opcion",
+);
+await p.keyboard.press("Escape");
+// La que da el equipo configurable, que es una regla dentro de un objeto.
+await p.locator(".ucard-option-cuerpo .ucard-chip", { hasText: "Hive Bond" }).click();
+await comprobar(
+  p.locator(".scard-efecto").innerText().then((t) => t.includes("morale")),
+  "y la regla que concede un equipo configurable tambien",
 );
 
 await navegador.close();

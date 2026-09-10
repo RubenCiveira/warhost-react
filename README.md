@@ -124,6 +124,15 @@ Las reglas de arma se cubren al 91%: `Reliable` y `Limited` no traen
 descripcion en ningun libro de ejercito, porque son del reglamento basico. Su
 chip sale en punteado y su carta lo dice, que es mejor que inventarselas.
 
+Lo mismo vale para las **opciones de mejora**, que es donde mas falta hace: una
+opcion se consulta justo antes de comprarla. `lib/opciones.ts` desmonta cada
+opcion en lo que da —armas con su perfil, equipo, y las reglas de ambos— a
+partir de sus `gains` y no partiendo el texto de la etiqueta, que ya viene
+armado por Army Forge y volver a partirlo seria adivinar. Del catalogo entero
+(4899 opciones) se desmontan todas, el 97,7% traen alguna regla que consultar, y
+`pnpm test:opciones` comprueba que no se pinta nada que no estuviera en la
+etiqueta original.
+
 ## Editar un ejercito
 
 Un ejercito guardado lleva dos cosas en `listJson`: las **unidades resueltas**,
@@ -195,6 +204,7 @@ Que eso baste no se decide mirando: se comprueba.
 ```bash
 pnpm check:cards [nLibros]    # pasa TODAS las unidades y avisa de las que se recortan
 pnpm test:impresion           # comprueba que salen dos fichas por hoja A4
+pnpm test:opciones [nLibros]  # desmonta todas las opciones del catalogo
 ```
 
 Renderiza cada unidad en sus dos formatos y cada hechizo, le pregunta al
@@ -216,11 +226,21 @@ dentro de la propia ficha en tres columnas. Dos por hoja, sin cortar ninguna.
 `@page` fija A4 vertical con 10 mm de margen y `--uhoja-esc` vuelve a 1 al
 imprimir, para que salga a tamano real.
 
-Lo que decide si desborda no es cuantas opciones hay sino cuanto ocupan: hay
-opciones de un renglon —"Jetpacks (Ambush, Flying)"— y otras de tres —"Energy
-Hammer (A1, Blast(3)), Combat Shield (Shielded)"—. El peso se estima por
-renglones, no por numero de opciones, y la ficha aprieta la tipografia en dos
-escalones cuando hace falta.
+Lo que decide si desborda no es cuantas opciones hay sino cuanto ocupan, y eso
+pide cuatro cosas —saltarse cualquiera deja fichas recortadas:
+
+1. Cuanto ocupa cada opcion, no cuantas hay: "Jetpacks (Ambush, Flying)" es un
+   renglon y "Energy Hammer (A1, Blast(3)), Combat Shield (Shielded)" son tres.
+2. Que las secciones no se parten entre columnas, asi que el alto es el de la
+   columna mas alta una vez repartidas enteras, no el total entre tres.
+3. Que las opciones heredan el hueco que dejen armas, reglas y equipo: un titan
+   con ocho armas desborda antes que un capitan con treinta y cinco opciones.
+4. Que un chip ocupa mas que su texto: lleva marco y no se parte.
+
+Con eso, la ficha aprieta la tipografia en cuatro escalones. De 740 fichas del
+catalogo, 404 salen a tamano normal, 201 densas, 92 muy densas y 43 en el
+ultimo escalon, donde los chips pierden el marco y se quedan en subrayado
+punteado: se cae el marco, no la funcion —siguen abriendo la carta de la regla.
 
 ## Reemplazos de equipo
 

@@ -21,7 +21,8 @@
     "test:faccion": "node scripts/test-faccion.mjs",
     "test:chip": "node scripts/test-chip-click.mjs",
     "preview:hoja": "node scripts/preview-hoja.mjs",
-    "test:impresion": "node scripts/test-impresion.mjs"
+    "test:impresion": "node scripts/test-impresion.mjs",
+    "test:opciones": "node scripts/test-opciones.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

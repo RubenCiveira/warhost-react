@@ -5,6 +5,7 @@ import { maxDistinctOptions, optionCost, optionId } from "../lib/builder";
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import IconoArma from "./IconoArma";
 import { parseHabilidad } from "../lib/reglas";
+import { desglosarOpcion } from "../lib/opciones";
 import type { Habilidad } from "../lib/reglas";
 
 /**
@@ -140,6 +141,44 @@ function Chip({
   );
 }
 
+/**
+ * Una opcion de mejora, con sus reglas como chips.
+ *
+ * Se elige antes de comprarla, y para eso hay que saber que hace: "Chain-Fist
+ * (A1, AP(2), Deadly(3))" no dice nada si no sabes que es Deadly. El perfil
+ * —alcance y ataques— se queda en texto porque se lee, no se consulta.
+ */
+function OpcionTexto({
+  option,
+  conTexto,
+  onAbrir,
+}: {
+  option: UpgradeOption;
+  conTexto?: Set<string>;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  const desglose = desglosarOpcion(option);
+  if (desglose.crudo) return <span className="ucard-option-cuerpo">{option.label}</span>;
+
+  return (
+    <span className="ucard-option-cuerpo">
+      {desglose.ganancias.map((ganancia, indice) => (
+        <span key={`${ganancia.nombre}-${indice}`} className="ucard-option-gain">
+          {ganancia.cuantas > 1 ? <span className="ucard-count">{ganancia.cuantas}×</span> : null}
+          {ganancia.nombre}
+          {ganancia.perfil ? <span className="ucard-option-perfil">{ganancia.perfil}</span> : null}
+          {ganancia.reglas.map((regla) => (
+            <Chip key={regla.etiqueta} habilidad={regla} conTexto={conTexto} onAbrir={onAbrir} />
+          ))}
+        </span>
+      ))}
+      {desglose.reglas.map((regla) => (
+        <Chip key={regla.etiqueta} habilidad={regla} conTexto={conTexto} onAbrir={onAbrir} />
+      ))}
+    </span>
+  );
+}
+
 export default function UnitCard({
   unit,
   variant,
@@ -182,10 +221,25 @@ export default function UnitCard({
   //  3. Que las opciones heredan el hueco que dejen las armas, las reglas y el
   //     equipo. Un titan con ocho armas y trece opciones desborda antes que un
   //     capitan con dos armas y treinta y cinco.
+  //  4. Que las reglas de la opcion van como chips, y un chip ocupa mas que su
+  //     texto: lleva marco, relleno y no se parte a mitad.
+  const lineasOpcion = (option: UpgradeOption) => {
+    const desglose = desglosarOpcion(option);
+    if (desglose.crudo) return Math.ceil(((option.label?.length ?? 20) + 5) / 26);
+    const chips = [...desglose.reglas, ...desglose.ganancias.flatMap((ganancia) => ganancia.reglas)];
+    const ancho =
+      desglose.ganancias.reduce(
+        (suma, ganancia) => suma + ganancia.nombre.length + (ganancia.perfil?.length ?? 0) + 3,
+        0,
+      ) + chips.reduce((suma, chip) => suma + chip.etiqueta.length + 4, 0);
+    const lineas = Math.ceil((ancho + 5) / 24);
+    return chips.length > 0 ? Math.ceil(lineas * 1.2) : lineas;
+  };
+
   const lineasSeccion = (section: UpgradeSection) =>
     1 +
     Math.ceil(((section.label?.length ?? 20) + 1) / 30) +
-    (section.options ?? []).reduce((lineas, option) => lineas + Math.ceil(((option.label?.length ?? 20) + 5) / 26), 0);
+    (section.options ?? []).reduce((lineas, option) => lineas + lineasOpcion(option), 0);
 
   const columnas = [0, 0, 0];
   for (const alto of sections.map(lineasSeccion).sort((a, b) => b - a)) {
@@ -195,11 +249,11 @@ export default function UnitCard({
     Math.max(...columnas) + weapons.length * 2 + Math.ceil(unit.rules.length / 5) + gear.length * 2;
 
   const densidadOpciones =
-    pesoOpciones >= 34
+    pesoOpciones >= 40
       ? " opciones-extremas"
-      : pesoOpciones >= 26
+      : pesoOpciones >= 30
         ? " opciones-muy-densas"
-        : pesoOpciones >= 18
+        : pesoOpciones >= 21
           ? " opciones-densas"
           : "";
   // En la ficha grande las opciones van dentro; en la de mesa no caben y
@@ -220,7 +274,7 @@ export default function UnitCard({
               <ul className="ucard-option-list">
                 {(section.options ?? []).map((option) => (
                   <li key={optionId(option)}>
-                    <span>{option.label}</span>
+                    <OpcionTexto option={option} conTexto={conTexto} onAbrir={onHabilidad} />
                     {optionAction ? (
                       optionAction(section, option)
                     ) : (
