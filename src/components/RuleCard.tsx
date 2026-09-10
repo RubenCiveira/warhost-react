@@ -47,7 +47,7 @@ export default function RuleCard({
             </div>
           ) : (
             <p className="scard-efecto scard-sin-texto">
-              Es una regla del reglamento basico: su texto no viene en los libros de ejercito.
+              No hay texto para esta regla, ni en los libros de ejercito ni en el reglamento basico.
             </p>
           )}
         </div>

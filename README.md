@@ -120,9 +120,16 @@ cada pieza de equipo y tambien las **reglas de arma** de la tabla de armamento
 —AP, Blast, Rending—. Era justo la columna donde mas falta hace: se lee "AP(1)"
 en mitad de una partida y hay que saber que hace.
 
-Las reglas de arma se cubren al 91%: `Reliable` y `Limited` no traen
-descripcion en ningun libro de ejercito, porque son del reglamento basico. Su
-chip sale en punteado y su carta lo dice, que es mejor que inventarselas.
+Todas traen descripcion: 100% de los 2823 usos de reglas de unidad y de los
+1474 de reglas de arma. No siempre fue asi —`Fast`, `Aircraft`, `Transport`,
+`Reliable` y companía no salen en ningun libro de ejercito, porque son del
+reglamento basico—, y la carta lo decia en vez de inventarselas. Ahora se
+vuelcan de `/api/rules/common/<sistema>`, que es la misma fuente que usa la web
+de Army Forge; ver el README de warhost-appwrite.
+
+Sigue habiendo chip punteado para lo que no tenga texto, porque queda un caso:
+un objeto puede conceder un **arma** —el Combat Shield concede `Bash`— y la
+ficha la pinta como si fuera una regla. Son 8 usos de 126 en el equipo.
 
 Lo mismo vale para las **opciones de mejora**, que es donde mas falta hace: una
 opcion se consulta justo antes de comprarla. `lib/opciones.ts` desmonta cada
