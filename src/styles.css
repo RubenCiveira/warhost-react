@@ -1066,24 +1066,32 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    no entrarian. Las secciones no se parten entre columnas. */
 .ucard-opciones-dentro { flex: 1; min-height: 0; overflow: hidden; }
 .ucard.hoja .ucard-options { margin-top: 0; border-top: 0.3mm solid var(--ucard-filete); padding-top: 1.6mm; }
-.ucard.hoja .ucard-options summary { font-size: 2.5mm; color: var(--ucard-tenue); cursor: default; }
+.ucard.hoja .ucard-options summary { font-size: 2.6mm; color: var(--ucard-tenue); cursor: default; }
 .ucard.hoja .ucard-secciones { columns: 2; column-gap: 5mm; margin-top: 1.4mm; }
 .ucard.hoja .ucard-section { margin: 0 0 2mm; break-inside: avoid; }
-.ucard.hoja .ucard-section-head { font-size: 2.5mm; }
-.ucard.hoja .ucard-option-list { font-size: 2.5mm; }
-.ucard.hoja .ucard-option-list li { padding: 0.3mm 0.8mm; }
+.ucard.hoja .ucard-section-head { font-size: 2.9mm; }
+.ucard.hoja .ucard-option-list { font-size: 2.9mm; }
+.ucard.hoja .ucard-option-list li { padding: 0.4mm 0.9mm; }
 
 /* Una unidad puede llegar a 8 secciones y 36 opciones: cuando se acumulan, la
    ficha aprieta el bloque de opciones en vez de recortarlo. */
 .ucard.hoja.opciones-densas .ucard-secciones { columns: 3; }
 .ucard.hoja.opciones-densas .ucard-section-head,
-.ucard.hoja.opciones-densas .ucard-option-list { font-size: 2.2mm; }
+.ucard.hoja.opciones-densas .ucard-option-list { font-size: 2.6mm; }
 .ucard.hoja.opciones-densas .ucard-section { margin-bottom: 1.4mm; }
 .ucard.hoja.opciones-muy-densas .ucard-secciones { columns: 3; }
 .ucard.hoja.opciones-muy-densas .ucard-section-head,
-.ucard.hoja.opciones-muy-densas .ucard-option-list { font-size: 2mm; }
+.ucard.hoja.opciones-muy-densas .ucard-option-list { font-size: 2.35mm; }
 .ucard.hoja.opciones-muy-densas .ucard-option-list li { padding: 0.15mm 0.6mm; }
 .ucard.hoja.opciones-muy-densas .ucard-section { margin-bottom: 1.2mm; }
+/* El ultimo escalon es para las tres o cuatro unidades del catalogo con seis
+   secciones y treinta opciones largas. Antes que recortarlas en silencio,
+   aprietan. */
+.ucard.hoja.opciones-extremas .ucard-secciones { columns: 3; column-gap: 4mm; }
+.ucard.hoja.opciones-extremas .ucard-section-head,
+.ucard.hoja.opciones-extremas .ucard-option-list { font-size: 2mm; line-height: 1.18; }
+.ucard.hoja.opciones-extremas .ucard-option-list li { padding: 0.1mm 0.5mm; }
+.ucard.hoja.opciones-extremas .ucard-section { margin-bottom: 1mm; }
 
 /* Impresion: A4, dos fichas por hoja y a tamano real. Fuera todo lo que no sea
    la ficha, que en papel no se puede pulsar. */

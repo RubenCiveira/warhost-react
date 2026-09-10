@@ -170,19 +170,38 @@ export default function UnitCard({
 
   const hoja = formato === "hoja";
   // El bloque de opciones es lo que decide si una ficha de catalogo desborda:
-  // hay unidades con 36 repartidas en 8 secciones.
-  // No basta con contarlas: hay opciones de una linea —"Jetpacks (Ambush,
-  // Flying)"— y otras que ocupan tres —"Energy Hammer (A1, Blast(3)), Combat
-  // Shield (Shielded)"—. Se estiman las lineas que va a ocupar cada columna.
-  const pesoOpciones = sections.reduce(
-    (suma, section) =>
-      suma +
-      2 +
-      (section.options ?? []).reduce((lineas, option) => lineas + Math.ceil(((option.label?.length ?? 20) + 5) / 30), 0),
-    0,
-  );
+  // hay unidades con 36 repartidas en 8 secciones. Estimar cuanto ocupa pide
+  // tres cosas, y saltarse cualquiera deja fichas recortadas:
+  //
+  //  1. Cuanto ocupa cada opcion, no cuantas hay: "Jetpacks (Ambush, Flying)"
+  //     es un renglon y "Energy Hammer (A1, Blast(3)), Combat Shield
+  //     (Shielded)" son tres.
+  //  2. Que las secciones no se parten entre columnas (`break-inside: avoid`),
+  //     asi que el alto no es el total entre tres: es el de la columna mas
+  //     alta una vez repartidas enteras.
+  //  3. Que las opciones heredan el hueco que dejen las armas, las reglas y el
+  //     equipo. Un titan con ocho armas y trece opciones desborda antes que un
+  //     capitan con dos armas y treinta y cinco.
+  const lineasSeccion = (section: UpgradeSection) =>
+    1 +
+    Math.ceil(((section.label?.length ?? 20) + 1) / 30) +
+    (section.options ?? []).reduce((lineas, option) => lineas + Math.ceil(((option.label?.length ?? 20) + 5) / 26), 0);
+
+  const columnas = [0, 0, 0];
+  for (const alto of sections.map(lineasSeccion).sort((a, b) => b - a)) {
+    columnas[columnas.indexOf(Math.min(...columnas))] += alto;
+  }
+  const pesoOpciones =
+    Math.max(...columnas) + weapons.length * 2 + Math.ceil(unit.rules.length / 5) + gear.length * 2;
+
   const densidadOpciones =
-    pesoOpciones >= 44 ? " opciones-muy-densas" : pesoOpciones >= 30 ? " opciones-densas" : "";
+    pesoOpciones >= 34
+      ? " opciones-extremas"
+      : pesoOpciones >= 26
+        ? " opciones-muy-densas"
+        : pesoOpciones >= 18
+          ? " opciones-densas"
+          : "";
   // En la ficha grande las opciones van dentro; en la de mesa no caben y
   // cuelgan del marco.
   const opciones =

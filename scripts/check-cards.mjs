@@ -103,7 +103,14 @@ const malas = await p.evaluate(() => {
     [...document.querySelectorAll(selector)].map((carta) => ({
       tipo,
       nombre: carta.querySelector(titulo)?.textContent ?? "?",
-      densidad: carta.className.includes("muy-denso") ? "muy-denso" : carta.className.includes("denso") ? "denso" : "normal",
+      densidad:
+        [
+          ["opciones-extremas", "extrema"],
+          ["opciones-muy-densas", "muy-densa"],
+          ["opciones-densas", "densa"],
+          ["muy-denso", "muy-denso"],
+          ["denso", "denso"],
+        ].find(([clase]) => carta.classList.contains(clase))?.[1] ?? "normal",
       sobra: Math.round(
         [...carta.querySelectorAll(zonas)].reduce((max, z) => Math.max(max, z.scrollHeight - z.clientHeight), 0),
       ),
@@ -117,6 +124,16 @@ const malas = await p.evaluate(() => {
 });
 // Contar por tipo: ahora hay tres piezas distintas en la pagina y sumarlas
 // todas y restar hacia atras daba cifras falsas.
+// Cuantas fichas caen en cada escalon de densidad: si todas acaban en el mas
+// apretado, el umbral esta mal puesto y se esta encogiendo la letra de balde.
+const escalones = await p.evaluate(() =>
+  [...document.querySelectorAll(".ucard.hoja")].reduce((cuenta, carta) => {
+    const paso =
+      ["opciones-extremas", "opciones-muy-densas", "opciones-densas"].find((c) => carta.classList.contains(c)) ??
+      "opciones-normales";
+    return { ...cuenta, [paso]: (cuenta[paso] ?? 0) + 1 };
+  }, {}),
+);
 const cartas = await p.evaluate(() => ({
   unidad: document.querySelectorAll(".ucard:not(.hoja)").length,
   ficha: document.querySelectorAll(".ucard.hoja").length,
@@ -129,6 +146,12 @@ const reparto = cartas.unidad + cartas.ficha + cartas.hechizo;
 console.log(
   `${libros.length} libros · ${reparto} cartas ` +
     `(${cartas.unidad} de unidad, ${cartas.ficha} fichas de catalogo, ${cartas.hechizo} hechizos)`,
+);
+console.log(
+  "fichas por escalon: " +
+    ["opciones-normales", "opciones-densas", "opciones-muy-densas", "opciones-extremas"]
+      .map((paso) => `${paso.replace("opciones-", "")} ${escalones[paso] ?? 0}`)
+      .join(" · "),
 );
 if (malas.length === 0) {
   console.log("Ninguna carta se recorta.");
