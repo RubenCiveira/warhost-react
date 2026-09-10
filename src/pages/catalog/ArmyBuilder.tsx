@@ -415,14 +415,14 @@ export default function ArmyBuilder() {
 
       {picking ? (
         <div
-          className="picker-backdrop"
+          className="modal-backdrop"
           role="dialog"
           aria-modal="true"
           aria-label="Anadir unidad"
           onClick={() => setPicking(false)}
         >
           {/* Pulsar dentro del panel no debe cerrarlo. */}
-          <div className="picker" onClick={(event) => event.stopPropagation()}>
+          <div className="modal wide" onClick={(event) => event.stopPropagation()}>
             <header className="spread">
               <h2 style={{ margin: 0 }}>Unidades de {book.name}</h2>
               <button type="button" className="ghost tiny" onClick={() => setPicking(false)}>

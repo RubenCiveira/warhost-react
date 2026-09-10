@@ -413,20 +413,21 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
   .army-slide { scroll-snap-align: center; }
 }
 
-/* Selector de unidades ------------------------------------------------------ */
+/* Ventanas modales ---------------------------------------------------------- */
 
-.picker-backdrop {
+.modal-backdrop {
   position: fixed; inset: 0; z-index: 40;
   background: rgba(9, 7, 6, 0.72);
   display: grid; place-items: start center; padding: 24px 16px;
   overflow-y: auto;
 }
-.picker {
-  width: 100%; max-width: 980px;
+.modal {
+  width: 100%; max-width: 560px;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 16px;
 }
-.picker > input[type="search"] { margin: 12px 0; }
+.modal.wide { max-width: 980px; }
+.modal > input[type="search"] { margin: 12px 0; }
 .picker-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
 
 @media (max-width: 640px) {
@@ -460,3 +461,21 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 @media (max-width: 640px) {
   .fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
 }
+
+/* Menu de mas opciones ------------------------------------------------------ */
+
+.menu-wrap { position: relative; }
+.menu-button { padding: 6px 12px; line-height: 1; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 180px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+.menu button {
+  display: block; width: 100%; text-align: left;
+  background: transparent; border: none; border-radius: 6px; padding: 8px 10px;
+  font-weight: 500;
+}
+.menu button:hover:not(:disabled) { background: var(--surface-2); }
+.menu button.danger:hover:not(:disabled) { background: rgba(201, 72, 63, 0.14); }

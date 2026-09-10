@@ -65,6 +65,8 @@ export default function ArmyEditor() {
   const [notice, setNotice] = useState<string | null>(null);
   /** Borrador en curso de este ejercito, si lo hay. */
   const [draft, setDraft] = useState<Army | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (!armyId) return;
@@ -98,6 +100,26 @@ export default function ArmyEditor() {
       cancelled = true;
     };
   }, [armyId]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const cerrar = () => setMenuOpen(false);
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
+    // En captura: si no, el propio clic que abre el menu lo cerraria acto seguido.
+    document.addEventListener("click", cerrar);
+    document.addEventListener("keydown", conEscape);
+    return () => {
+      document.removeEventListener("click", cerrar);
+      document.removeEventListener("keydown", conEscape);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!importOpen) return undefined;
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setImportOpen(false);
+    document.addEventListener("keydown", conEscape);
+    return () => document.removeEventListener("keydown", conEscape);
+  }, [importOpen]);
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
 
@@ -136,6 +158,7 @@ export default function ArmyEditor() {
         points: list.points || prev.points,
         modelCount: list.modelCount || prev.modelCount,
       }));
+      setImportOpen(false);
       setNotice(
         list.unresolvedUpgrades > 0
           ? `Importadas ${list.units.length} unidades. ${list.unresolvedUpgrades} mejoras ya no existen en el libro de ejercito actual, asi que el coste por unidad es aproximado; el total del ejercito es el que guardo Army Forge.`
@@ -319,9 +342,44 @@ export default function ArmyEditor() {
             {busy ? "Guardando…" : "Guardar"}
           </button>
           {army ? (
-            <button type="button" className="ghost danger tiny" onClick={() => void onDelete()} disabled={busy}>
-              Borrar
-            </button>
+            <div className="menu-wrap">
+              <button
+                type="button"
+                className="ghost menu-button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label="Mas opciones"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpen((abierto) => !abierto);
+                }}
+              >
+                ⋯
+              </button>
+              {menuOpen ? (
+                <div className="menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setImportOpen(true);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    Importar desde Army Forge
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="danger"
+                    disabled={busy}
+                    onClick={() => void onDelete()}
+                  >
+                    Borrar ejercito
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </header>
@@ -373,6 +431,50 @@ export default function ArmyEditor() {
         </EmptyState>
       )}
 
+      {importOpen ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Importar desde Army Forge"
+          onClick={() => setImportOpen(false)}
+        >
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <div className="spread">
+              <h2 style={{ margin: 0 }}>Importar desde Army Forge</h2>
+              <button type="button" className="ghost tiny" onClick={() => setImportOpen(false)}>
+                Cerrar
+              </button>
+            </div>
+            <p className="muted small">
+              Comparte la lista en Army Forge y pega aqui el enlace. Las unidades se guardan para poder usarlas como
+              marcadores durante la partida.
+            </p>
+            <div className="row">
+              <input
+                placeholder="https://army-forge.onepagerules.com/share?id=…"
+                value={form.listId}
+                onChange={(e) => setForm({ ...form, listId: e.target.value })}
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <button type="button" className="primary" onClick={() => void importFromArmyForge()} disabled={busy}>
+                {busy ? "Importando…" : "Importar"}
+              </button>
+            </div>
+            {units.length > 0 ? (
+              <p className="small muted" style={{ marginBottom: 0 }}>
+                Lista guardada con {units.length} unidades.{" "}
+                {form.listId ? (
+                  <a href={listUrl(form.listId)} target="_blank" rel="noreferrer">
+                    Abrir en Army Forge
+                  </a>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {armyId && bookKey ? (
         <Link
           to={`/ejercitos/${armyId}/unidades`}
@@ -387,37 +489,8 @@ export default function ArmyEditor() {
       {/* La vista es de consulta: los datos y las imagenes se pliegan para que
           las cartas lleven el peso, y se abren cuando hay algo que cambiar. */}
       <details className="army-details" open={!army}>
-        <summary>Datos, importacion e imagenes</summary>
+        <summary>Datos e imagenes</summary>
         <form id="army-form" onSubmit={onSubmit} className="stack">
-        <section className="card">
-          <h2>Importar desde Army Forge</h2>
-          <p className="muted small">
-            Comparte la lista en Army Forge y pega aqui el enlace. Las unidades se guardan para poder usarlas como
-            marcadores durante la partida.
-          </p>
-          <div className="row">
-            <input
-              placeholder="https://army-forge.onepagerules.com/share?id=…"
-              value={form.listId}
-              onChange={(e) => setForm({ ...form, listId: e.target.value })}
-              style={{ flex: 1, minWidth: 240 }}
-            />
-            <button type="button" onClick={() => void importFromArmyForge()} disabled={busy}>
-              {busy ? "Importando…" : "Importar"}
-            </button>
-          </div>
-          {units.length > 0 ? (
-            <p className="small muted" style={{ marginTop: 10, marginBottom: 0 }}>
-              Lista guardada con {units.length} unidades.{" "}
-              {form.listId ? (
-                <a href={listUrl(form.listId)} target="_blank" rel="noreferrer">
-                  Abrir en Army Forge
-                </a>
-              ) : null}
-            </p>
-          ) : null}
-        </section>
-
         <section className="card">
           <h2>Datos</h2>
           <div className="field">
