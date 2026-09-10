@@ -501,19 +501,24 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    El material sigue al tema: en grimdark es vitela clara que contrasta con el
    fondo de acero; en fantasy es la misma piel del resto. */
 
+/* Una carta de tarot mide 120 x 70 mm, y eso es lo que mide esta: en
+   milimetros, no en pixeles con una proporcion parecida. La escala es solo el
+   aumento con el que se mira; a 1 la carta sale del monitor a tamano real y se
+   imprime igual. */
+:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.15; }
+@media (max-width: 620px) { :root { --ucard-esc: 0.76; } }
+@media (max-width: 400px) { :root { --ucard-esc: 0.63; } }
+@media print { :root { --ucard-esc: 1; } }
+
 .ucard-wrap { width: calc(var(--ucard-w) * var(--ucard-esc)); }
 
 /* El marco recorta la carta escalada y es quien ocupa sitio en la maqueta: la
-   carta de dentro sigue midiendo lo mismo pase lo que pase. */
+   carta de dentro sigue midiendo 120 x 70 mm pase lo que pase. */
 .ucard-frame {
   width: calc(var(--ucard-w) * var(--ucard-esc));
-  height: calc(var(--ucard-w) / 1.7286 * var(--ucard-esc));
+  height: calc(var(--ucard-h) * var(--ucard-esc));
   overflow: hidden;
 }
-
-:root { --ucard-w: 520px; --ucard-esc: 1; }
-@media (max-width: 620px) { :root { --ucard-esc: 0.66; } }
-@media (max-width: 400px) { :root { --ucard-esc: 0.55; } }
 
 .ucard {
   --ucard-tinta: #201a12;
@@ -524,7 +529,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   --ucard-banda: var(--band-bg);
   --ucard-realce: var(--accent-2);
   width: var(--ucard-w);
-  height: calc(var(--ucard-w) / 1.7286);
+  height: var(--ucard-h);
   transform: scale(var(--ucard-esc));
   transform-origin: top left;
   display: flex;

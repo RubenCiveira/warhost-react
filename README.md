@@ -133,8 +133,10 @@ actual del libro, y el constructor avisa de cuantas.
 
 ## Mirar las cartas
 
-La carta de unidad es de **tamano fijo**, con la proporcion 121x70 de una carta
-de mesa. Eso significa que el diseno solo se puede juzgar viendola llena, y con
+La carta de unidad mide **120 x 70 mm**, que es una carta de tarot, y esta
+definida en milimetros y no en pixeles con una proporcion parecida. En pantalla
+se mira con un aumento (`--ucard-esc`, 1.15 por defecto); al imprimir vuelve a 1
+y sale a tamano real. Eso significa que el diseno solo se puede juzgar viendola llena, y con
 las unidades que mas la aprietan, no con una de dos lineas:
 
 ```bash
