@@ -188,18 +188,7 @@ export default function CatalogBook() {
         </p>
       )}
 
-      <section className="card">
-        <h2>Imagenes de la faccion</h2>
-        {book.hint ? <p className="muted small">{book.hint}</p> : null}
-        {gallery(targetKeyFor(book.$id), book.coverImagePath)}
-        {admin ? (
-          <ImageUploader
-            label="Anadir imagenes de la faccion"
-            busy={busy}
-            onUpload={(files, caption) => upload(files, caption)}
-          />
-        ) : null}
-      </section>
+      {book.hint ? <p className="muted small">{book.hint}</p> : null}
 
       <Tabs
         value={pestana}
@@ -231,10 +220,10 @@ export default function CatalogBook() {
       ) : units.length === 0 ? (
         <EmptyState title="Esta faccion todavia no tiene unidades sincronizadas" />
       ) : (
-        <div className="ucard-grid">
+        <div className="army-strip">
           {units.map((unit) => (
+            <div key={unit.$id} className="army-slide">
             <UnitCard
-              key={unit.$id}
               variant="catalogo"
               unitId={unit.unitId}
               sections={sectionsForUnit(unit, packages)}
@@ -260,6 +249,7 @@ export default function CatalogBook() {
                 </>
               }
             />
+            </div>
           ))}
         </div>
       )}
