@@ -387,7 +387,12 @@ export default function ArmyEditor() {
         </div>
 
         <div className="army-bar-actions">
-          {draft ? (
+          {draft && !viendoBorrador ? (
+            <button type="button" className="primary" onClick={continuarBorrador}>
+              Ir al borrador
+            </button>
+          ) : null}
+          {draft && viendoBorrador ? (
             <button type="button" className="ghost tiny" onClick={() => void onDiscard()} disabled={busy}>
               Descartar
             </button>
@@ -462,14 +467,9 @@ export default function ArmyEditor() {
         <div className="banner">
           Hay un <strong>borrador sin aplicar</strong> de este ejercito. Estas viendo la version publicada, y no se
           puede editar sin decidir antes que hacer con el.{" "}
-          <span className="row" style={{ marginTop: 6 }}>
-            <button type="button" className="tiny" onClick={continuarBorrador}>
-              Editar el borrador
-            </button>
-            <button type="button" className="tiny danger" onClick={() => void onDiscard()} disabled={busy}>
-              Descartar el borrador
-            </button>
-          </span>
+          <button type="button" className="tiny danger" onClick={() => void onDiscard()} disabled={busy}>
+            Descartar el borrador
+          </button>
         </div>
       ) : null}
 
