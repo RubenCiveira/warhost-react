@@ -490,25 +490,23 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 
 /* Carta de unidad --------------------------------------------------------- */
-/* Carta apaisada de tamano fijo, 120 x 70 mm: una carta de tarot.
-   Dentro: banda de titulo con los atributos, el armamento a todo el ancho y
-   debajo dos columnas, reglas y equipo.
+/* Carta apaisada de 120 x 70 mm: una carta de tarot.
+ *
+ * Toda la maqueta va en milimetros, como en kt-cartas, y no en pixeles ni en
+ * rem: es un objeto fisico, y asi lo que se ve en pantalla y lo que saldria por
+ * la impresora son la misma carta. Las medidas de aqui —paddings, cuerpos,
+ * anchos de caja— estan tomadas de sus fichas de datos.
+ *
+ * Nada va a sangre: la cabecera es una barra embutida con las puntas matadas y
+ * el armamento otra pieza debajo, las dos con aire alrededor. Es lo que hace que
+ * la carta se lea como una lamina y no como una tabla dentro de un marco.
+ *
+ * El material sigue al tema: en grimdark la carta es vitela clara sobre fondo de
+ * acero; en fantasy es la misma piel del resto. El "trim" es el papel del color
+ * de arquetipo de kt-cartas: ata el borde de la carta, la cabecera del
+ * armamento y los iconos. Va en un tono medio a proposito, porque el color de
+ * realce del tema como relleno de media carta se come todo lo demas. */
 
-   Fijo quiere decir fijo. En pantallas estrechas la carta no se recompone: se
-   encoge entera con una escala, como un naipe que se mira de lejos. Asi lo que
-   ves es siempre la misma carta, no una version movil de ella.
-
-   El material sigue al tema: en grimdark es vitela clara que contrasta con el
-   fondo de acero; en fantasy es la misma piel del resto.
-
-   Proporciones tomadas de kt-cartas: banda de titulo baja —un quinto del alto
-   era demasiado en apaisado—, atributos en cajas estrechas a su derecha, y el
-   armamento como una pieza enmarcada y embutida, no como una tabla a sangre. */
-
-/* Una carta de tarot mide 120 x 70 mm, y eso es lo que mide esta: en
-   milimetros, no en pixeles con una proporcion parecida. La escala es solo el
-   aumento con el que se mira; a 1 la carta sale del monitor a tamano real y se
-   imprime igual. */
 :root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.15; }
 @media (max-width: 620px) { :root { --ucard-esc: 0.76; } }
 @media (max-width: 400px) { :root { --ucard-esc: 0.63; } }
@@ -527,11 +525,13 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard {
   --ucard-tinta: #201a12;
   --ucard-papel: #f4efe3;
-  --ucard-cebra: #e9e3d3;
+  --ucard-cebra: #ebe5d7;
   --ucard-tenue: #7c7361;
   --ucard-filete: #d3ccb9;
-  --ucard-banda: var(--band-bg);
-  --ucard-realce: var(--accent-2);
+  --ucard-trim: #4e5a63;
+  --ucard-banda: #14181f;
+  --ucard-banda-texto: #f5f0e4;
+  --ucard-realce: var(--accent);
   width: var(--ucard-w);
   height: var(--ucard-h);
   transform: scale(var(--ucard-esc));
@@ -540,128 +540,125 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   flex-direction: column;
   background: var(--ucard-papel);
   color: var(--ucard-tinta);
-  border: 1px solid var(--border-strong);
-  border-top: 3px solid var(--accent);
-  border-radius: 2mm;
+  border: 0.6mm solid var(--ucard-trim);
+  border-radius: 2.5mm;
   overflow: hidden;
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   box-shadow: var(--raise);
 }
 
-.ucard-head { display: flex; align-items: stretch; gap: 1px; background: var(--ucard-banda); flex: 0 0 auto; }
+:root[data-setting="fantasy"] .ucard {
+  --ucard-trim: #8a7550;
+  --ucard-banda: #2b2013;
+  --ucard-banda-texto: #f2e6c9;
+  --ucard-realce: var(--accent-2);
+}
+
+/* Cabecera: barra embutida, con el titulo y los atributos como piezas de una
+   misma tira. Las puntas de los extremos matadas, el resto a escuadra. */
+.ucard-head {
+  display: flex; align-items: stretch; gap: 0.8mm;
+  padding: 1.6mm 2mm 1mm;
+  flex: 0 0 auto;
+}
 .ucard-title {
-  flex: 1; margin: 0; display: flex; align-items: center;
-  padding: 5px 11px; line-height: 1.1; color: var(--band-text);
+  flex: 1; margin: 0; min-width: 0;
+  display: flex; align-items: center;
+  padding: 0 2mm; border-radius: 0.8mm 0 0 0.8mm;
+  background: var(--ucard-banda); color: var(--ucard-banda-texto);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 1rem;
-  /* La banda de la carta es una banda mas: sigue al material del tema, en
-     mayusculas condensadas en grimdark y en versalitas en fantasy. */
+  font-weight: 700; font-size: 3.4mm; line-height: 1.1;
   letter-spacing: var(--band-letter);
   text-transform: var(--band-transform);
   font-variant: var(--band-variant);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ucard-stats { display: flex; flex: 0 0 auto; }
+.ucard-stats { display: flex; gap: 0.8mm; flex: 0 0 auto; }
 .ucard-stat {
-  min-width: 9.5mm; padding: 4px 6px 3px; text-align: center;
-  background: var(--ucard-banda); color: var(--band-text);
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;
+  background: var(--ucard-banda); color: var(--ucard-banda-texto);
 }
+.ucard-stat:last-child { border-radius: 0 0.8mm 0.8mm 0; }
 .ucard-stat-key {
   display: block; color: var(--ucard-realce);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.58rem; line-height: 1.1; letter-spacing: 0.12em;
+  font-weight: 700; font-size: 2mm; line-height: 1.2; letter-spacing: 0.06em;
   text-transform: var(--band-transform); font-variant: var(--band-variant);
 }
-.ucard-stat-value {
-  display: block; font-weight: 600; font-size: 0.95rem; line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
+.ucard-stat-value { display: block; font-weight: 600; font-size: 3.2mm; line-height: 1.1; font-variant-numeric: tabular-nums; }
 
-/* Armamento arriba, reglas y equipo abajo. Con tamano fijo el sobrante hay que
-   ponerlo en algun sitio: repartido entre los dos bloques se lee como una carta
-   con aire, y amontonado arriba se lee como una carta que se quedo a medias. */
-.ucard-body {
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column;
-  padding: 3mm 3.2mm 3.2mm;
-  font-size: 1rem;
-}
+.ucard-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-/* Armamento: a todo el ancho, que es la informacion que mas se consulta. */
+/* Armamento: pieza propia, embutida, con la cabecera en el trim y los costados
+   cerrados. Es la tabla que mas se consulta, y va a todo el ancho util. */
+.ucard-armas { padding: 0 2.5mm 1.4mm; flex: 0 0 auto; }
 .ucard-table {
   width: 100%; border-collapse: separate; border-spacing: 0;
-  font-size: 0.85em; flex: 0 0 auto;
-  /* Enmarcado como en kt-cartas, pero en la tinta de la carta y no en el color
-     de realce: el acento vale para una raya o una etiqueta, y como relleno de
-     media carta se come todo lo demas. */
-  border: 1px solid var(--ucard-tinta); border-radius: 1mm; overflow: hidden;
+  font-size: 2.6mm; line-height: 1.25;
+  border: 0.35mm solid var(--ucard-trim); border-radius: 1mm; overflow: hidden;
 }
 .ucard-table thead th {
-  background: var(--ucard-tinta); color: var(--ucard-papel);
+  background: var(--ucard-trim); color: var(--ucard-banda-texto);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.66em; letter-spacing: 0.09em; text-transform: uppercase;
-  padding: 3px 8px; text-align: left;
+  font-weight: 700; font-size: 2.2mm; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.7mm 1.4mm; text-align: left;
 }
-.ucard-table td { padding: 2.8px 8px; vertical-align: top; }
+.ucard-table td { padding: 0.7mm 1.4mm; vertical-align: middle; }
 .ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
 .ucard-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ucard-table td:first-child, .ucard-wrules { overflow: hidden; text-overflow: ellipsis; }
+.ucard-wrules { color: #575043; }
+.ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 0.6mm; }
+.ucard-mas { margin: 0.8mm 0 0; font-size: 2.2mm; color: var(--ucard-tenue); font-style: italic; }
 
 /* El icono de tipo de arma, con hueco fijo para que los nombres sigan
    alineados aunque una fila no lo lleve. */
-.ucard-arma { display: flex; align-items: center; gap: 1.4mm; min-width: 0; }
+.ucard-arma { display: flex; align-items: center; gap: 1.2mm; min-width: 0; }
 .ucard-arma-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.arma-icono { color: var(--ucard-tinta); }
+.arma-icono { color: var(--ucard-trim); display: block; }
 /* A distancia se dibujan las dos versiones y manda el material del tema. */
 .arma-arco { display: none; }
 :root[data-setting="fantasy"] .arma-balas { display: none; }
 :root[data-setting="fantasy"] .arma-arco { display: block; }
-.ucard-wrules { color: #575043; }
-.ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 3px; }
-.ucard-mas { margin: 4px 0 0; font-size: 0.76em; color: var(--ucard-tenue); font-style: italic; }
 
 /* Reglas y equipo, hombro con hombro bajo el armamento. Las reglas mandan: el
    equipo esta vacio en la gran mayoria de unidades, y cuando lo esta no deja un
    hueco muerto, sino que las reglas se quedan con toda la fila. */
 .ucard-cols {
   flex: 1; min-height: 0; overflow: hidden;
-  display: grid; gap: 0 5mm; grid-template-columns: 1.4fr 1fr;
-  margin-top: 2.4mm; padding-top: 2mm;
-  border-top: 1px solid var(--ucard-filete);
+  display: grid; gap: 0 3mm; grid-template-columns: 1.4fr 1fr;
+  padding: 0 2.5mm 2.2mm;
 }
 .ucard-cols.sin-equipo { grid-template-columns: 1fr; }
 .ucard-col { min-width: 0; }
 .ucard-col-title {
-  margin: 0 0 4px;
+  margin: 0 0 0.8mm;
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.66em; letter-spacing: 0.11em; text-transform: uppercase;
+  font-weight: 700; font-size: 2.2mm; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ucard-tenue);
 }
-/* Una regla por linea, y las lineas fluyendo en columnas de 45 mm: a lo ancho
-   entran dos y a media carta una, sin que haya que decidirlo a mano. Cuando la
-   lista lleve tambien la descripcion de cada regla, bastara con ensanchar la
-   columna para que vuelva a ser una sola. */
+
+/* Una regla por linea, fluyendo en columnas. Cuando la lista lleve tambien la
+   descripcion de cada regla, bastara con ensanchar la columna. */
 .ucard-list {
   list-style: none; margin: 0; padding: 0;
-  font-size: 0.8em; line-height: 1.42;
-  columns: 45mm; column-gap: 5mm;
+  font-size: 2.38mm; line-height: 1.3;
+  columns: 42mm; column-gap: 3mm;
 }
 .ucard-list li { padding: 0.15mm 0; break-inside: avoid; }
 .ucard-term { font-weight: 600; }
 .ucard-gloss { color: var(--ucard-tenue); }
-.ucard-vacio { margin: 0; font-size: 0.8em; color: var(--ucard-tenue); }
+.ucard-vacio { margin: 0; font-size: 2.38mm; color: var(--ucard-tenue); }
 
-/* Cartas cargadas: se aprieta la tipografia del cuerpo en vez de recortar. Es
-   lo que hace kt-cartas con sus secciones compactas. La banda no se toca, que
-   es lo que da la identidad de la carta de un vistazo. */
-.ucard.denso .ucard-body { font-size: 0.92em; }
-.ucard.denso .ucard-table td { padding-top: 1.8px; padding-bottom: 1.8px; }
-.ucard.denso .ucard-cols { margin-top: 2mm; padding-top: 1.8mm; }
-.ucard.muy-denso .ucard-body { font-size: 0.8em; }
-.ucard.muy-denso .ucard-table td { padding-top: 1.2px; padding-bottom: 1.2px; }
-.ucard.muy-denso .ucard-list { line-height: 1.3; }
-.ucard.muy-denso .ucard-cols { margin-top: 1.8mm; padding-top: 1.6mm; }
+/* Cartas cargadas: se aprieta la tipografia del cuerpo en vez de recortar, como
+   hacen las secciones compactas de kt-cartas. La cabecera no se toca, que es lo
+   que da la identidad de la carta de un vistazo. */
+.ucard.denso .ucard-table { font-size: 2.4mm; }
+.ucard.denso .ucard-table td { padding-top: 0.5mm; padding-bottom: 0.5mm; }
+.ucard.denso .ucard-list, .ucard.denso .ucard-vacio { font-size: 2.2mm; }
+.ucard.muy-denso .ucard-table { font-size: 2.2mm; }
+.ucard.muy-denso .ucard-table td { padding-top: 0.35mm; padding-bottom: 0.35mm; }
+.ucard.muy-denso .ucard-list, .ucard.muy-denso .ucard-vacio { font-size: 2.05mm; line-height: 1.24; }
 
 /* Lo que no es perfil de la unidad cuelga del marco, ya fuera de la carta. */
 .ucard-upgrades { margin: 8px 0 0; font-size: 0.84rem; line-height: 1.45; }

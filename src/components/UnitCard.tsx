@@ -132,6 +132,7 @@ export default function UnitCard({
 
           <div className="ucard-body">
             {weapons.length > 0 ? (
+              <div className="ucard-armas">
               <table className="ucard-table">
                 <thead>
                   <tr>
@@ -160,11 +161,12 @@ export default function UnitCard({
                   ))}
                 </tbody>
               </table>
-            ) : null}
-            {ocultas > 0 ? (
-              <p className="ucard-mas">
-                y {ocultas} arma{ocultas === 1 ? "" : "s"} mas, en el detalle de la unidad
-              </p>
+              {ocultas > 0 ? (
+                <p className="ucard-mas">
+                  y {ocultas} arma{ocultas === 1 ? "" : "s"} mas, en el detalle de la unidad
+                </p>
+              ) : null}
+              </div>
             ) : null}
 
             <div className={gear.length > 0 ? "ucard-cols" : "ucard-cols sin-equipo"}>
