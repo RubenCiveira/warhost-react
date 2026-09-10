@@ -20,7 +20,14 @@ export interface ArmyDraft {
 }
 
 export async function listArmies(userId: string, gameSystem?: GameSystemId): Promise<Army[]> {
-  const queries = [Query.equal("userId", userId), Query.orderDesc("$updatedAt"), Query.limit(100)];
+  // Solo los activos: los borradores y las versiones viejas no son ejercitos
+  // distintos, son estados del mismo.
+  const queries = [
+    Query.equal("userId", userId),
+    Query.equal("status", "active"),
+    Query.orderDesc("$updatedAt"),
+    Query.limit(100),
+  ];
   if (gameSystem) queries.push(Query.equal("gameSystem", gameSystem));
 
   const result = await tables.listRows<Army>({
@@ -36,12 +43,23 @@ export async function getArmy(armyId: string): Promise<Army> {
 }
 
 export async function createArmy(userId: string, draft: ArmyDraft): Promise<Army> {
+  // El id de la fila estrena la linea de versiones: el primer activo es su
+  // propio origen.
+  const rowId = ID.unique();
   return tables.createRow<Army>({
     databaseId: env.databaseId,
     tableId: TABLES.armies,
-    rowId: ID.unique(),
+    rowId,
     data: {
       userId,
+      lineageId: rowId,
+      status: "active",
+      activeKey: rowId,
+      draftKey: null,
+      version: 1,
+      basedOn: null,
+      publishedAt: new Date().toISOString(),
+      obsoletedAt: null,
       name: draft.name.trim(),
       setting: draft.setting,
       gameSystem: draft.gameSystem,
@@ -57,14 +75,18 @@ export async function createArmy(userId: string, draft: ArmyDraft): Promise<Army
       shared: draft.shared ?? false,
       updatedAt: new Date().toISOString(),
     },
-    // El dueno manda. Si el ejercito es publico, cualquier aceptado puede leerlo.
-    permissions: [
-      Permission.read(Role.user(userId)),
-      Permission.update(Role.user(userId)),
-      Permission.delete(Role.user(userId)),
-      ...(draft.shared ? [Permission.read(Role.label("aceptado"))] : []),
-    ],
+    permissions: ownerPermissions(userId, draft.shared ?? false),
   });
+}
+
+/** El dueno manda. Si el ejercito es publico, cualquier aceptado puede leerlo. */
+function ownerPermissions(userId: string, shared: boolean): string[] {
+  return [
+    Permission.read(Role.user(userId)),
+    Permission.update(Role.user(userId)),
+    Permission.delete(Role.user(userId)),
+    ...(shared ? [Permission.read(Role.label("aceptado"))] : []),
+  ];
 }
 
 export async function updateArmy(armyId: string, draft: Partial<ArmyDraft>): Promise<Army> {
@@ -109,4 +131,140 @@ function normalize<T extends Partial<ArmyDraft>>(draft: T): Record<string, unkno
   if (draft.faction !== undefined) data.faction = draft.faction?.trim() || null;
   if (draft.notes !== undefined) data.notes = draft.notes?.trim() || null;
   return data;
+}
+
+/* Borradores ------------------------------------------------------------------
+ *
+ * Un ejercito no se edita en sitio: se edita un **borrador**, que se guarda solo
+ * a cada cambio, y al aceptarlo pasa a ser el activo y el anterior queda como
+ * obsoleto. Asi nunca hay un ejercito a medias, y se puede volver atras.
+ *
+ * Que solo haya un activo y un borrador por linea no lo vigila este codigo: lo
+ * garantizan los indices unicos de `activeKey` y `draftKey`. Aqui solo se
+ * respeta el contrato.
+ */
+
+/** Cuantas versiones obsoletas se conservan de cada ejercito. */
+const HISTORIAL = 5;
+
+export async function getDraftFor(lineageId: string): Promise<Army | null> {
+  const result = await tables.listRows<Army>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armies,
+    queries: [Query.equal("draftKey", lineageId), Query.limit(1)],
+  });
+  return result.rows[0] ?? null;
+}
+
+/**
+ * Devuelve el borrador en curso, o crea uno copiando el activo. Es idempotente:
+ * volver a entrar a editar no crea un segundo borrador.
+ */
+export async function startDraft(active: Army, userId: string): Promise<Army> {
+  const lineageId = active.lineageId ?? active.$id;
+  const existing = await getDraftFor(lineageId);
+  if (existing) return existing;
+
+  const { $id, $sequence, $createdAt, $updatedAt, $permissions, $databaseId, $tableId, ...copia } = active;
+  void $id, $sequence, $createdAt, $updatedAt, $permissions, $databaseId, $tableId;
+
+  return tables.createRow<Army>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armies,
+    rowId: ID.unique(),
+    data: {
+      ...copia,
+      lineageId,
+      status: "draft",
+      activeKey: null,
+      draftKey: lineageId,
+      version: (active.version ?? 1) + 1,
+      basedOn: active.$id,
+      publishedAt: null,
+      obsoletedAt: null,
+      updatedAt: new Date().toISOString(),
+    },
+    permissions: ownerPermissions(userId, Boolean(active.shared)),
+  });
+}
+
+export async function saveDraft(draftId: string, draft: Partial<ArmyDraft>): Promise<Army> {
+  return updateArmy(draftId, draft);
+}
+
+/**
+ * Acepta el borrador: pasa a activo y el anterior queda obsoleto, **en una sola
+ * transaccion**. Sin ella hay un instante en el que el ejercito no tiene ningun
+ * activo, y si la segunda escritura falla se queda asi.
+ */
+export async function publishDraft(draft: Army): Promise<Army> {
+  const lineageId = draft.lineageId ?? draft.$id;
+  const now = new Date().toISOString();
+  const transaction = await tables.createTransaction({});
+
+  try {
+    const active = await getActiveFor(lineageId);
+    if (active && active.$id !== draft.$id) {
+      // Primero se libera la ranura; ocuparla antes de soltarla choca con el
+      // indice unico aunque sea dentro de la transaccion.
+      await tables.updateRow({
+        databaseId: env.databaseId,
+        tableId: TABLES.armies,
+        rowId: active.$id,
+        data: { status: "obsolete", activeKey: null, draftKey: null, obsoletedAt: now },
+        transactionId: transaction.$id,
+      });
+    }
+    await tables.updateRow({
+      databaseId: env.databaseId,
+      tableId: TABLES.armies,
+      rowId: draft.$id,
+      data: { status: "active", activeKey: lineageId, draftKey: null, publishedAt: now },
+      transactionId: transaction.$id,
+    });
+    await tables.updateTransaction({ transactionId: transaction.$id, commit: true });
+  } catch (err) {
+    await tables.updateTransaction({ transactionId: transaction.$id, rollback: true }).catch(() => undefined);
+    throw err;
+  }
+
+  await prunerHistorial(lineageId);
+  return getArmy(draft.$id);
+}
+
+export async function discardDraft(draft: Army): Promise<void> {
+  await tables.deleteRow({ databaseId: env.databaseId, tableId: TABLES.armies, rowId: draft.$id });
+}
+
+export async function getActiveFor(lineageId: string): Promise<Army | null> {
+  const result = await tables.listRows<Army>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armies,
+    queries: [Query.equal("activeKey", lineageId), Query.limit(1)],
+  });
+  return result.rows[0] ?? null;
+}
+
+export async function listHistory(lineageId: string): Promise<Army[]> {
+  const result = await tables.listRows<Army>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armies,
+    queries: [
+      Query.equal("lineageId", lineageId),
+      Query.equal("status", "obsolete"),
+      Query.orderDesc("version"),
+      Query.limit(HISTORIAL + 10),
+    ],
+  });
+  return result.rows;
+}
+
+/** Conserva las ultimas HISTORIAL versiones y borra las mas viejas. */
+async function prunerHistorial(lineageId: string): Promise<void> {
+  const historia = await listHistory(lineageId);
+  await Promise.all(
+    historia.slice(HISTORIAL).map((row) =>
+      tables.deleteRow({ databaseId: env.databaseId, tableId: TABLES.armies, rowId: row.$id }).catch(() => undefined),
+    ),
+  );
 }

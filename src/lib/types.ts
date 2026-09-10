@@ -19,7 +19,24 @@ export interface Army extends Row {
   notes: string | null;
   shared: boolean;
   updatedAt: string | null;
+  /** Identifica al ejercito a lo largo de todas sus versiones. */
+  lineageId: string | null;
+  status: ArmyStatus;
+  /**
+   * Ranuras. Valen `lineageId` cuando la fila ocupa ese papel y nulo cuando no.
+   * Tienen indice unico, asi que la base de datos hace imposible un segundo
+   * activo o un segundo borrador de la misma linea: no es una comprobacion del
+   * front que se pueda saltar.
+   */
+  activeKey: string | null;
+  draftKey: string | null;
+  version: number;
+  basedOn: string | null;
+  publishedAt: string | null;
+  obsoletedAt: string | null;
 }
+
+export type ArmyStatus = "active" | "draft" | "obsolete";
 
 export interface Association extends Row {
   name: string;
