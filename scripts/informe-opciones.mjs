@@ -65,7 +65,14 @@ const CATEGORIAS = {
   },
 };
 
-const ORDEN = ["replace-target-plural", "replace-target-singular", "replace-target-quantity-prefix", "select-exceeds-options", "replace-target-unknown"];
+/**
+ * Los desajustes de plural son el 93% de los hallazgos y son todos la misma
+ * frase repetida, asi que sepultarian lo demas. Van al final, en su propia
+ * seccion; delante queda lo que hay que mirar uno por uno.
+ */
+const PLURALES = ["replace-target-plural", "replace-target-singular"];
+const ORDEN = ["replace-target-quantity-prefix", "select-exceeds-options", "replace-target-unknown", ...PLURALES];
+const esPlural = (t) => PLURALES.includes(t);
 const SISTEMAS = { gf: "Grimdark Future", gff: "Grimdark Future: Firefight", aof: "Age of Fantasy", aofs: "Age of Fantasy: Skirmish", aofr: "Age of Fantasy: Regiments" };
 
 const porTipo = {};
@@ -98,7 +105,11 @@ P("## Summary");
 P("");
 P("| Category | Findings | Units |");
 P("|---|--:|--:|");
-for (const t of usados) {
+for (const t of usados.filter((x) => !esPlural(x))) {
+  const u = new Set(porTipo[t].map((h) => `${h.libro}|${h.sistema}|${h.unidad}`)).size;
+  P(`| ${CATEGORIAS[t].titulo} | ${porTipo[t].length} | ${u} |`);
+}
+for (const t of usados.filter(esPlural)) {
   const u = new Set(porTipo[t].map((h) => `${h.libro}|${h.sistema}|${h.unidad}`)).size;
   P(`| ${CATEGORIAS[t].titulo} | ${porTipo[t].length} | ${u} |`);
 }
@@ -148,27 +159,57 @@ P("");
 P("A stable `targetId` on the section, pointing at the equipment entry the way");
 P("`costs[].unitId` already points at a unit, would remove the ambiguity entirely.");
 P("");
+function listadoPorLibro(lista, conCategoria) {
+  const porLibro = {};
+  for (const h of lista) ((porLibro[`${h.libro}|${h.sistema}`] ??= {})[h.unidad] ??= []).push(h);
+
+  for (const clave of Object.keys(porLibro).sort()) {
+    const [libro, sistema] = clave.split("|");
+    const unidades = porLibro[clave];
+    const total = Object.values(unidades).reduce((n, l) => n + l.length, 0);
+    const nUnidades = Object.keys(unidades).length;
+    P(`### ${libro} — ${SISTEMAS[sistema] ?? sistema}`);
+    P("");
+    P(`${nUnidades} unit${nUnidades === 1 ? "" : "s"}, ${total} finding${total === 1 ? "" : "s"}.`);
+    P("");
+    P(conCategoria ? "| Unit | Section | Target | Unit carries | Category |" : "| Unit | Section | Target | Unit carries |");
+    P(conCategoria ? "|---|---|---|---|---|" : "|---|---|---|---|");
+    for (const unidad of Object.keys(unidades).sort()) {
+      for (const h of unidades[unidad]) {
+        const objetivo = h.objetivo ? `\`${h.objetivo}\`` : `_limit: up to ${h.limite}_`;
+        const lleva = h.lleva ? `\`${h.lleva}\`` : `_${h.opciones} option(s)_`;
+        const fila = `| ${unidad} | ${h.seccion ?? ""} | ${objetivo} | ${lleva} |`;
+        P(conCategoria ? `${fila} ${CATEGORIAS[h.tipo].titulo} |` : fila);
+      }
+    }
+    P("");
+  }
+}
+
+const otros = hallazgos.filter((h) => !esPlural(h.tipo));
+const plurales = hallazgos.filter((h) => esPlural(h.tipo));
+
 P("## Findings by army book");
 P("");
-const porLibro = {};
-for (const h of hallazgos) ((porLibro[`${h.libro}|${h.sistema}`] ??= {})[h.unidad] ??= []).push(h);
-
-for (const clave of Object.keys(porLibro).sort()) {
-  const [libro, sistema] = clave.split("|");
-  const unidades = porLibro[clave];
-  const total = Object.values(unidades).reduce((n, l) => n + l.length, 0);
-  P(`### ${libro} — ${SISTEMAS[sistema] ?? sistema}`);
+if (otros.length === 0) {
+  P("None outside the pluralisation mismatches listed further down.");
   P("");
-  P(`${Object.keys(unidades).length} unit${Object.keys(unidades).length === 1 ? "" : "s"}, ${total} finding${total === 1 ? "" : "s"}.`);
+} else {
+  P(
+    "Everything except the pluralisation mismatches, which are listed separately at the end " +
+      `because they are ${plurales.length} repetitions of the same two shapes.`,
+  );
   P("");
-  P("| Unit | Section | Target | Unit carries | Category |");
-  P("|---|---|---|---|---|");
-  for (const unidad of Object.keys(unidades).sort()) {
-    for (const h of unidades[unidad]) {
-      const objetivo = h.objetivo ? `\`${h.objetivo}\`` : `_limit: up to ${h.limite}_`;
-      const lleva = h.lleva ? `\`${h.lleva}\`` : `_${h.opciones} option(s)_`;
-      P(`| ${unidad} | ${h.seccion ?? ""} | ${objetivo} | ${lleva} | ${CATEGORIAS[h.tipo].titulo} |`);
-    }
-  }
-  P("");
+  listadoPorLibro(otros, true);
 }
+
+P("## Pluralisation mismatches, by army book");
+P("");
+P(
+  `The two naming shapes described above: ${porTipo["replace-target-plural"]?.length ?? 0} where the target is pluralised ` +
+    `and the equipment is not, and ${porTipo["replace-target-singular"]?.length ?? 0} the other way round. ` +
+    "Which of the two a row is can be read straight off the pair of columns: **Target** is what the " +
+    "section declares, **Unit carries** is the equipment entry it was meant to name.",
+);
+P("");
+listadoPorLibro(plurales, false);
