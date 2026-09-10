@@ -31,6 +31,28 @@ const unidades = libros.flatMap((libro) =>
   ]).rows.map((u) => ({ ...u, setting: libro.setting })),
 );
 
+// El glosario hace falta de verdad, no como adorno: sin el no hay chips dobles
+// de aura, que es justo lo que mas ensancha una fila. Medir sin el seria medir
+// otra pagina.
+const reglas = [...new Set(libros.map((l) => l.gameSystem))].flatMap((sistema) => {
+  const fuera = [];
+  let cursor = null;
+  for (;;) {
+    const queries = [
+      { method: "equal", attribute: "gameSystem", values: [sistema] },
+      { method: "limit", values: [1000] },
+    ];
+    if (cursor) queries.push({ method: "cursorAfter", values: [cursor] });
+    const { rows } = cli(["tables-db", "list-rows", "--database-id", "warhost", "--table-id", "army_rules",
+      ...queries.flatMap((q) => ["--queries", JSON.stringify(q)])]);
+    if (rows.length === 0) break;
+    fuera.push(...rows.map((r) => [r.name.toLowerCase(), { description: r.description }]));
+    if (rows.length < 1000) break;
+    cursor = rows[rows.length - 1].$id;
+  }
+  return fuera;
+});
+
 const paquetes = libros.flatMap((libro) =>
   cli([
     "tables-db", "list-rows", "--database-id", "warhost", "--table-id", "army_upgrade_packages",
@@ -53,10 +75,11 @@ await build({
       const UNITS = ${JSON.stringify(unidades)};
       const PAQUETES = new Map(${JSON.stringify(paquetes)}.map(([k, v]) => [k, parseSections(v)]));
       const BOOKS = ${JSON.stringify(libros.map((l) => ({ name: l.name, spells: l.spells })))};
+      const GLOSARIO = new Map(${JSON.stringify(reglas)});
       globalThis.__HTML__ =
         UNITS.map((u) =>
           renderToStaticMarkup(
-            <UnitCard variant="ejercito" unit={{
+            <UnitCard variant="ejercito" glosario={GLOSARIO} unit={{
               name: u.name, size: u.size, quality: u.quality, defense: u.defense,
               cost: u.cost, maxWounds: u.size, rules: u.rules,
               loadout: baseLoadout(u.weapons, u.items),
@@ -66,7 +89,7 @@ await build({
         // La misma unidad en ficha de catalogo, con sus opciones dentro.
         UNITS.map((u) =>
           renderToStaticMarkup(
-            <UnitCard variant="catalogo" formato="hoja" unitId={u.unitId}
+            <UnitCard variant="catalogo" formato="hoja" unitId={u.unitId} glosario={GLOSARIO}
               sections={sectionsForUnit(u, PAQUETES)}
               unit={{
                 name: u.name, size: u.size, quality: u.quality, defense: u.defense,
@@ -128,6 +151,33 @@ const malas = await p.evaluate(() => {
 // como se calibran las constantes de `pasoDeOpciones` en UnitCard: el modelo
 // estima en milimetros y aqui se ve cuanto se aleja de lo que pinta el
 // navegador. Sin esto, las constantes serian numeros inventados.
+// UNA="<nombre>" saca la geometria real de una ficha: cuanto mide su zona de
+// opciones y como reparte el navegador las secciones en columnas. Es lo que
+// destapo que no busca el reparto optimo, sino que corta donde la columna queda
+// mas cerca de la altura objetivo; el modelo de `pasoDeOpciones` emula eso.
+if (process.env.UNA) {
+  const d = await p.evaluate((nombre) => {
+    const c = [...document.querySelectorAll(".ucard.hoja")].find((x) => x.querySelector(".ucard-title")?.textContent?.startsWith(nombre));
+    if (!c) return "no esta";
+    const caja = (el) => (el ? { alto: el.offsetHeight, cliente: el.clientHeight, scroll: el.scrollHeight } : null);
+    return {
+      cuerpo: caja(c.querySelector(".ucard-body")),
+      dentro: caja(c.querySelector(".ucard-opciones-dentro")),
+      reglas: caja(c.querySelector(".ucard-bloque")),
+      chips: [...c.querySelectorAll(".ucard-bloque .ucard-chips > *")].map((x) => x.textContent.trim()),
+      secciones: [...c.querySelectorAll(".ucard-section")].map((x) => ({
+        t: x.querySelector(".ucard-section-head")?.textContent?.slice(0, 22),
+        alto: x.offsetHeight,
+        x: Math.round(x.getBoundingClientRect().x),
+        filas: x.querySelectorAll("li").length,
+      })),
+      armas: c.querySelectorAll(".ucard-armas tbody tr").length,
+    };
+  }, process.env.UNA);
+  console.log(JSON.stringify(d));
+  await navegador.close();
+  process.exit(0);
+}
 if (process.env.MEDIR) {
   const m = await p.evaluate(() =>
     [...document.querySelectorAll(".ucard.hoja")].map((c, i) => ({

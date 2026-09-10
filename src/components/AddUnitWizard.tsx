@@ -208,7 +208,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                       variant="catalogo"
                       formato="hoja"
                       unitId={unit.unitId}
-                      conTexto={new Set(glosario.keys())}
+                      glosario={glosario}
                       onHabilidad={setHabilidad}
                       sections={sectionsForUnit(unit, packages)}
                       unit={{
@@ -243,7 +243,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
               <UnitCard
                 variant="ejercito"
                 unitId={entry.unit.unitId}
-                conTexto={new Set(glosario.keys())}
+                glosario={glosario}
                 onHabilidad={setHabilidad}
                 sections={sections}
                 upgrades={entryUpgradeLabels(entry, sections)}
@@ -306,7 +306,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                 combinada={entry.combined}
                 notas={entry.notes}
                 upgrades={entryUpgradeLabels(entry, sections)}
-                conTexto={new Set(glosario.keys())}
+                glosario={glosario}
                 onHabilidad={setHabilidad}
               />
             </div>

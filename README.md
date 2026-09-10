@@ -250,24 +250,33 @@ Lo que hay que modelar, y lo que pasa si te lo saltas:
    un renglon y "Energy Hammer (A1, Blast(3)), Combat Shield (Shielded)" son
    tres.
 2. **Como reparte el navegador las columnas.** Las secciones no se parten
-   (`break-inside: avoid`) y se reparten *en orden*, buscando la altura minima
-   que quepa en tres. Repartirlas de mayor a menor, que es lo que sale solo, da
-   un minimo teorico que el navegador no alcanza.
+   (`break-inside: avoid`) y se reparten *en orden* hacia una altura objetivo
+   —el total entre tres—, cortando cuando la columna queda mas cerca del
+   objetivo sin la siguiente seccion que con ella. Ni se reparte de mayor a
+   menor ni se busca el minimo que quepa, que es lo que sale solo al escribirlo:
+   las dos cosas subestiman el alto. Medido en fichas reales, 37/52/77 mm y
+   63/82/34 donde un reparto optimo habria dado 56 y 59.
 3. **El hueco que dejan armas, reglas y equipo.** Un titan con ocho armas
    desborda antes que un capitan con treinta y cinco opciones. Estos numeros
    estan *medidos* en el navegador, no estimados: la cabecera son 12,2 mm
    clavados y la zona de opciones va de 96 mm con un arma a 61 mm en la ficha
    mas cargada.
-4. **Que un chip ocupa mas que su texto**, y que el texto se parte por palabras:
+4. **Que un aura ocupa dos chips**, porque lleva pegada la regla que concede.
+5. **Que un chip ocupa mas que su texto**, y que el texto se parte por palabras:
    una linea casi nunca se llena del todo. El ancho de letra que sale de medir
    (0,68 em) no es el ancho real de la letra (0,52 em).
 
 Las constantes salen de comparar el modelo con lo que pinta el navegador:
 `MEDIR=1 pnpm check:cards` vuelca las alturas reales de cada ficha a
-`/tmp/medidas.json`. Sin eso serian numeros inventados. De 740 fichas del
-catalogo, 643 salen a tamano completo, 39 densas, 37 muy densas y 21 en el
+`/tmp/medidas.json`, y `UNA="<unidad>" pnpm check:cards` saca la geometria de
+una sola, columnas incluidas. Sin eso serian numeros inventados. De 740 fichas
+del catalogo, 609 salen a tamano completo, 55 densas, 34 muy densas y 42 en el
 ultimo escalon, donde los chips pierden el marco y se quedan en subrayado
 punteado: se cae el marco, no la funcion —siguen abriendo la carta de la regla.
+
+El comprobador carga el glosario aunque no lo necesite para medir texto: sin el
+no hay chips dobles de aura, que es lo que mas ensancha una fila, y estaria
+midiendo otra pagina.
 
 ## Inconsistencias del catalogo
 
@@ -291,6 +300,23 @@ Lo que el auditor **no** cuenta como fallo: una seccion puede reemplazar algo
 que otra opcion de la misma unidad te dio antes —"Replace Energy Sword" despues
 de comprar la Energy Sword—, y eso es correcto. Sin ese filtro el informe se
 llena de falsos positivos.
+
+## Auras
+
+Una regla de aura no dice que hace: dice que regla concede. "Bane in Melee Aura"
+significa que la unidad gana **Bane**, y Bane es lo que quieres leer en mitad de
+una partida. Asi que su chip sale doble —`Bane in Melee Aura → Bane`—, con los
+dos tramos pulsables y cada uno abriendo su carta.
+
+La regla concedida se saca de la **descripcion** —"This model and its unit get
+Bane in melee."— y no del nombre. La descripcion es la que declara lo que
+concede, y cuando el aura incrusta su efecto en vez de conceder una regla
+—"Courage Aura: +1 to morale test rolls"— no hay nada que enlazar, y eso
+tambien lo dice la descripcion. De 448 auras del catalogo, 234 conceden una
+regla que se puede consultar; el resto se explican solas.
+
+`pnpm test:auras` comprueba las dos direcciones: que ninguna ofrezca una regla
+que no existe, y que ninguna que declare una se quede sin enlazar.
 
 ## Cuantas mejoras deja comprar una seccion
 

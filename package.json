@@ -24,8 +24,10 @@
     "preview:hoja": "node scripts/preview-hoja.mjs",
     "test:impresion": "node scripts/test-impresion.mjs",
     "test:opciones": "node scripts/test-opciones.mjs",
+    "test:unidades": "node scripts/test-unidades.mjs",
     "audit:opciones": "node scripts/audit-opciones.mjs",
-    "test:combinada": "node scripts/test-combinada.mjs"
+    "test:combinada": "node scripts/test-combinada.mjs",
+    "test:auras": "node scripts/test-auras.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

@@ -34,6 +34,18 @@ await build({
           $id: "r2", name: "AP", description: "Reduces the defense of the target by X.",
           coreType: "weapon", hasRating: true,
         }],
+        ["bane", {
+          $id: "r3", name: "Bane", description: "Attacks count as having AP(4) against Tough(3) or more.",
+          coreType: null, hasRating: false,
+        }],
+        ["bane in melee aura", {
+          $id: "r4", name: "Bane in Melee Aura", description: "This model and its unit get Bane in melee.",
+          coreType: null, hasRating: false,
+        }],
+        ["courage aura", {
+          $id: "r5", name: "Courage Aura", description: "This model and its unit get +1 to morale test rolls.",
+          coreType: null, hasRating: false,
+        }],
       ]);
 
       // Una seccion de mejora como las del catalogo: la opcion trae sus reglas
@@ -66,11 +78,11 @@ await build({
           <>
             <UnitCard
               variant="ejercito"
-              conTexto={new Set(GLOSARIO.keys())}
+              glosario={GLOSARIO}
               onHabilidad={setHabilidad}
               unit={{
                 name: "Prueba", size: 1, quality: 3, defense: 3, cost: 100, maxWounds: 3,
-                rules: ["Hive Bond", "Fast"],
+                rules: ["Hive Bond", "Fast", "Bane in Melee Aura", "Courage Aura"],
                 loadout: [
                   { name: "CCW", label: "CCW (A2)", count: 1, range: null, attacks: 2, rules: [], kind: "weapon" },
                   { name: "Heavy Pistol", label: "Heavy Pistol (12\\", A1, AP(1))", count: 1, range: 12, attacks: 1, rules: ["AP(1)"], kind: "weapon" },
@@ -85,7 +97,7 @@ await build({
               unitId="u1"
               sections={SECCIONES}
               optionsOpen
-              conTexto={new Set(GLOSARIO.keys())}
+              glosario={GLOSARIO}
               onHabilidad={setHabilidad}
               optionAction={(section, option) => (
                 <button type="button" className="icon tiny" aria-label={\`Anadir \${option.label}\`}
@@ -144,6 +156,31 @@ await comprobar(
 );
 await p.keyboard.press("Escape");
 await comprobar(p.locator(".scard").isHidden(), "Escape la cierra");
+
+// Un aura ofrece la regla que concede, pegada, como segundo tramo del chip.
+await p.keyboard.press("Escape");
+const dobles = p.locator(".ucard-chip-doble");
+await comprobar(Promise.resolve((await dobles.count()) === 1), "solo el aura que concede una regla sale doble", `${await dobles.count()}`);
+await comprobar(
+  dobles.first().innerText().then((t) => t.includes("Bane in Melee Aura") && t.includes("Bane")),
+  "y ensena las dos: el aura y lo que concede",
+);
+await dobles.locator(".ucard-chip-concede").click();
+await comprobar(
+  p.locator(".scard-title").innerText().then((t) => /^Bane$/i.test(t.trim())),
+  "pulsar el segundo tramo abre la regla concedida, no el aura",
+);
+await comprobar(
+  p.locator(".scard-efecto").innerText().then((t) => t.includes("Tough(3)")),
+  "con su descripcion",
+);
+await p.keyboard.press("Escape");
+await p.getByRole("button", { name: /^Bane in Melee Aura$/ }).click();
+await comprobar(
+  p.locator(".scard-efecto").innerText().then((t) => t.includes("get Bane in melee")),
+  "y el primer tramo sigue abriendo el aura",
+);
+await p.keyboard.press("Escape");
 
 // Las reglas de arma tambien son chips: el fallo que se busca aqui es que
 // vuelvan a ser texto plano al tocar la tabla de armas.

@@ -6,7 +6,15 @@ import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import IconoArma from "./IconoArma";
 import { parseHabilidad } from "../lib/reglas";
 import { desglosarOpcion } from "../lib/opciones";
+import { reglaDelAura } from "../lib/auras";
 import type { Habilidad } from "../lib/reglas";
+
+/**
+ * Lo que la carta necesita del glosario: quien tiene descripcion, y cual es,
+ * para poder resolver las auras. Se pide el mapa entero y no una lista de
+ * nombres justo por lo segundo.
+ */
+export type GlosarioCarta = Map<string, { description?: string | null }>;
 
 /**
  * Ficha de unidad como carta de juego: apaisada y de tamano fijo, con la
@@ -91,7 +99,7 @@ interface Props {
   combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
   notas?: string;
-  conTexto?: Set<string>;
+  glosario?: GlosarioCarta;
   /** Abrir la carta de una habilidad o de un equipo. */
   onHabilidad?: (habilidad: Habilidad) => void;
 }
@@ -114,23 +122,35 @@ function limitLabel(section: UpgradeSection): string {
 function Chip({
   habilidad,
   cuantos = 1,
-  conTexto,
+  glosario,
   onAbrir,
 }: {
   habilidad: Habilidad;
   cuantos?: number;
-  conTexto?: Set<string>;
+  glosario?: GlosarioCarta;
   onAbrir?: (habilidad: Habilidad) => void;
 }) {
   // Sin glosario cargado no se sabe cuales tienen texto: se dejan todas
   // pulsables antes que marcarlas en falso. Un conjunto vacio es justo eso —
   // todavia cargando, o no llego—, no "ninguna tiene descripcion".
-  const tieneTexto = !conTexto || conTexto.size === 0 || conTexto.has(habilidad.nombre.toLowerCase());
+  const cargado = Boolean(glosario && glosario.size > 0);
+  const tieneTexto = !cargado || glosario!.has(habilidad.nombre.toLowerCase());
   const clases = ["ucard-chip", habilidad.tipo === "equipo" ? "equipo" : "", tieneTexto ? "" : "sin-texto"]
     .filter(Boolean)
     .join(" ");
 
-  return (
+  // Un aura no dice que hace: dice que regla concede, y esa es la que se
+  // consulta en mitad de una partida. Se ofrece pegada, como un segundo tramo
+  // del mismo chip, para que se lea que una lleva a la otra.
+  const aura = cargado
+    ? reglaDelAura(
+        habilidad.nombre,
+        glosario!.get(habilidad.nombre.toLowerCase())?.description,
+        (nombre) => glosario!.has(nombre.toLowerCase()),
+      )
+    : null;
+
+  const boton = (
     <button
       type="button"
       className={clases}
@@ -142,6 +162,23 @@ function Chip({
       {habilidad.nombre}
       {habilidad.valor ? <span className="valor">({habilidad.valor})</span> : null}
     </button>
+  );
+
+  if (!aura) return boton;
+  return (
+    <span className="ucard-chip-doble">
+      {boton}
+      <button
+        type="button"
+        className="ucard-chip ucard-chip-concede"
+        disabled={!onAbrir}
+        title={`Concede ${aura.concede.etiqueta}${aura.alcance ? ` ${aura.alcance}` : ""}: ver la regla`}
+        onClick={() => onAbrir?.(aura.concede)}
+      >
+        {aura.concede.nombre}
+        {aura.concede.valor ? <span className="valor">({aura.concede.valor})</span> : null}
+      </button>
+    </span>
   );
 }
 
@@ -168,7 +205,7 @@ const COLUMNAS = 3;
  * 9 mas 6 por fila, y las reglas otros 6 cada vez que pasan de renglon.
  */
 function altoLibre(armas: number, reglas: number, equipo: number): number {
-  const MARGEN = 16; // lo que el modelo se queda corto en el peor caso medido
+  const MARGEN = 18; // lo que el modelo se queda corto en el peor caso medido
   return (
     96 -
     6 * Math.max(0, armas - 1) -
@@ -205,7 +242,27 @@ const PASOS: PasoOpciones[] = [
  */
 const ANCHO_CARACTER = 0.68;
 
-function lineasDeOpcion(option: UpgradeOption, porLinea: number, planos: boolean): number {
+/**
+ * Lo que ocupa un chip, contando que un aura lleva pegada la regla que concede
+ * y por tanto ocupa casi el doble. Sin esto la ficha se pasa de largo: son seis
+ * de las 740 del catalogo, y ninguna avisa al recortarse.
+ */
+function anchoDeChip(chip: Habilidad, planos: boolean, glosario?: GlosarioCarta): number {
+  const marco = planos ? 1 : 3;
+  const aura = glosario
+    ? reglaDelAura(chip.nombre, glosario.get(chip.nombre.toLowerCase())?.description, (n) =>
+        glosario.has(n.toLowerCase()),
+      )
+    : null;
+  return chip.etiqueta.length + marco + (aura ? aura.concede.etiqueta.length + marco + 2 : 0);
+}
+
+function lineasDeOpcion(
+  option: UpgradeOption,
+  porLinea: number,
+  planos: boolean,
+  glosario?: GlosarioCarta,
+): number {
   const desglose = desglosarOpcion(option);
   const ancho = desglose.crudo
     ? (option.label?.length ?? 20) + 6
@@ -214,7 +271,7 @@ function lineasDeOpcion(option: UpgradeOption, porLinea: number, planos: boolean
         0,
       ) +
       [...desglose.reglas, ...desglose.ganancias.flatMap((ganancia) => ganancia.reglas)].reduce(
-        (suma, chip) => suma + chip.etiqueta.length + (planos ? 1 : 3),
+        (suma, chip) => suma + anchoDeChip(chip, planos, glosario),
         0,
       ) +
       6; // el precio, a la derecha de la fila
@@ -222,17 +279,56 @@ function lineasDeOpcion(option: UpgradeOption, porLinea: number, planos: boolean
 }
 
 /** Lo que ocupa una seccion entera, en mm. No se parte entre columnas. */
-function altoDeSeccion(section: UpgradeSection, paso: PasoOpciones, porLinea: number): number {
+function altoDeSeccion(
+  section: UpgradeSection,
+  paso: PasoOpciones,
+  porLinea: number,
+  glosario?: GlosarioCarta,
+): number {
   const renglon = paso.fuente * paso.interlineado;
   const cabecera = Math.ceil((section.label?.length ?? 20) / porLinea) * renglon + 1;
   return (
     cabecera +
     (section.options ?? []).reduce(
-      (alto, option) => alto + lineasDeOpcion(option, porLinea, paso.planos ?? false) * renglon + paso.relleno,
+      (alto, option) =>
+        alto + lineasDeOpcion(option, porLinea, paso.planos ?? false, glosario) * renglon + paso.relleno,
       0,
     ) +
     1.4 // el hueco hasta la siguiente seccion
   );
+}
+
+/**
+ * El alto que ocuparan unas secciones repartidas en columnas.
+ *
+ * Emula lo que hace el navegador, que no es repartirlas lo mejor posible:
+ * calcula una altura objetivo —el total entre el numero de columnas—, las mete
+ * **en orden**, y corta cuando la columna queda mas cerca del objetivo sin la
+ * siguiente seccion que con ella. La ultima se queda con lo que sobre aunque se
+ * pase. Comprobado contra dos fichas medidas en el navegador: 37/52/77 mm en
+ * una y 63/82/34 en otra, donde un reparto optimo habria dado 56 y 59.
+ *
+ * Buscar el optimo, que es lo que sale solo al escribirlo, subestima el alto y
+ * deja fichas recortadas.
+ */
+function altoDeColumnas(altos: number[]): number {
+  if (altos.length === 0) return 0;
+  const objetivo = altos.reduce((suma, alto) => suma + alto, 0) / COLUMNAS;
+  const columnas: number[] = [0];
+  for (const alto of altos) {
+    const actual = columnas.length - 1;
+    const quedandose = Math.abs(columnas[actual] + alto - objetivo);
+    const cortando = Math.abs(columnas[actual] - objetivo);
+    // Se corta cuando la columna queda mas cerca del objetivo sin la seccion
+    // que con ella. Es lo que hace el navegador: se pasa del objetivo si por
+    // poco, y corta si por mucho.
+    if (columnas[actual] > 0 && quedandose > cortando && columnas.length < COLUMNAS) {
+      columnas.push(alto);
+    } else {
+      columnas[actual] += alto;
+    }
+  }
+  return Math.max(...columnas);
 }
 
 /**
@@ -249,6 +345,7 @@ function pasoDeOpciones(
   armas: number,
   reglas: number,
   equipo: number,
+  glosario?: GlosarioCarta,
 ): string {
   if (sections.length === 0) return "";
   const disponible = altoLibre(armas, reglas, equipo);
@@ -256,12 +353,8 @@ function pasoDeOpciones(
 
   for (const paso of PASOS) {
     const porLinea = anchoColumna / (paso.fuente * ANCHO_CARACTER);
-    // Las secciones se reparten enteras, asi que manda la columna mas alta.
-    const columnas = new Array<number>(COLUMNAS).fill(0);
-    for (const alto of sections.map((s) => altoDeSeccion(s, paso, porLinea)).sort((a, b) => b - a)) {
-      columnas[columnas.indexOf(Math.min(...columnas))] += alto;
-    }
-    if (Math.max(...columnas) <= disponible) return paso.clase;
+    const altos = sections.map((s) => altoDeSeccion(s, paso, porLinea, glosario));
+    if (altoDeColumnas(altos) <= disponible) return paso.clase;
   }
   return PASOS[PASOS.length - 1].clase;
 }
@@ -275,11 +368,11 @@ function pasoDeOpciones(
  */
 function OpcionTexto({
   option,
-  conTexto,
+  glosario,
   onAbrir,
 }: {
   option: UpgradeOption;
-  conTexto?: Set<string>;
+  glosario?: GlosarioCarta;
   onAbrir?: (habilidad: Habilidad) => void;
 }) {
   const desglose = desglosarOpcion(option);
@@ -293,12 +386,12 @@ function OpcionTexto({
           {ganancia.nombre}
           {ganancia.perfil ? <span className="ucard-option-perfil">{ganancia.perfil}</span> : null}
           {ganancia.reglas.map((regla) => (
-            <Chip key={regla.etiqueta} habilidad={regla} conTexto={conTexto} onAbrir={onAbrir} />
+            <Chip key={regla.etiqueta} habilidad={regla} glosario={glosario} onAbrir={onAbrir} />
           ))}
         </span>
       ))}
       {desglose.reglas.map((regla) => (
-        <Chip key={regla.etiqueta} habilidad={regla} conTexto={conTexto} onAbrir={onAbrir} />
+        <Chip key={regla.etiqueta} habilidad={regla} glosario={glosario} onAbrir={onAbrir} />
       ))}
     </span>
   );
@@ -317,7 +410,7 @@ export default function UnitCard({
   footer,
   combinada = false,
   notas,
-  conTexto,
+  glosario,
   onHabilidad,
 }: Props) {
   const loadout = normalizeLoadout(unit.loadout);
@@ -335,7 +428,20 @@ export default function UnitCard({
   if (unit.cost !== undefined) stats.push(["Pts", String(unit.cost)]);
 
   const hoja = formato === "hoja";
-  const densidadOpciones = hoja ? pasoDeOpciones(sections, weapons.length, unit.rules.length, gear.length) : "";
+  // Las auras ocupan dos chips en el bloque de reglas, asi que cuentan doble
+  // para saber cuantos renglones se lleva ese bloque.
+  const anchoDeReglas = unit.rules.reduce((suma, regla) => {
+    const nombre = parseHabilidad(regla, "regla").nombre.toLowerCase();
+    const aura = glosario
+      ? reglaDelAura(nombre, glosario.get(nombre)?.description, (n) => glosario.has(n.toLowerCase()))
+      : null;
+    // Dos y medio, no dos: "Bane in Melee Aura → Bane" es mas ancho que dos
+    // chips corrientes, y el bloque de reglas se mide en renglones.
+    return suma + (aura ? 2.5 : 1);
+  }, 0);
+  const densidadOpciones = hoja
+    ? pasoDeOpciones(sections, weapons.length, anchoDeReglas, gear.length, glosario)
+    : "";
   // En la ficha grande las opciones van dentro; en la de mesa no caben y
   // cuelgan del marco.
   const listaDeSecciones = (
@@ -349,7 +455,7 @@ export default function UnitCard({
           <ul className="ucard-option-list">
             {(section.options ?? []).map((option) => (
               <li key={optionId(option)}>
-                <OpcionTexto option={option} conTexto={conTexto} onAbrir={onHabilidad} />
+                <OpcionTexto option={option} glosario={glosario} onAbrir={onHabilidad} />
                 {optionAction ? (
                   optionAction(section, option)
                 ) : (
@@ -440,7 +546,7 @@ export default function UnitCard({
                               <Chip
                                 key={rule}
                                 habilidad={parseHabilidad(rule, "regla")}
-                                conTexto={conTexto}
+                                glosario={glosario}
                                 onAbrir={onHabilidad}
                               />
                             ))}
@@ -471,7 +577,7 @@ export default function UnitCard({
                     <Chip
                       key={rule}
                       habilidad={parseHabilidad(rule, "regla")}
-                      conTexto={conTexto}
+                      glosario={glosario}
                       onAbrir={onHabilidad}
                     />
                   ))}
@@ -507,7 +613,7 @@ export default function UnitCard({
                                 <Chip
                                   key={rule}
                                   habilidad={parseHabilidad(rule, "regla")}
-                                  conTexto={conTexto}
+                                  glosario={glosario}
                                   onAbrir={onHabilidad}
                                 />
                               ))

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -39,6 +39,7 @@ import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
 import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
+import { agruparUnidades } from "../../lib/unidades";
 import { listUnits as listCatalogUnits } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
@@ -692,27 +693,35 @@ export default function ArmyEditor() {
         )
       ) : units.length > 0 ? (
         <div className="army-strip">
-          {units.map((unit) => (
-            <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-slide">
-              <UnitCard
-                variant="ejercito"
-                upgrades={unit.upgrades ?? []}
-                conTexto={new Set(glosario.keys())}
-                onHabilidad={setHabilidad}
-                unit={{
-                  name: unit.name,
-                  size: unit.size,
-                  quality: unit.quality,
-                  defense: unit.defense,
-                  cost: unit.cost,
-                  maxWounds: unit.maxWounds,
-                  rules: unit.rules,
-                  loadout: unit.loadout,
-                }}
-                combinada={unit.combined}
-                notas={unit.notes}
-              />
-            </div>
+          {agruparUnidades(units).map((seccion) => (
+            <Fragment key={seccion.grupo}>
+              <div className="army-divider" role="separator" aria-label={seccion.etiqueta}>
+                <span className="army-divider-label">{seccion.etiqueta}</span>
+                <span className="army-divider-count">{seccion.unidades.length}</span>
+              </div>
+              {seccion.unidades.map((unit) => (
+                <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-slide">
+                  <UnitCard
+                    variant="ejercito"
+                    upgrades={unit.upgrades ?? []}
+                    glosario={glosario}
+                    onHabilidad={setHabilidad}
+                    unit={{
+                      name: unit.name,
+                      size: unit.size,
+                      quality: unit.quality,
+                      defense: unit.defense,
+                      cost: unit.cost,
+                      maxWounds: unit.maxWounds,
+                      rules: unit.rules,
+                      loadout: unit.loadout,
+                    }}
+                    combinada={unit.combined}
+                    notas={unit.notes}
+                  />
+                </div>
+              ))}
+            </Fragment>
           ))}
         </div>
       ) : (

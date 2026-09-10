@@ -340,7 +340,7 @@ export default function ArmyBuilder() {
                 <UnitCard
                   variant="ejercito"
                   unitId={entry.unit.unitId}
-                  conTexto={new Set(glosario.keys())}
+                  glosario={glosario}
                   onHabilidad={setHabilidad}
                   sections={sections}
                   upgrades={entryUpgradeLabels(entry, sections)}
@@ -461,7 +461,7 @@ export default function ArmyBuilder() {
                   key={unit.$id}
                   variant="catalogo"
                   unitId={unit.unitId}
-                  conTexto={new Set(glosario.keys())}
+                  glosario={glosario}
                   onHabilidad={setHabilidad}
                   sections={sectionsForUnit(unit, packages)}
                   unit={{

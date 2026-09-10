@@ -29,6 +29,7 @@ import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
 import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
+import { agruparUnidades } from "../../lib/unidades";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
@@ -324,38 +325,46 @@ export default function CatalogBook() {
         <EmptyState title="Esta faccion todavia no tiene unidades sincronizadas" />
       ) : (
         <div className="army-column">
-          {units.map((unit) => (
-            <div key={unit.$id} className="army-slide">
-            <UnitCard
-              variant="catalogo"
-              formato="hoja"
-              conTexto={new Set(glosario.keys())}
-              onHabilidad={setHabilidad}
-              unitId={unit.unitId}
-              sections={sectionsForUnit(unit, packages)}
-              unit={{
-                name: unit.name,
-                size: unit.size,
-                quality: unit.quality,
-                defense: unit.defense,
-                cost: unit.cost,
-                rules: unit.rules,
-                loadout: baseLoadout(unit.weapons, unit.items),
-              }}
-              footer={
-                <>
-                  {gallery(targetKeyFor(book.$id, unit.unitId))}
-                  {admin ? (
-                    <ImageUploader
-                      label={`Anadir imagenes de ${unit.name}`}
-                      busy={busy}
-                      onUpload={(files, caption) => upload(files, caption, unit)}
-                    />
-                  ) : null}
-                </>
-              }
-            />
-            </div>
+          {agruparUnidades(units).map((seccion) => (
+            <section key={seccion.grupo} className="army-group">
+              <h3 className="army-group-sep">
+                {seccion.etiqueta}
+                <span className="army-group-count">{seccion.unidades.length}</span>
+              </h3>
+              {seccion.unidades.map((unit) => (
+                <div key={unit.$id} className="army-slide">
+                  <UnitCard
+                    variant="catalogo"
+                    formato="hoja"
+                    glosario={glosario}
+                    onHabilidad={setHabilidad}
+                    unitId={unit.unitId}
+                    sections={sectionsForUnit(unit, packages)}
+                    unit={{
+                      name: unit.name,
+                      size: unit.size,
+                      quality: unit.quality,
+                      defense: unit.defense,
+                      cost: unit.cost,
+                      rules: unit.rules,
+                      loadout: baseLoadout(unit.weapons, unit.items),
+                    }}
+                    footer={
+                      <>
+                        {gallery(targetKeyFor(book.$id, unit.unitId))}
+                        {admin ? (
+                          <ImageUploader
+                            label={`Anadir imagenes de ${unit.name}`}
+                            busy={busy}
+                            onUpload={(files, caption) => upload(files, caption, unit)}
+                          />
+                        ) : null}
+                      </>
+                    }
+                  />
+                </div>
+              ))}
+            </section>
           ))}
         </div>
       )}

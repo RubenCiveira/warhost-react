@@ -846,6 +846,7 @@ label.check.tiny input { margin: 0; }
 @media (pointer: coarse) {
   .army-strip { scroll-snap-type: x mandatory; }
   .army-slide { scroll-snap-align: center; }
+  .army-divider { scroll-snap-align: start; }
 }
 
 /* La misma tira, pero en columna: las fichas de unidad de una faccion se leen
@@ -854,7 +855,38 @@ label.check.tiny input { margin: 0; }
   display: flex; flex-direction: column; align-items: center; gap: 24px;
   padding: 4px 4px 16px;
 }
-.army-column > .army-slide { max-width: 100%; }
+.army-column .army-slide { max-width: 100%; }
+
+/* Un grupo de la lista (heroes, base, vehiculos) en la columna vertical: un
+   filete a lo ancho con el nombre, y debajo sus fichas centradas. */
+.army-group { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.army-group-sep {
+  align-self: stretch;
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 8px 0 0; padding-bottom: 6px;
+  border-bottom: 3px solid var(--accent);
+  font-family: var(--heading-font); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.army-group-count { color: var(--muted); font-size: 0.8em; }
+
+/* En el carrusel horizontal no cabe un filete: cada grupo se abre con una
+   pestana vertical, como los separadores de un fichero de cartas. */
+.army-divider {
+  flex: 0 0 auto; align-self: stretch; min-height: 260px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 18px 10px;
+  writing-mode: vertical-rl;
+  background: var(--band-bg); border-inline: 3px solid var(--band-rule);
+  color: var(--band-text);
+  font-family: var(--heading-font); font-weight: 700;
+  text-transform: var(--band-transform); letter-spacing: 0.16em;
+}
+.army-divider-count {
+  writing-mode: horizontal-tb;
+  font-size: 0.8rem; color: var(--accent);
+  border: 1px solid currentColor; padding: 1px 6px;
+}
 
 /* Modales ---------------------------------------------------------------- */
 
@@ -1090,6 +1122,23 @@ label.check.tiny input { margin: 0; }
 .ucard-chip.sin-texto { border-style: dashed; color: var(--ucard-tenue); }
 .ucard-chip.equipo { background: transparent; }
 
+/* Un aura y la regla que concede son una sola cosa que se lee de izquierda a
+   derecha, asi que van pegadas y comparten marco. El segundo tramo va hundido
+   —sin fondo y con la tinta apagada— porque es la consulta, no la regla que
+   lleva la unidad. */
+.ucard-chip-doble { display: inline-flex; align-items: stretch; max-width: 100%; }
+.ucard-chip-doble .ucard-chip:first-child {
+  border-top-right-radius: 0; border-bottom-right-radius: 0; border-right-width: 0;
+}
+.ucard-chip-concede {
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+  background: transparent; color: var(--ucard-tenue);
+}
+.ucard-chip-concede::before {
+  content: "→"; margin-right: 0.6mm; opacity: 0.7;
+}
+.ucard-chip-concede:hover:not(:disabled) { color: var(--ucard-tinta); background: #e2dbc8; }
+
 /* La carta de una regla se abre sola, sin caja alrededor: es la carta lo que se
    mira, no un dialogo con una carta dentro. */
 .regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
@@ -1187,6 +1236,15 @@ label.check.tiny input { margin: 0; }
 
   .army-strip { display: block; overflow: visible; padding: 0; }
   .army-slide { break-inside: avoid; margin: 0 0 8mm; }
+  /* En papel los separadores vuelven a ser una linea horizontal. */
+  .army-divider {
+    writing-mode: horizontal-tb; align-self: auto; min-height: 0;
+    display: block; padding: 0; margin: 0 0 4mm;
+    background: transparent; border-inline: 0; border-bottom: 2px solid #000;
+    color: #000;
+  }
+  .army-divider-count { display: none; }
+  .army-group-sep { border-color: #000; }
   .ucard.hoja { box-shadow: none; }
   /* Las galerias y los formularios de subida no pintan nada en papel. */
   .gallery, .uploader { display: none !important; }
