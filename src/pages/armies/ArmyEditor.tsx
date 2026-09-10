@@ -31,7 +31,11 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
 import { rehydrateEntries } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
+import { getBook } from "../../api/catalog";
 import type { ArmyBook, ArmyUnit } from "../../api/catalog";
+import SpellCard from "../../components/SpellCard";
+import Tabs from "../../components/Tabs";
+import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload } from "../../lib/armyPayload";
 
 interface FormState {
@@ -76,6 +80,9 @@ export default function ArmyEditor() {
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
+  const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
+  /** El libro de origen, solo para sus hechizos: el ejercito no los guarda. */
+  const [libro, setLibro] = useState<ArmyBook | null>(null);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
    * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
@@ -204,6 +211,7 @@ export default function ArmyEditor() {
   const ignorandoBorrador = Boolean(draft) && !viendoBorrador;
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
+  const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
 
   /**
    * Solo se pueden anadir o cambiar unidades si el ejercito recuerda de que
@@ -219,6 +227,23 @@ export default function ArmyEditor() {
       return null;
     }
   }, [listJson]);
+
+  useEffect(() => {
+    if (!bookKey) {
+      setLibro(null);
+      return undefined;
+    }
+    let cancelado = false;
+    // Un fallo aqui solo deja la pestana de hechizos vacia: no es motivo para
+    // teñir de rojo la vista del ejercito.
+    getBook(bookKey)
+      .then((row) => !cancelado && setLibro(row))
+      .catch(() => !cancelado && setLibro(null));
+    return () => {
+      cancelado = true;
+    };
+  }, [bookKey]);
+
 
   async function importFromArmyForge() {
     const id = extractListId(form.listId);
@@ -548,7 +573,34 @@ export default function ArmyEditor() {
       ) : null}
 
 
-      {units.length > 0 ? (
+      <Tabs
+        value={pestana}
+        onChange={setPestana}
+        items={[
+          { id: "unidades", label: "Unidades", count: units.length },
+          { id: "hechizos", label: "Hechizos", count: hechizos.length },
+        ]}
+      />
+
+      {pestana === "hechizos" ? (
+        hechizos.length === 0 ? (
+          <EmptyState title="Esta faccion no tiene hechizos">
+            <p className="muted">
+              {bookKey
+                ? "Su libro de ejercito no trae ninguno."
+                : "Este ejercito no guarda de que faccion viene, asi que no se pueden mostrar."}
+            </p>
+          </EmptyState>
+        ) : (
+          <div className="army-strip">
+            {hechizos.map((hechizo) => (
+              <div key={hechizo.key} className="army-slide">
+                <SpellCard spell={hechizo} faction={form.faction || libro?.name} />
+              </div>
+            ))}
+          </div>
+        )
+      ) : units.length > 0 ? (
         <div className="army-strip">
           {units.map((unit) => (
             <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-slide">

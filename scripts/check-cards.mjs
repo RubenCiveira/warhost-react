@@ -1,6 +1,6 @@
 /**
- * Pasa TODAS las unidades de varios libros por la carta y avisa de las que se
- * recortan. Con una caja de tamano fijo, lo que no cabe desaparece en silencio:
+ * Pasa TODAS las unidades y hechizos de varios libros por su carta y avisa de
+ * los que se recortan. Con una caja de tamano fijo, lo que no cabe desaparece en silencio:
  * mirar tres cartas no vale, hay que preguntarle al navegador por todas.
  *
  *   pnpm check:cards [nLibros]
@@ -38,17 +38,24 @@ await build({
     contents: `
       import { renderToStaticMarkup } from "react-dom/server";
       import UnitCard from "./src/components/UnitCard";
+      import SpellCard from "./src/components/SpellCard";
       import { baseLoadout } from "./src/lib/loadout";
+      import { parseSpells } from "./src/lib/spells";
       const UNITS = ${JSON.stringify(unidades)};
-      globalThis.__HTML__ = UNITS.map((u) =>
-        renderToStaticMarkup(
-          <UnitCard variant="ejercito" unit={{
-            name: u.name, size: u.size, quality: u.quality, defense: u.defense,
-            cost: u.cost, maxWounds: u.size, rules: u.rules,
-            loadout: baseLoadout(u.weapons, u.items),
-          }} />,
-        ),
-      ).join("");
+      const BOOKS = ${JSON.stringify(libros.map((l) => ({ name: l.name, spells: l.spells })))};
+      globalThis.__HTML__ =
+        UNITS.map((u) =>
+          renderToStaticMarkup(
+            <UnitCard variant="ejercito" unit={{
+              name: u.name, size: u.size, quality: u.quality, defense: u.defense,
+              cost: u.cost, maxWounds: u.size, rules: u.rules,
+              loadout: baseLoadout(u.weapons, u.items),
+            }} />,
+          ),
+        ).join("") +
+        BOOKS.flatMap((b) =>
+          parseSpells(b.spells).map((s) => renderToStaticMarkup(<SpellCard spell={s} faction={b.name} />)),
+        ).join("");
     `,
     resolveDir: process.cwd(),
     loader: "tsx",
@@ -70,28 +77,33 @@ const { chromium } = await import("playwright");
 const navegador = await chromium.launch({ channel: "chrome" });
 const p = await navegador.newPage({ viewport: { width: 900, height: 900 } });
 await p.goto(`file://${pagina}`);
-const malas = await p.evaluate(() =>
-  [...document.querySelectorAll(".ucard")]
-    .map((carta) => {
-      const zonas = [...carta.querySelectorAll(".ucard-cols, .ucard-body")];
-      return {
-        nombre: carta.querySelector(".ucard-title")?.textContent ?? "?",
-        densidad: carta.className.includes("muy-denso") ? "muy-denso" : carta.className.includes("denso") ? "denso" : "normal",
-        sobra: Math.round(zonas.reduce((max, z) => Math.max(max, z.scrollHeight - z.clientHeight), 0)),
-      };
-    })
-    .filter((c) => c.sobra > 1),
-);
+const malas = await p.evaluate(() => {
+  const mirar = (selector, titulo, zonas, tipo) =>
+    [...document.querySelectorAll(selector)].map((carta) => ({
+      tipo,
+      nombre: carta.querySelector(titulo)?.textContent ?? "?",
+      densidad: carta.className.includes("muy-denso") ? "muy-denso" : carta.className.includes("denso") ? "denso" : "normal",
+      sobra: Math.round(
+        [...carta.querySelectorAll(zonas)].reduce((max, z) => Math.max(max, z.scrollHeight - z.clientHeight), 0),
+      ),
+    }));
+
+  return [
+    ...mirar(".ucard", ".ucard-title", ".ucard-cols, .ucard-body", "unidad"),
+    ...mirar(".scard", ".scard-title", ".scard-body", "hechizo"),
+  ].filter((c) => c.sobra > 1);
+});
+const cartas = await p.evaluate(() => document.querySelectorAll(".ucard, .scard").length);
 await navegador.close();
 await rm(dir, { recursive: true, force: true });
 
-const reparto = unidades.length;
-console.log(`${libros.length} libros · ${reparto} unidades comprobadas`);
+const reparto = cartas;
+console.log(`${libros.length} libros · ${reparto} cartas (${unidades.length} unidades y ${reparto - unidades.length} hechizos)`);
 if (malas.length === 0) {
   console.log("Ninguna carta se recorta.");
 } else {
   console.log(`${malas.length} se recortan (${((malas.length / reparto) * 100).toFixed(1)}%):`);
-  for (const c of malas.slice(0, 12)) console.log(`  ${c.nombre.padEnd(30)} ${c.densidad.padEnd(10)} sobran ${c.sobra} px`);
+  for (const c of malas.slice(0, 12)) console.log(`  [${c.tipo}] ${c.nombre.padEnd(28)} ${c.densidad.padEnd(10)} sobran ${c.sobra} px`);
   if (malas.length > 12) console.log(`  … y ${malas.length - 12} mas`);
 }
 process.exit(malas.length === 0 ? 0 : 1);

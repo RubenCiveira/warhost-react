@@ -131,6 +131,16 @@ unidad y de opcion son los mismos que usa el catalogo. Lo que se pierde en esa
 reconstruccion son las unidades y opciones que ya no existan en la version
 actual del libro, y el constructor avisa de cuantas.
 
+### La carta de hechizo
+
+Un hechizo va en carta de tarot **vertical**, 70 x 120 mm: la misma piel y las
+mismas medidas que la de unidad, girada. Lleva otra cosa —no hay perfil ni tabla,
+solo un valor y un efecto—, asi que el texto se lleva la carta y el valor manda
+desde la cabecera, que es como se busca un hechizo en mesa.
+
+El cuerpo va generoso (3,9 mm) porque sobra sitio: el efecto mas largo del
+catalogo son 209 caracteres y ocupa seis lineas de las que caben.
+
 ### Iconos de arma
 
 Cada arma lleva delante su simbolo, para recorrer la tabla sin leer las reglas:
@@ -152,8 +162,9 @@ y sale a tamano real. Eso significa que el diseno solo se puede juzgar viendola 
 las unidades que mas la aprietan, no con una de dos lineas:
 
 ```bash
-pnpm preview:cards                       # Grimdark, Battle Brothers
+pnpm preview:cards                       # unidades: Grimdark, Battle Brothers
 pnpm preview:cards <bookKey> fantasy     # la otra ambientacion
+pnpm preview:spells [bookKey] [tema]     # hechizos
 ```
 
 Dibuja el componente que se despliega con el CSS que se despliega y datos del
@@ -172,8 +183,8 @@ Que eso baste no se decide mirando: se comprueba.
 pnpm check:cards [nLibros]    # pasa TODAS las unidades y avisa de las que se recortan
 ```
 
-Renderiza cada unidad, le pregunta al navegador si el contenido cabe en la caja
-y falla si alguna se pasa. Ahora mismo: **740 unidades de 30 libros, ninguna se
+Renderiza cada unidad y cada hechizo, le pregunta al navegador si el contenido
+cabe en su caja y falla si alguno se pasa. Ahora mismo: **740 unidades de 30 libros, ninguna se
 recorta**. Si tocas tamanos, tipos o espaciados de la carta, esto es lo que dice
 si te has pasado.
 

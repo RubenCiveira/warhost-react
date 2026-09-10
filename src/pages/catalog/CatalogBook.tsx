@@ -22,7 +22,9 @@ import ImageUploader from "../../components/ImageUploader";
 import UnitCard from "../../components/UnitCard";
 import { sectionsForUnit } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
-import SpellTable from "../../components/SpellTable";
+import SpellCard from "../../components/SpellCard";
+import Tabs from "../../components/Tabs";
+import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
 
 /** Ficha de una faccion: sus imagenes y las de cada tipo de unidad. */
@@ -35,6 +37,7 @@ export default function CatalogBook() {
   const [images, setImages] = useState<CatalogImage[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +69,7 @@ export default function CatalogBook() {
   const byTarget = useMemo(() => groupImages(images), [images]);
   // Cada faccion existe una vez por modo de juego, y su contenido difiere.
   const bookSystem = getGameSystem(book?.gameSystem);
+  const hechizos = useMemo(() => parseSpells(book?.spells ?? null), [book]);
 
   const upload = useCallback(
     async (files: File[], caption: string, unit?: ArmyUnit) => {
@@ -197,10 +201,34 @@ export default function CatalogBook() {
         ) : null}
       </section>
 
-      <SpellTable spells={book.spells} />
+      <Tabs
+        value={pestana}
+        onChange={setPestana}
+        items={[
+          { id: "unidades", label: "Unidades", count: units.length },
+          { id: "hechizos", label: "Hechizos", count: hechizos.length },
+        ]}
+      />
 
-      <h2 style={{ marginTop: 28 }}>Tipos de unidad ({units.length})</h2>
-      {units.length === 0 ? (
+      {pestana === "hechizos" ? (
+        hechizos.length === 0 ? (
+          <EmptyState title="Esta faccion no tiene hechizos" />
+        ) : (
+          <>
+            <p className="small muted">
+              Tira 1D6 al lanzar: hay que igualar o superar el valor. Los efectos ya estan ajustados a este modo de
+              juego.
+            </p>
+            <div className="army-strip">
+              {hechizos.map((hechizo) => (
+                <div key={hechizo.key} className="army-slide">
+                  <SpellCard spell={hechizo} faction={book.factionName ?? book.name} />
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      ) : units.length === 0 ? (
         <EmptyState title="Esta faccion todavia no tiene unidades sincronizadas" />
       ) : (
         <div className="ucard-grid">
