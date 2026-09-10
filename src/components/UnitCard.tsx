@@ -236,15 +236,31 @@ export default function UnitCard({
               {gear.length > 0 ? (
                 <section className="ucard-col">
                   <h4 className="ucard-col-title">Equipo</h4>
-                  <div className="ucard-chips">
+                  <div className="ucard-equipos">
                     {gear.map((item, index) => (
-                      <Chip
-                        key={`${item.label}-${index}`}
-                        habilidad={{ ...parseHabilidad(item.name, "equipo"), concede: item.rules }}
-                        cuantos={item.count}
-                        conTexto={conTexto}
-                        onAbrir={onHabilidad}
-                      />
+                      <div key={`${item.label}-${index}`} className="ucard-equipo">
+                        <Chip
+                          habilidad={{ ...parseHabilidad(item.name, "equipo"), concede: item.rules }}
+                          cuantos={item.count}
+                          conTexto={conTexto}
+                          onAbrir={onHabilidad}
+                        />
+                        {/* Lo que hace una pieza de equipo es conceder reglas: sin
+                            ellas el nombre solo no dice nada. Todas las del
+                            catalogo conceden al menos una. */}
+                        {item.rules.length > 0 ? (
+                          <div className="ucard-concede">
+                            {item.rules.map((rule) => (
+                              <Chip
+                                key={rule}
+                                habilidad={parseHabilidad(rule, "regla")}
+                                conTexto={conTexto}
+                                onAbrir={onHabilidad}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
                 </section>

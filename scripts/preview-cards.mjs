@@ -40,7 +40,8 @@ const equipo = (u) => JSON.parse(u.items || "[]").length;
 const elegidas = [
   [...filas].sort((a, b) => armas(b) - armas(a))[0],
   [...filas].sort((a, b) => (b.rules?.length ?? 0) - (a.rules?.length ?? 0))[0],
-  filas.find((u) => equipo(u) > 0) ?? filas[0],
+  [...filas].sort((a, b) => equipo(b) - equipo(a))[0],
+  [...filas].filter((u) => equipo(u) > 0).sort((a, b) => armas(b) - armas(a))[0],
 ].filter(Boolean);
 
 const dir = await mkdtemp(join(tmpdir(), "warhost-preview-"));

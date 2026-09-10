@@ -1016,3 +1016,20 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
 .scard-concede { margin: 2.4mm 0 0; font-size: 3mm; color: var(--ucard-tenue); }
+
+/* Equipo, y debajo lo que concede ------------------------------------------- */
+/* El filete de la izquierda es lo que dice que esas reglas cuelgan del objeto y
+   no son de la unidad: sin el, la columna se lee como una lista plana. */
+
+.ucard-equipos { display: flex; flex-direction: column; gap: 1.2mm; }
+.ucard-equipo { display: flex; flex-direction: column; gap: 0.8mm; align-items: flex-start; }
+.ucard-concede {
+  display: flex; flex-wrap: wrap; gap: 1mm;
+  margin-left: 1.4mm; padding-left: 1.6mm;
+  border-left: 0.3mm solid var(--ucard-filete);
+}
+.ucard-concede .ucard-chip {
+  font-size: 2.2mm; padding: 0.4mm 1.2mm;
+  background: transparent; border-style: dotted;
+}
+.ucard-concede .ucard-chip:hover:not(:disabled) { border-style: solid; background: var(--ucard-cebra); }
