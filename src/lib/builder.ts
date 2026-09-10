@@ -5,7 +5,7 @@
  * sobre Army Forge, pero produce exactamente la misma forma que la importacion,
  * para que una partida no tenga que saber de donde salio el ejercito.
  */
-import { applyOptions, baseLoadout } from "./loadout";
+import { applyOptions, baseLoadout, llevaObjetivo } from "./loadout";
 import type { AppliedOption, LoadoutEntry } from "./loadout";
 import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
@@ -144,10 +144,44 @@ function distinctChosen(section: UpgradeSection, choices: Record<string, number>
 }
 
 /** Si no se puede subir una opcion mas, devuelve por que. */
+/**
+ * Los objetivos de un reemplazo que la unidad no lleva **ahora mismo**.
+ *
+ * Los Pathfinders de Battle Brothers llevan Flamer Pistol y tienen una seccion
+ * "Replace Gravity Pistol": el objetivo no es un nombre mal escrito, es que esa
+ * seccion encadena con otra que si da la Gravity Pistol. Hasta comprarla, elegir
+ * ahi no puede hacer nada, asi que no se deja.
+ */
+export function objetivosQueFaltan(
+  section: UpgradeSection,
+  entry: BuilderEntry,
+  sections: UpgradeSection[],
+): string[] {
+  const targets = section.targets ?? [];
+  if (targets.length === 0) return [];
+  const actual = entryLoadout(entry, sections);
+  return targets.filter((target) => !llevaObjetivo(actual, target));
+}
+
+/** En que seccion se consigue lo que a otra le falta, si es que se consigue. */
+function dondeSeConsigue(nombre: string, sections: UpgradeSection[]): string | null {
+  const busca = nombre.trim().toLowerCase();
+  for (const section of sections) {
+    for (const option of section.options ?? []) {
+      const da = (option.gains ?? []).flatMap((gain) => [gain.name, gain.label]).filter(Boolean) as string[];
+      if (da.some((n) => n.toLowerCase() === busca || n.toLowerCase().startsWith(`${busca} (`))) {
+        return section.label ?? null;
+      }
+    }
+  }
+  return null;
+}
+
 export function blockReason(
   section: UpgradeSection,
   option: UpgradeOption,
   entry: BuilderEntry,
+  sections: UpgradeSection[] = [],
 ): string | null {
   const id = optionId(option);
   const current = entry.choices[id] ?? 0;
@@ -162,6 +196,19 @@ export function blockReason(
   const limit = maxDistinctOptions(section);
   if (current === 0 && distinctChosen(section, entry.choices) >= limit) {
     return limit === 1 ? "Solo se puede elegir una opcion aqui." : `Como mucho ${limit} opciones distintas.`;
+  }
+
+  // Sin `sections` no se puede saber con que ha quedado la unidad, asi que no
+  // se bloquea: mas vale dejar elegir de mas que inventarse un motivo.
+  if (sections.length > 0) {
+    const faltan = objetivosQueFaltan(section, entry, sections);
+    if (faltan.length > 0) {
+      const lista = faltan.join(" ni ");
+      const donde = faltan.map((n) => dondeSeConsigue(n, sections)).find(Boolean);
+      return donde
+        ? `Esta unidad no lleva ${lista}. Primero hay que cogerlo en "${donde}".`
+        : `Esta unidad no lleva ${lista}, asi que no hay nada que reemplazar.`;
+    }
   }
   return null;
 }

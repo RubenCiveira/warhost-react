@@ -28,7 +28,7 @@ import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
-import { equipoDeFaccion, habilidadesDeFaccion } from "../../lib/faccion";
+import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
@@ -43,7 +43,8 @@ export default function CatalogBook() {
   const [images, setImages] = useState<CatalogImage[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo">("unidades");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
+  const [verGenerales, setVerGenerales] = useState(false);
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,6 +86,10 @@ export default function CatalogBook() {
   const hechizos = useMemo(() => parseSpells(book?.spells ?? null), [book]);
   const habilidades = useMemo(() => habilidadesDeFaccion(book, glosario, units), [book, glosario, units]);
   const equipo = useMemo(() => equipoDeFaccion(units), [units]);
+  const generales = useMemo(
+    () => reglasGeneralesDeFaccion(glosario, units, habilidades),
+    [glosario, units, habilidades],
+  );
 
   const upload = useCallback(
     async (files: File[], caption: string, unit?: ArmyUnit) => {
@@ -217,8 +222,23 @@ export default function CatalogBook() {
           { id: "habilidades", label: "Habilidades", count: habilidades.length },
           { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
+          ...(verGenerales
+            ? [{ id: "generales" as const, label: "Reglas generales", count: generales.length }]
+            : []),
         ]}
       />
+      <label className="row" style={{ cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={verGenerales}
+          onChange={(e) => {
+            setVerGenerales(e.target.checked);
+            if (!e.target.checked && pestana === "generales") setPestana("unidades");
+          }}
+          style={{ width: "auto" }}
+        />
+        <span>Ver reglas generales</span>
+      </label>
 
       {pestana === "habilidades" ? (
         habilidades.length === 0 ? (
@@ -279,10 +299,31 @@ export default function CatalogBook() {
             </div>
           </>
         )
+      ) : pestana === "generales" ? (
+        generales.length === 0 ? (
+          <EmptyState title="No hay reglas del reglamento basico que mostrar">
+            <p className="muted">
+              O sus unidades solo usan reglas propias, o el glosario todavia no ha cargado.
+            </p>
+          </EmptyState>
+        ) : (
+          <>
+            <p className="small muted">
+              Reglas del reglamento basico que usan las unidades de {book.name} y sus armas.
+            </p>
+            <div className="army-strip">
+              {generales.map((regla) => (
+                <div key={regla.$id} className="army-slide">
+                  <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+                </div>
+              ))}
+            </div>
+          </>
+        )
       ) : units.length === 0 ? (
         <EmptyState title="Esta faccion todavia no tiene unidades sincronizadas" />
       ) : (
-        <div className="army-strip">
+        <div className="army-column">
           {units.map((unit) => (
             <div key={unit.$id} className="army-slide">
             <UnitCard

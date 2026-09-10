@@ -796,6 +796,14 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   .army-slide { scroll-snap-align: center; }
 }
 
+/* La misma tira, pero en columna: las fichas de unidad de una faccion se leen
+   de arriba abajo con el scroll de la pagina, sin carrusel lateral. */
+.army-column {
+  display: flex; flex-direction: column; align-items: center; gap: 24px;
+  padding: 4px 4px 16px;
+}
+.army-column > .army-slide { max-width: 100%; }
+
 /* Modales ---------------------------------------------------------------- */
 
 .modal-backdrop {

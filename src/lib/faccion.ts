@@ -3,6 +3,11 @@ import { parseHabilidad } from "./reglas";
 import type { Habilidad } from "./reglas";
 import { baseLoadout } from "./loadout";
 
+/** "Tough(3)" -> "Tough": el glosario indexa por el nombre pelado. */
+function nombreBase(etiqueta: string): string {
+  return etiqueta.replace(/\(.*\)$/, "").trim();
+}
+
 /**
  * Lo que una faccion aporta de su cosecha.
  *
@@ -23,7 +28,7 @@ export function habilidadesDeFaccion(
   // no miente diciendo que no hay ninguna.
   const nombres = book?.ruleNames?.length
     ? book.ruleNames
-    : [...new Set(units.flatMap((unit) => unit.rules ?? []).map((etiqueta) => etiqueta.replace(/\(.*\)$/, "").trim()))];
+    : [...new Set(units.flatMap((unit) => unit.rules ?? []).map(nombreBase))];
 
   const vistas = new Set<string>();
   return nombres
@@ -35,6 +40,64 @@ export function habilidadesDeFaccion(
       return true;
     })
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
+/** Cierto si `nombre` aparece como palabra suelta en el texto, respetando
+ *  mayusculas: las reglas del reglamento se nombran en capital ("get Bane in
+ *  melee"), y exigirlo evita que "fast" en una frase cuente como la regla Fast. */
+function mencionada(nombre: string, texto: string): boolean {
+  const escapado = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escapado}\\b`).test(texto);
+}
+
+/**
+ * La cara B: las reglas del reglamento basico que tocan las unidades de la
+ * faccion. Las marca `coreType`, y se recogen tanto de las reglas de unidad
+ * como de las de sus armas y equipo, para que "Reglas generales" tenga la carta
+ * de un AP o un Blast y no solo la de un Fast.
+ *
+ * Ademas se sigue el rastro por el texto: una regla propia que dice "get Bane
+ * in melee" arrastra la carta de Bane aunque ninguna unidad la lleve escrita, y
+ * se repite hasta que ninguna descripcion nueva mencione otra.
+ */
+export function reglasGeneralesDeFaccion(
+  glosario: Map<string, CatalogRule>,
+  units: ArmyUnit[] = [],
+  propias: CatalogRule[] = [],
+): CatalogRule[] {
+  const directos = new Set<string>();
+  for (const unit of units) {
+    for (const etiqueta of unit.rules ?? []) directos.add(nombreBase(etiqueta));
+    for (const entrada of baseLoadout(unit.weapons, unit.items)) {
+      for (const regla of entrada.rules) directos.add(nombreBase(regla));
+    }
+  }
+
+  const nucleo = new Map<string, CatalogRule>();
+  const textos = propias.map((regla) => regla.description).filter(Boolean);
+  const incorporar = (regla: CatalogRule | undefined): boolean => {
+    if (!regla || regla.coreType === null || nucleo.has(regla.$id)) return false;
+    nucleo.set(regla.$id, regla);
+    if (regla.description) textos.push(regla.description);
+    return true;
+  };
+
+  for (const nombre of directos) {
+    const regla = glosario.get(nombre.toLowerCase());
+    if (regla?.description) textos.push(regla.description);
+    incorporar(regla);
+  }
+
+  const candidatas = [...glosario.values()].filter((regla) => regla.coreType !== null);
+  for (let cambio = true; cambio; ) {
+    cambio = false;
+    const corpus = textos.join("\n");
+    for (const regla of candidatas) {
+      if (!nucleo.has(regla.$id) && mencionada(regla.name, corpus) && incorporar(regla)) cambio = true;
+    }
+  }
+
+  return [...nucleo.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 
 export interface EquipoDeFaccion {

@@ -38,7 +38,7 @@ import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
-import { equipoDeFaccion, habilidadesDeFaccion } from "../../lib/faccion";
+import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
 import { listUnits as listCatalogUnits } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
@@ -86,7 +86,8 @@ export default function ArmyEditor() {
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo">("unidades");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
+  const [verGenerales, setVerGenerales] = useState(false);
   /** Unidades del libro de origen, solo para saber que equipo publica la faccion. */
   const [unidadesLibro, setUnidadesLibro] = useState<ArmyUnit[]>([]);
   /** El libro de origen, solo para sus hechizos: el ejercito no los guarda. */
@@ -227,6 +228,10 @@ export default function ArmyEditor() {
     [libro, glosario, unidadesLibro],
   );
   const equipo = useMemo(() => equipoDeFaccion(unidadesLibro), [unidadesLibro]);
+  const generales = useMemo(
+    () => reglasGeneralesDeFaccion(glosario, unidadesLibro, habilidades),
+    [glosario, unidadesLibro, habilidades],
+  );
 
   /**
    * Solo se pueden anadir o cambiar unidades si el ejercito recuerda de que
@@ -603,8 +608,23 @@ export default function ArmyEditor() {
           { id: "habilidades", label: "Habilidades", count: habilidades.length },
           { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
+          ...(verGenerales
+            ? [{ id: "generales" as const, label: "Reglas generales", count: generales.length }]
+            : []),
         ]}
       />
+      <label className="row" style={{ cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={verGenerales}
+          onChange={(e) => {
+            setVerGenerales(e.target.checked);
+            if (!e.target.checked && pestana === "generales") setPestana("unidades");
+          }}
+          style={{ width: "auto" }}
+        />
+        <span>Ver reglas generales</span>
+      </label>
 
       {pestana === "habilidades" ? (
         habilidades.length === 0 ? (
@@ -648,6 +668,24 @@ export default function ArmyEditor() {
             {hechizos.map((hechizo) => (
               <div key={hechizo.key} className="army-slide">
                 <SpellCard spell={hechizo} faction={form.faction || libro?.name} />
+              </div>
+            ))}
+          </div>
+        )
+      ) : pestana === "generales" ? (
+        generales.length === 0 ? (
+          <EmptyState title="No hay reglas del reglamento basico que mostrar">
+            <p className="muted">
+              {bookKey
+                ? "Sus unidades solo usan reglas propias, o el glosario todavia no ha cargado."
+                : "Este ejercito no guarda de que faccion viene, asi que no se pueden deducir."}
+            </p>
+          </EmptyState>
+        ) : (
+          <div className="army-strip">
+            {generales.map((regla) => (
+              <div key={regla.$id} className="army-slide">
+                <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
               </div>
             ))}
           </div>

@@ -54,7 +54,16 @@ interface RawEquipment {
   range?: number;
   attacks?: number;
   specialRules?: Array<{ name?: string; label?: string; rating?: string | number }>;
-  content?: Array<{ name?: string; label?: string; rating?: string | number }>;
+  content?: Array<{
+    name?: string;
+    label?: string;
+    rating?: string | number;
+    type?: string;
+    count?: number;
+    range?: number;
+    attacks?: number;
+    specialRules?: Array<{ name?: string; label?: string; rating?: string | number }>;
+  }>;
 }
 
 function ruleLabel(rule: { name?: string; label?: string; rating?: string | number }): string {
@@ -63,8 +72,21 @@ function ruleLabel(rule: { name?: string; label?: string; rating?: string | numb
   return rule.rating ? `${rule.name}(${rule.rating})` : rule.name;
 }
 
+/**
+ * Lo que un objeto lleva dentro no siempre son reglas: tambien hay **armas**.
+ * El Combat Shield concede `Bash`, que es un cuerpo a cuerpo, y la Custodian
+ * Jetbike trae un `Heavy Rifle Array (24", A6, AP(1))`. Son 96 en 30 libros.
+ */
+function esArma(pieza: { name?: string; label?: string; type?: string; range?: number; attacks?: number }): boolean {
+  if (pieza.type) return pieza.type.includes("Weapon");
+  return typeof pieza.attacks === "number" || typeof pieza.range === "number";
+}
+
 function toEntry(raw: RawEquipment, kind: "weapon" | "gear"): LoadoutEntry {
-  const rules = (raw.specialRules ?? raw.content ?? []).map(ruleLabel).filter(Boolean);
+  const dentro = raw.specialRules ?? raw.content ?? [];
+  // De un arma, todo lo que lleva dentro son sus reglas. De un objeto, hay que
+  // separar: las armas salen aparte, con su perfil, en `armasDe`.
+  const rules = (kind === "weapon" ? dentro : dentro.filter((pieza) => !esArma(pieza))).map(ruleLabel).filter(Boolean);
   return {
     name: raw.name ?? raw.label ?? "",
     label: raw.label ?? raw.name ?? "",
@@ -74,6 +96,24 @@ function toEntry(raw: RawEquipment, kind: "weapon" | "gear"): LoadoutEntry {
     rules,
     kind,
   };
+}
+
+/**
+ * Las armas que trae un objeto, como entradas propias.
+ *
+ * Sin esto, un arma metida en un objeto no existe para nada: no sale en la
+ * tabla de armas, se pinta como si fuera una regla, y un "Replace Heavy Rifle
+ * Array" nunca encuentra a que apuntar aunque la unidad lo lleve puesto.
+ */
+function armasDe(raw: RawEquipment): LoadoutEntry[] {
+  if (!raw.content) return [];
+  return raw.content
+    .filter(esArma)
+    .filter((pieza) => pieza.name || pieza.label)
+    .map((pieza) => ({
+      ...toEntry(pieza as RawEquipment, "weapon"),
+      count: (raw.count ?? 1) * ((pieza as RawEquipment).count ?? 1),
+    }));
 }
 
 function parse(json: string | null | undefined): RawEquipment[] {
@@ -97,7 +137,7 @@ export function baseLoadout(
 ): LoadoutEntry[] {
   return [
     ...asArray(weapons).filter((w) => w.name || w.label).map((w) => toEntry(w, "weapon")),
-    ...asArray(items).filter((i) => i.name || i.label).map((i) => toEntry(i, "gear")),
+    ...asArray(items).filter((i) => i.name || i.label).flatMap((i) => [toEntry(i, "gear"), ...armasDe(i)]),
   ];
 }
 
@@ -107,38 +147,6 @@ function add(entries: LoadoutEntry[], entry: LoadoutEntry): void {
   else entries.push({ ...entry });
 }
 
-/**
- * Que clase de arma da una opcion: cuerpo a cuerpo o a distancia. Se usa para,
- * cuando el objetivo de un reemplazo no aparece tal cual, decidir sobre que
- * arma equivalente de la unidad aplicarlo.
- */
-type FormaArma = "cuerpo" | "distancia";
-
-function formaDelArma(gains: Gain[]): FormaArma | null {
-  const arma = gains.find(
-    (gain) => gain.type !== "ArmyBookRule" && gain.type !== "ArmyBookItem" && (gain.label ?? gain.name),
-  );
-  if (!arma) return null;
-  return typeof arma.range === "number" && arma.range > 0 ? "distancia" : "cuerpo";
-}
-
-/**
- * Busca lo que una seccion dice reemplazar.
- *
- * Army Forge escribe el objetivo tal como suena en la frase, asi que una
- * seccion "Replace all Adrenaline Fueleds" apunta a "Adrenaline Fueleds" cuando
- * el equipo se llama "Adrenaline Fueled". Sin tolerar ese plural, 883 de los
- * 6193 objetivos del catalogo no encuentran nada y el reemplazo no quita nada
- * en absoluto, que es peor que quitar de menos.
- *
- * Cuando aun asi no aparece, el unico candidato evidente es el CCW: el arma de
- * cuerpo a cuerpo que todo modelo lleva de serie y sobre la que encadenan los
- * reemplazos ("Replace Energy Sword" elegido sin haber cogido antes el Energy
- * Sword cae sobre el CCW). Solo vale si la opcion da un arma de cuerpo a
- * cuerpo. Para las armas a distancia no hay equivalente universal, y adivinar
- * —cambiar un "Heavy Rifle" quitando el "Heavy Pistol" de serie— quita lo que
- * no toca y ademas deja de ser consistente en cuanto se anade la primera copia.
- */
 const CANTIDAD_EN_OBJETIVO = /^\s*\d+\s*x\s+/i;
 
 /**
@@ -170,7 +178,19 @@ function formasDelObjetivo(name: string): string[] {
   return [...formas].filter(Boolean);
 }
 
-function findTarget(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): number {
+/**
+ * Busca lo que una seccion dice reemplazar, y solo eso.
+ *
+ * Se toleran las tres formas en que el catalogo escribe el mismo objeto
+ * —plural, singular y con la cantidad delante— y nada mas. Hubo aqui una
+ * adivinanza: cuando el objetivo no aparecia se caia sobre el CCW, con la idea
+ * de que es el arma que todo modelo lleva de serie. Quitaba lo que no tocaba.
+ * Un "Replace Gravity Pistol" en una unidad que lleva Flamer Pistol no es un
+ * objetivo mal escrito: es una seccion que solo se puede usar despues de
+ * comprar la Gravity Pistol en otra. Eso se resuelve no dejandola elegir
+ * —`objetivosQueFaltan` en builder.ts—, no adivinando sobre que caer.
+ */
+function findTarget(entries: LoadoutEntry[], name: string): number {
   const busca = (aguja: string) =>
     entries.findIndex(
       (entry) => entry.name.toLowerCase() === aguja.toLowerCase() || entry.label.toLowerCase() === aguja.toLowerCase(),
@@ -180,14 +200,17 @@ function findTarget(entries: LoadoutEntry[], name: string, forma: FormaArma | nu
     const encontrado = busca(candidato);
     if (encontrado !== -1) return encontrado;
   }
+  return -1;
+}
 
-  if (forma !== "cuerpo") return -1;
-  return entries.findIndex((entry) => entry.kind === "weapon" && entry.name.toLowerCase() === "ccw");
+/** Si la unidad lleva ahora mismo lo que una seccion dice reemplazar. */
+export function llevaObjetivo(entries: LoadoutEntry[], name: string): boolean {
+  return findTarget(entries, name) !== -1;
 }
 
 /** Quita una unidad del arma indicada, si la unidad la lleva. */
-function removeOne(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): void {
-  const index = findTarget(entries, name, forma);
+function removeOne(entries: LoadoutEntry[], name: string): void {
+  const index = findTarget(entries, name);
   if (index === -1) return;
   const entry = entries[index];
   if (entry.count > 1) entry.count -= 1;
@@ -195,8 +218,8 @@ function removeOne(entries: LoadoutEntry[], name: string, forma: FormaArma | nul
 }
 
 /** Quita todas las que lleve, y dice cuantas eran. */
-function removeAll(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): number {
-  const index = findTarget(entries, name, forma);
+function removeAll(entries: LoadoutEntry[], name: string): number {
+  const index = findTarget(entries, name);
   if (index === -1) return 0;
   const cuantas = entries[index].count;
   entries.splice(index, 1);
@@ -215,22 +238,24 @@ export function applyOptions(base: LoadoutEntry[], options: AppliedOption[]): Lo
     // lo que se gana viene multiplicado por lo que se quito: tres modelos que
     // cambian su equipo acaban con tres del nuevo, no con uno.
     const todas = option.variant === "replace" && option.affects?.type === "all";
-    const forma = formaDelArma(option.gains ?? []);
 
     for (let i = 0; i < option.count; i += 1) {
       let quitadas = 1;
       if (option.variant === "replace") {
         for (const target of option.targets ?? []) {
-          if (todas) quitadas = Math.max(quitadas, removeAll(result, target, forma));
-          else removeOne(result, target, forma);
+          if (todas) quitadas = Math.max(quitadas, removeAll(result, target));
+          else removeOne(result, target);
         }
       }
       for (const gain of option.gains ?? []) {
         // Las reglas ganadas se tratan aparte; aqui solo armas y equipo.
         if (gain.type === "ArmyBookRule") continue;
         if (!(gain.label ?? gain.name)) continue;
-        const entrada = toEntry(gain, gain.type === "ArmyBookItem" ? "gear" : "weapon");
-        add(result, todas ? { ...entrada, count: entrada.count * quitadas } : entrada);
+        const esObjeto = gain.type === "ArmyBookItem";
+        const entradas = [toEntry(gain, esObjeto ? "gear" : "weapon"), ...(esObjeto ? armasDe(gain) : [])];
+        for (const entrada of entradas) {
+          add(result, todas ? { ...entrada, count: entrada.count * quitadas } : entrada);
+        }
       }
     }
   }

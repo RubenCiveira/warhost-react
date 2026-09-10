@@ -306,6 +306,41 @@ primera, y comprarlo dos veces solo cobra dos veces. La excepcion es el
 reemplazo, donde si es por seccion: "Replace all Bio-Spiners" se lleva los
 Bio-Spiners enteros y un segundo reemplazo no tendria nada que quitar.
 
+## Reemplazos encadenados
+
+Los Pathfinders de Battle Brothers llevan Flamer Pistol, y una de sus secciones
+es "Replace Gravity Pistol". El objetivo no esta mal escrito: esa seccion
+**encadena** con otra que si da la Gravity Pistol, y hasta que no la compres no
+hay nada que reemplazar.
+
+Asi que un reemplazo solo se puede elegir si la unidad lleva su objetivo **en
+ese momento**, contando lo ya comprado. Cuando no, la opcion se bloquea y dice
+donde se consigue: *"Esta unidad no lleva Gravity Pistol. Primero hay que
+cogerlo en «Replace Flamer Pistol»"*.
+
+Hubo aqui una adivinanza que hacia justo lo contrario: cuando el objetivo no
+aparecia, el reemplazo caia sobre el CCW —el arma que todo modelo lleva de
+serie— y quitaba lo que no tocaba. El emparejamiento vuelve a ser estricto: solo
+las tres formas en que el catalogo escribe el mismo objeto (plural, singular y
+con la cantidad delante), y nada mas.
+
+De 1479 secciones con objetivo en 30 libros, 1172 estan disponibles de entrada y
+307 se abren al comprar la opcion que las habilita. **Ninguna queda sin salida**,
+y `test:reemplazos` lo comprueba: una seccion que no se abriera con nada seria
+catalogo mal escrito, o nosotros leyendolo mal.
+
+## Armas dentro de objetos
+
+Lo que un objeto lleva en `content` no siempre son reglas: tambien hay armas. El
+Combat Shield concede `Bash`, que es un cuerpo a cuerpo con su perfil, y la
+Custodian Jetbike trae un `Heavy Rifle Array (24", A6, AP(1))`. Son 96 en 30
+libros.
+
+Tratarlas como reglas las hacia desaparecer por partida doble: se pintaban como
+un chip sin descripcion, y un "Replace Heavy Rifle Array" no encontraba a que
+apuntar aunque la unidad lo llevase puesto. Eran las 4 secciones que quedaban
+sin salida.
+
 ## Reemplazos de equipo
 
 Una seccion `replace` dice en `targets` que armas quita. Dos cosas que hay que

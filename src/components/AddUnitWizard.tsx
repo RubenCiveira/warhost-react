@@ -228,7 +228,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                 optionAction={(section, option) => {
                   const id = optionId(option);
                   const cuantas = entry.choices[id] ?? 0;
-                  const bloqueo = blockReason(section, option, entry);
+                  const bloqueo = blockReason(section, option, entry, sections);
                   return (
                     <span className="row ucard-option-controls">
                       <span className="ucard-price">+{optionCost(option, entry.unit.unitId)}</span>

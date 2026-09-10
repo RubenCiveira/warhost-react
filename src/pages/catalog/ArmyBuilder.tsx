@@ -350,7 +350,7 @@ export default function ArmyBuilder() {
                   optionAction={(section, option) => {
                     const id = optionId(option);
                     const count = entry.choices[id] ?? 0;
-                    const blocked = blockReason(section, option, entry);
+                    const blocked = blockReason(section, option, entry, sections);
                     return (
                       <span className="row ucard-option-controls">
                         <span className="ucard-price">+{optionCost(option, entry.unit.unitId)}</span>

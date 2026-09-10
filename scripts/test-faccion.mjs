@@ -36,6 +36,7 @@ const glosario = new Map(
 
 const habilidades = F.habilidadesDeFaccion(libro, glosario, unidades);
 const equipo = F.equipoDeFaccion(unidades);
+const generales = F.reglasGeneralesDeFaccion(glosario, unidades, habilidades);
 
 let fallos = 0;
 const comprobar = (ok, que, detalle) => {
@@ -57,6 +58,27 @@ comprobar(equipo.length > 0, "tiene equipo", `${equipo.length}`);
 for (const e of equipo.slice(0, 4)) {
   console.log(`      ${e.habilidad.nombre} — lo llevan ${e.unidades.length} unidades`);
 }
+
+comprobar(generales.length > 0, "la pestana de reglas generales trae cartas", `${generales.length}`);
+console.log(`      ${generales.slice(0, 8).map((r) => r.name).join(", ")}`);
+comprobar(generales.every((r) => r.coreType !== null), "todas son del reglamento basico");
+comprobar(
+  generales.some((r) => comunes.includes(r.name)),
+  "incluye reglas de arma como AP o Blast, no solo de unidad",
+);
+comprobar(
+  !generales.some((r) => habilidades.some((h) => h.$id === r.$id)),
+  "no se solapan con las habilidades propias",
+);
+// El rastro por el texto: si una regla propia dice "get Bane in melee", Bane
+// tiene que estar aunque ninguna unidad la lleve escrita.
+const textoPropias = habilidades.map((h) => h.description).join("\n");
+const citadas = [...glosario.values()]
+  .filter((r) => r.coreType !== null && new RegExp(`\\b${r.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(textoPropias))
+  .map((r) => r.name);
+const faltan = citadas.filter((n) => !generales.some((r) => r.name === n));
+comprobar(faltan.length === 0, "las reglas citadas en el texto de las propias salen en generales", faltan.join(", "));
+if (citadas.length) console.log(`      citadas por texto: ${citadas.slice(0, 8).join(", ")}`);
 
 await rm(dir, { recursive: true, force: true });
 console.log(fallos === 0 ? "\nTodo correcto." : `\n${fallos} comprobaciones fallidas.`);

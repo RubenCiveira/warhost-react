@@ -67,6 +67,49 @@ comprobar(!equipoDespues.some((e) => e.name.startsWith("Adrenaline")), "quita la
 comprobar(equipoDespues.some((e) => e.name === "Burrowing Strike" && e.count === 3), "y da 3 del nuevo, uno por modelo");
 comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se puede coger una vez");
 
+// --- Un reemplazo encadenado no se puede elegir antes de tiempo.
+// Los Pathfinders llevan Flamer Pistol y tienen "Replace Gravity Pistol": esa
+// seccion solo sirve despues de comprar la Gravity Pistol en otra. Antes se
+// caia sobre el CCW y quitaba lo que no tocaba.
+{
+  const bb = filas("army_books", [
+    { method: "equal", attribute: "name", values: ["Battle Brothers"] },
+    { method: "equal", attribute: "gameSystem", values: ["gf"] },
+    { method: "limit", values: [1] },
+  ])[0];
+  const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [bb.$id] }, { method: "limit", values: [100] }]);
+  const pk = new Map(
+    filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [bb.$id] }, { method: "limit", values: [200] }])
+      .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+  );
+  const pf = us.find((u) => u.name === "Elite Pathfinder");
+  const secs = B.sectionsForUnit(pf, pk);
+  const cadena = secs.find((x) => (x.label ?? "") === "Replace Gravity Pistol");
+  const origen = secs.find((x) => (x.label ?? "") === "Replace Flamer Pistol");
+  const daGravity = origen.options.find((o) => (o.label ?? "").startsWith("Gravity Pistol"));
+
+  console.log(`\n${pf.name}: lleva ${L.baseLoadout(pf.weapons, pf.items).map((e) => e.name).join(", ")}`);
+  const vacio = { key: "p", unit: pf, choices: {} };
+  const motivo = B.blockReason(cadena, cadena.options[0], vacio, secs);
+  comprobar(Boolean(motivo), "sin Gravity Pistol no deja elegir su reemplazo", motivo ?? "no lo bloquea");
+  comprobar(
+    (motivo ?? "").includes("Replace Flamer Pistol"),
+    "y dice donde se consigue",
+    motivo ?? "",
+  );
+
+  const conGravity = { key: "p", unit: pf, choices: { [B.optionId(daGravity)]: 1 } };
+  comprobar(
+    B.blockReason(cadena, cadena.options[0], conGravity, secs) === null,
+    "comprada la Gravity Pistol, el reemplazo se abre",
+  );
+  const tras = B.entryLoadout({ ...conGravity, choices: { ...conGravity.choices, [B.optionId(cadena.options[0])]: 1 } }, secs);
+  comprobar(
+    tras.some((e) => e.name === "CCW"),
+    "y no se lleva por delante el CCW, que era la vieja adivinanza",
+  );
+}
+
 // --- "Upgrade all models with any": varias mejoras, todas comprables.
 // El fallo era tomar `affects: all` como tope de la seccion entera, asi que la
 // primera mejora bloqueaba las demas. `affects` dice a cuantos modelos alcanza;
@@ -106,6 +149,46 @@ comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se pue
   console.log(`\n${miradas} secciones "alcanza a todos" con varias mejoras`);
   comprobar(malas === 0, "se pueden comprar todas, y un reemplazo 'all' sigue admitiendo una", `${malas} mal`);
   comprobar(unaSola === 0, "pero cada mejora solo una vez", `${unaSola} repetibles`);
+}
+
+// --- Ninguna seccion puede quedar bloqueada para siempre.
+// Bloquear un reemplazo cuyo objetivo la unidad no lleva es lo correcto, pero
+// solo si hay forma de conseguirlo. Una que no se abra con ninguna opcion es
+// una seccion muerta: o el catalogo esta mal, o la estamos leyendo mal.
+{
+  const libros = filas("army_books", [{ method: "limit", values: [30] }]);
+  let conObjetivo = 0;
+  let deEntrada = 0;
+  const muertas = [];
+  for (const libro of libros) {
+    const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
+    const pk = new Map(
+      filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [200] }])
+        .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+    );
+    for (const u of us) {
+      const secs = B.sectionsForUnit(u, pk);
+      const vacio = { key: "x", unit: u, choices: {} };
+      for (const sec of secs) {
+        if ((sec.targets ?? []).length === 0) continue;
+        conObjetivo += 1;
+        if (B.objetivosQueFaltan(sec, vacio, secs).length === 0) {
+          deEntrada += 1;
+          continue;
+        }
+        const seAbre = secs.some((otra) =>
+          otra !== sec &&
+          (otra.options ?? []).some(
+            (op) => B.objetivosQueFaltan(sec, { key: "x", unit: u, choices: { [B.optionId(op)]: 1 } }, secs).length === 0,
+          ),
+        );
+        if (!seAbre) muertas.push(`${libro.name} · ${u.name} · ${JSON.stringify(sec.label)}`);
+      }
+    }
+  }
+  console.log(`\n${conObjetivo} secciones con objetivo · ${deEntrada} disponibles de entrada`);
+  for (const m of muertas.slice(0, 6)) console.log(`    · ${m}`);
+  comprobar(muertas.length === 0, "las bloqueadas se abren comprando otra opcion", `${muertas.length} sin salida`);
 }
 
 // --- Y en general: ninguna seccion "all" debe dejar su objetivo en pie.
