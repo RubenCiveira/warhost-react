@@ -214,25 +214,6 @@ button.icon { padding: 3px 10px; min-width: 34px; }
 
 .danger-text { color: var(--danger); flex-basis: 100%; margin: 0; }
 
-/* Constructor de ejercitos -------------------------------------------------- */
-
-.builder { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; align-items: start; }
-@media (max-width: 900px) { .builder { grid-template-columns: 1fr; } }
-
-.builder .sticky { position: sticky; top: 68px; }
-.builder .total { font-size: 1.1rem; margin: 4px 0 10px; }
-.builder .total.over strong { color: var(--danger); }
-
-.builder .upgrades { margin: 6px 0 0; padding-left: 18px; }
-
-.section {
-  border: 1px solid var(--border); border-radius: 8px;
-  margin: 10px 0 0; padding: 8px 10px;
-}
-.section legend { padding: 0 6px; font-size: 0.85rem; }
-.option { padding: 3px 0; gap: 10px; }
-.option + .option { border-top: 1px solid var(--border); }
-
 a.button-link {
   display: inline-block; padding: 6px 14px; border-radius: 8px;
   background: var(--accent); color: #14100d; font-weight: 550;
@@ -276,8 +257,6 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 .army-unit { padding: 10px 0; }
 .army-unit + .army-unit { border-top: 1px solid var(--border); }
 
-.loadout { margin: 6px 0; padding-left: 18px; font-size: 0.9rem; }
-.loadout li { padding: 1px 0; }
 .loadout-missing { margin: 6px 0; font-style: italic; }
 .upgrades-label { color: var(--accent); }
 
@@ -393,3 +372,98 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
 .ucard-option-controls { gap: 6px; flex-wrap: nowrap; }
 .ucard-option-controls .mono { min-width: 1.5ch; text-align: center; }
 .ucard-foot .tiny.danger { color: var(--danger); }
+
+/* Editor de unidades de un ejercito ----------------------------------------- */
+/* Barra con los datos que importan mientras montas lista, y debajo una tira de
+   cartas: las unidades ya configuradas, en horizontal. */
+
+.army-bar {
+  position: sticky; top: 52px; z-index: 15;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+  padding: 12px 16px; margin-bottom: 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.army-bar-main { flex: 1 1 220px; min-width: 0; }
+.army-bar-name {
+  width: 100%; padding: 2px 0; background: transparent; border: none;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-size: 1.35rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--text);
+}
+.army-bar-name:focus { outline: none; border-bottom: 1px solid var(--accent); }
+.army-bar-sub { margin: 0; }
+
+.army-bar-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.army-stat {
+  min-width: 74px; padding: 4px 10px; text-align: center;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.army-stat.over { border-color: var(--danger); }
+.army-stat.over .army-stat-value { color: var(--danger); }
+.army-stat-key {
+  display: block; color: var(--muted);
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+}
+.army-stat-value { display: block; font-size: 1.15rem; font-weight: 700; }
+.army-stat-input { margin: 0; }
+.army-stat-input input {
+  width: 68px; padding: 0; border: none; background: transparent; text-align: center;
+  font-size: 1.15rem; font-weight: 700; color: var(--text);
+}
+.army-stat-input input:focus { outline: none; color: var(--accent); }
+
+.army-bar-actions { display: flex; align-items: center; gap: 8px; }
+
+/* La tira. Sin envolver: se desplaza en horizontal y cada carta es una parada. */
+.army-strip {
+  display: flex; flex-wrap: nowrap; align-items: flex-start; gap: 16px;
+  overflow-x: auto; overscroll-behavior-x: contain;
+  padding: 4px 4px 16px;
+  scrollbar-width: thin;
+}
+.army-strip::-webkit-scrollbar { height: 8px; }
+.army-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.army-slide { flex: 0 0 auto; width: min(460px, 88vw); }
+/* Una carta con muchas mejoras abiertas no debe estirar la tira entera: se
+   desplaza por dentro y la fila conserva su altura. */
+.army-slide .ucard { max-height: calc(100vh - 260px); overflow-y: auto; }
+
+.army-slide-add { display: flex; align-items: stretch; }
+.army-add {
+  width: 100%; min-height: 180px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  border: 2px dashed var(--border); border-radius: 10px; background: transparent;
+  color: var(--muted); font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.army-add:hover { border-color: var(--accent); color: var(--accent); }
+.army-add-plus { font-size: 2rem; line-height: 1; }
+
+/* El imán es cosa del dedo: con ratón estorba al arrastrar la barra. */
+@media (pointer: coarse) {
+  .army-strip { scroll-snap-type: x mandatory; }
+  .army-slide { scroll-snap-align: center; }
+}
+
+/* Selector de unidades ------------------------------------------------------ */
+
+.picker-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(9, 7, 6, 0.72);
+  display: grid; place-items: start center; padding: 24px 16px;
+  overflow-y: auto;
+}
+.picker {
+  width: 100%; max-width: 980px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px;
+}
+.picker > input[type="search"] { margin: 12px 0; }
+.picker-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
+
+@media (max-width: 640px) {
+  .army-bar { top: 44px; }
+  .picker-grid { grid-template-columns: 1fr; }
+}
