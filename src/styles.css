@@ -607,6 +607,16 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
 .ucard-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ucard-table td:first-child, .ucard-wrules { overflow: hidden; text-overflow: ellipsis; }
+
+/* El icono de tipo de arma, con hueco fijo para que los nombres sigan
+   alineados aunque una fila no lo lleve. */
+.ucard-arma { display: flex; align-items: center; gap: 1.4mm; min-width: 0; }
+.ucard-arma-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arma-icono { color: var(--ucard-tinta); }
+/* A distancia se dibujan las dos versiones y manda el material del tema. */
+.arma-arco { display: none; }
+:root[data-setting="fantasy"] .arma-balas { display: none; }
+:root[data-setting="fantasy"] .arma-arco { display: block; }
 .ucard-wrules { color: #575043; }
 .ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 3px; }
 .ucard-mas { margin: 4px 0 0; font-size: 0.76em; color: var(--ucard-tenue); font-style: italic; }

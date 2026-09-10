@@ -3,6 +3,7 @@ import { normalizeLoadout } from "../lib/loadout";
 import type { LoadoutEntry } from "../lib/loadout";
 import { maxDistinctOptions, maxPicks, optionCost, optionId } from "../lib/builder";
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
+import IconoArma from "./IconoArma";
 
 /**
  * Ficha de unidad como carta de juego: apaisada y de tamano fijo, con la
@@ -144,8 +145,13 @@ export default function UnitCard({
                   {visibles.map((weapon, index) => (
                     <tr key={`${weapon.label}-${index}`}>
                       <td>
-                        {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
-                        {weapon.name}
+                        <span className="ucard-arma">
+                          <IconoArma tipo={weapon.range === null ? "cac" : "distancia"} />
+                          <span className="ucard-arma-nombre">
+                            {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
+                            {weapon.name}
+                          </span>
+                        </span>
                       </td>
                       <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
                       <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>

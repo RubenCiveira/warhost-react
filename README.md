@@ -131,6 +131,18 @@ unidad y de opcion son los mismos que usa el catalogo. Lo que se pierde en esa
 reconstruccion son las unidades y opciones que ya no existan en la version
 actual del libro, y el constructor avisa de cuantas.
 
+### Iconos de arma
+
+Cada arma lleva delante su simbolo, para recorrer la tabla sin leer las reglas:
+espada en cuerpo a cuerpo, y a distancia **proyectiles en grimdark y arco en
+fantasy**. Se dibujan los dos y el CSS esconde el que no toca, asi que el icono
+correcto sale tambien donde no hay contexto de React, como en el banco de
+pruebas.
+
+Van macizos y de pie a proposito. Se probaron primero con el lienzo apaisado de
+kt-cartas y con trazo fino: a 2 mm el arco quedaba en una raya con una curva y
+la espada en una mota. Una silueta rellena se reconoce; una linea no.
+
 ## Mirar las cartas
 
 La carta de unidad mide **120 x 70 mm**, que es una carta de tarot, y esta
