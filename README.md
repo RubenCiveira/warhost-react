@@ -264,6 +264,29 @@ catalogo, 643 salen a tamano completo, 39 densas, 37 muy densas y 21 en el
 ultimo escalon, donde los chips pierden el marco y se quedan en subrayado
 punteado: se cae el marco, no la funcion —siguen abriendo la carta de la regla.
 
+## Inconsistencias del catalogo
+
+El catalogo de Army Forge escribe el objetivo de un reemplazo de tres maneras
+distintas para el mismo objeto —`"Bio-Spiners"` cuando el equipo se llama
+`"Bio-Spiner"`, `"Heavy Razor Claw"` cuando se llama `"Heavy Razor Claws"`, y
+`"3x Heavy Razor Claws"` con la cantidad dentro del nombre—, ademas de en
+mayusculas (`"CCWS"` por `CCW`). Son **443 desajustes en 295 unidades de 58
+libros**.
+
+```bash
+pnpm audit:opciones [nLibros]                # recorre el catalogo, ~10 min
+node scripts/informe-opciones.mjs > ../warhost-appwrite/ARMY-FORGE-DATA-ISSUES.md
+```
+
+Va en dos pasos porque recorrer el catalogo tarda y el texto del informe se
+reescribe muchas mas veces que los datos. El informe esta en ingles, para poder
+reportarlo aguas arriba.
+
+Lo que el auditor **no** cuenta como fallo: una seccion puede reemplazar algo
+que otra opcion de la misma unidad te dio antes —"Replace Energy Sword" despues
+de comprar la Energy Sword—, y eso es correcto. Sin ese filtro el informe se
+llena de falsos positivos.
+
 ## Reemplazos de equipo
 
 Una seccion `replace` dice en `targets` que armas quita. Dos cosas que hay que

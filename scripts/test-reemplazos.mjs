@@ -85,12 +85,18 @@ for (const libro of libros) {
       // Solo cuentan las que apuntan a algo que la unidad lleva de partida. Se
       // comparan etiquetas y no nombres: una opcion puede quitar el "CCW (A2)"
       // de serie y devolver un "CCW (A1)" distinto, y eso es correcto.
+      // El criterio de "a que apunta" es propio y no el del codigo: si se
+      // copiase de loadout.ts, la prueba diria que si a cualquier cosa que
+      // hiciera loadout.ts, incluida la equivocada. El catalogo escribe el
+      // mismo objeto de tres maneras (ver ARMY-FORGE-DATA-ISSUES.md).
       const objetivos = (sec.targets ?? [])
-        .map((t) =>
-          base.find(
-            (e) => e.name.toLowerCase() === t.toLowerCase() || e.name.toLowerCase() === t.replace(/s$/, "").toLowerCase(),
-          ),
-        )
+        .map((t) => {
+          const limpio = t.trim().replace(/^\s*\d+\s*x\s+/i, "").toLowerCase();
+          return base.find((e) => {
+            const n = e.name.toLowerCase();
+            return n === limpio || `${n}s` === limpio || `${n}es` === limpio || n === `${limpio}s` || n === `${limpio}es`;
+          });
+        })
         .filter(Boolean);
       if (objetivos.length === 0) continue;
       revisadas += 1;

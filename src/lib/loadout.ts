@@ -139,16 +139,47 @@ function formaDelArma(gains: Gain[]): FormaArma | null {
  * —cambiar un "Heavy Rifle" quitando el "Heavy Pistol" de serie— quita lo que
  * no toca y ademas deja de ser consistente en cuanto se anade la primera copia.
  */
+const CANTIDAD_EN_OBJETIVO = /^\s*\d+\s*x\s+/i;
+
+/**
+ * Como se puede estar escribiendo el mismo objeto: el catalogo no es
+ * consistente y las tres formas aparecen, a veces en la misma unidad.
+ *
+ *  - con la cantidad dentro del nombre: "3x Heavy Razor Claws"
+ *  - en plural cuando el equipo va en singular: "Bio-Spiners" / "Bio-Spiner"
+ *  - en singular cuando el equipo va en plural: "Heavy Razor Claw" / "...Claws"
+ *
+ * Son 443 desajustes en 60 libros; estan inventariados en
+ * warhost-appwrite/ARMY-FORGE-DATA-ISSUES.md.
+ */
+function formasDelObjetivo(name: string): string[] {
+  // En minusculas desde el principio: la comparacion no distingue mayusculas,
+  // pero el recorte del plural si lo haria, y el catalogo escribe "CCWS".
+  const base = name.trim().toLowerCase();
+  const sinCantidad = base.replace(CANTIDAD_EN_OBJETIVO, "");
+  const formas = new Set<string>();
+  for (const raiz of [base, sinCantidad]) {
+    formas.add(raiz);
+    if (raiz.endsWith("es")) formas.add(raiz.slice(0, -2));
+    if (raiz.endsWith("s")) formas.add(raiz.slice(0, -1));
+    else {
+      formas.add(`${raiz}s`);
+      formas.add(`${raiz}es`);
+    }
+  }
+  return [...formas].filter(Boolean);
+}
+
 function findTarget(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): number {
   const busca = (aguja: string) =>
     entries.findIndex(
       (entry) => entry.name.toLowerCase() === aguja.toLowerCase() || entry.label.toLowerCase() === aguja.toLowerCase(),
     );
 
-  const exacto = busca(name);
-  if (exacto !== -1) return exacto;
-  const singular = name.endsWith("s") ? busca(name.slice(0, -1)) : -1;
-  if (singular !== -1) return singular;
+  for (const candidato of formasDelObjetivo(name)) {
+    const encontrado = busca(candidato);
+    if (encontrado !== -1) return encontrado;
+  }
 
   if (forma !== "cuerpo") return -1;
   return entries.findIndex((entry) => entry.kind === "weapon" && entry.name.toLowerCase() === "ccw");
