@@ -214,58 +214,67 @@ export default function UnitCard({
               </div>
             ) : null}
 
-            <div className={gear.length > 0 ? "ucard-cols" : "ucard-cols sin-equipo"}>
-              <section className="ucard-col">
-                <h4 className="ucard-col-title">Reglas</h4>
-                {unit.rules.length > 0 ? (
-                  <div className="ucard-chips">
-                    {unit.rules.map((rule) => (
-                      <Chip
-                        key={rule}
-                        habilidad={parseHabilidad(rule, "regla")}
-                        conTexto={conTexto}
-                        onAbrir={onHabilidad}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="ucard-vacio">Ninguna</p>
-                )}
-              </section>
+            {/* Reglas innatas: a todo el ancho, que es como se recorren. Las que
+                da el equipo van con su objeto, en la tabla de abajo. */}
+            <section className="ucard-bloque">
+              <h4 className="ucard-bloque-title">Reglas</h4>
+              {unit.rules.length > 0 ? (
+                <div className="ucard-chips">
+                  {unit.rules.map((rule) => (
+                    <Chip
+                      key={rule}
+                      habilidad={parseHabilidad(rule, "regla")}
+                      conTexto={conTexto}
+                      onAbrir={onHabilidad}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="ucard-vacio">Ninguna</p>
+              )}
+            </section>
 
-              {gear.length > 0 ? (
-                <section className="ucard-col">
-                  <h4 className="ucard-col-title">Equipo</h4>
-                  <div className="ucard-equipos">
+            {/* El equipo, en tabla: cada pieza y a su derecha lo que concede.
+                Ninguna del catalogo deja de conceder algo, asi que el nombre
+                por si solo no informaria. */}
+            {gear.length > 0 ? (
+              <section className="ucard-bloque">
+                <table className="ucard-table ucard-equipo-tabla">
+                  <thead>
+                    <tr>
+                      <th>Equipo</th>
+                      <th>Concede</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {gear.map((item, index) => (
-                      <div key={`${item.label}-${index}`} className="ucard-equipo">
-                        <Chip
-                          habilidad={{ ...parseHabilidad(item.name, "equipo"), concede: item.rules }}
-                          cuantos={item.count}
-                          conTexto={conTexto}
-                          onAbrir={onHabilidad}
-                        />
-                        {/* Lo que hace una pieza de equipo es conceder reglas: sin
-                            ellas el nombre solo no dice nada. Todas las del
-                            catalogo conceden al menos una. */}
-                        {item.rules.length > 0 ? (
-                          <div className="ucard-concede">
-                            {item.rules.map((rule) => (
-                              <Chip
-                                key={rule}
-                                habilidad={parseHabilidad(rule, "regla")}
-                                conTexto={conTexto}
-                                onAbrir={onHabilidad}
-                              />
-                            ))}
+                      <tr key={`${item.label}-${index}`}>
+                        <td>
+                          {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
+                          {item.name}
+                        </td>
+                        <td>
+                          <div className="ucard-chips">
+                            {item.rules.length > 0 ? (
+                              item.rules.map((rule) => (
+                                <Chip
+                                  key={rule}
+                                  habilidad={parseHabilidad(rule, "regla")}
+                                  conTexto={conTexto}
+                                  onAbrir={onHabilidad}
+                                />
+                              ))
+                            ) : (
+                              <span className="ucard-vacio">—</span>
+                            )}
                           </div>
-                        ) : null}
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </section>
-              ) : null}
-            </div>
+                  </tbody>
+                </table>
+              </section>
+            ) : null}
           </div>
         </article>
       </div>

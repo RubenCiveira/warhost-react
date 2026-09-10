@@ -590,7 +590,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 
 /* Armamento: pieza propia, embutida, con la cabecera en el trim y los costados
    cerrados. Es la tabla que mas se consulta, y va a todo el ancho util. */
-.ucard-armas { padding: 0 2.5mm 1.4mm; flex: 0 0 auto; }
+.ucard-armas { padding: 0 2.5mm; flex: 0 0 auto; }
 .ucard-table {
   width: 100%; border-collapse: separate; border-spacing: 0;
   font-size: 2.6mm; line-height: 1.25;
@@ -620,33 +620,28 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 :root[data-setting="fantasy"] .arma-balas { display: none; }
 :root[data-setting="fantasy"] .arma-arco { display: block; }
 
-/* Reglas y equipo, hombro con hombro bajo el armamento. Las reglas mandan: el
-   equipo esta vacio en la gran mayoria de unidades, y cuando lo esta no deja un
-   hueco muerto, sino que las reglas se quedan con toda la fila. */
-.ucard-cols {
-  flex: 1; min-height: 0; overflow: hidden;
-  display: grid; gap: 0 3mm; grid-template-columns: 1.4fr 1fr;
-  padding: 0 2.5mm 2.2mm;
-}
-.ucard-cols.sin-equipo { grid-template-columns: 1fr; }
-.ucard-col { min-width: 0; }
-.ucard-col-title {
-  margin: 0 0 0.8mm;
+/* El cuerpo se apila: armamento, reglas innatas y equipo. Antes iban reglas y
+   equipo en dos columnas, pero el equipo necesita ancho para enseñar lo que
+   concede, y las reglas se recorren mejor en una fila larga que en media. */
+.ucard-bloque { margin-top: 2.4mm; padding: 0 2.5mm; flex: 0 0 auto; }
+
+/* Rotulo de bloque. Sin esto el h4 hereda el titular del sistema y sale con
+   cuerpo de cabecera dentro de una carta de 70 mm de alto. */
+.ucard-bloque-title {
+  margin: 0 0 1mm;
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 2.2mm; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; font-size: 2.2mm; line-height: 1.2;
+  letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ucard-tenue);
 }
 
-/* Una regla por linea, fluyendo en columnas. Cuando la lista lleve tambien la
-   descripcion de cada regla, bastara con ensanchar la columna. */
-.ucard-list {
-  list-style: none; margin: 0; padding: 0;
-  font-size: 2.38mm; line-height: 1.3;
-  columns: 42mm; column-gap: 3mm;
-}
-.ucard-list li { padding: 0.15mm 0; break-inside: avoid; }
-.ucard-term { font-weight: 600; }
-.ucard-gloss { color: var(--ucard-tenue); }
+/* La tabla de equipo es la misma pieza que la de armas, con el objeto a la
+   izquierda y lo que otorga a la derecha. */
+.ucard-equipo-tabla { table-layout: fixed; }
+.ucard-equipo-tabla th:first-child, .ucard-equipo-tabla td:first-child { width: 38%; }
+.ucard-equipo-tabla td { vertical-align: middle; }
+.ucard-equipo-tabla td:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .ucard-vacio { margin: 0; font-size: 2.38mm; color: var(--ucard-tenue); }
 
 /* Cartas cargadas: se aprieta la tipografia del cuerpo en vez de recortar, como
@@ -654,10 +649,10 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    que da la identidad de la carta de un vistazo. */
 .ucard.denso .ucard-table { font-size: 2.4mm; }
 .ucard.denso .ucard-table td { padding-top: 0.5mm; padding-bottom: 0.5mm; }
-.ucard.denso .ucard-list, .ucard.denso .ucard-vacio { font-size: 2.2mm; }
+.ucard.denso .ucard-chip, .ucard.denso .ucard-vacio { font-size: 2.2mm; }
 .ucard.muy-denso .ucard-table { font-size: 2.2mm; }
 .ucard.muy-denso .ucard-table td { padding-top: 0.35mm; padding-bottom: 0.35mm; }
-.ucard.muy-denso .ucard-list, .ucard.muy-denso .ucard-vacio { font-size: 2.05mm; line-height: 1.24; }
+.ucard.muy-denso .ucard-chip, .ucard.muy-denso .ucard-vacio { font-size: 2.05mm; }
 
 /* Lo que no es perfil de la unidad cuelga del marco, ya fuera de la carta. */
 .ucard-upgrades { margin: 8px 0 0; font-size: 0.84rem; line-height: 1.45; }
@@ -1017,19 +1012,3 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 
 .scard-concede { margin: 2.4mm 0 0; font-size: 3mm; color: var(--ucard-tenue); }
 
-/* Equipo, y debajo lo que concede ------------------------------------------- */
-/* El filete de la izquierda es lo que dice que esas reglas cuelgan del objeto y
-   no son de la unidad: sin el, la columna se lee como una lista plana. */
-
-.ucard-equipos { display: flex; flex-direction: column; gap: 1.2mm; }
-.ucard-equipo { display: flex; flex-direction: column; gap: 0.8mm; align-items: flex-start; }
-.ucard-concede {
-  display: flex; flex-wrap: wrap; gap: 1mm;
-  margin-left: 1.4mm; padding-left: 1.6mm;
-  border-left: 0.3mm solid var(--ucard-filete);
-}
-.ucard-concede .ucard-chip {
-  font-size: 2.2mm; padding: 0.4mm 1.2mm;
-  background: transparent; border-style: dotted;
-}
-.ucard-concede .ucard-chip:hover:not(:disabled) { border-style: solid; background: var(--ucard-cebra); }
