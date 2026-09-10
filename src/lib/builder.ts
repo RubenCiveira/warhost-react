@@ -97,6 +97,9 @@ export function maxPicks(section: UpgradeSection, unitSize: number): number {
   if (!affects) return Math.max(1, unitSize);
   if (affects.type === "exactly") return Math.max(1, affects.value ?? 1);
   if (affects.type === "up to") return Math.max(1, affects.value ?? 1);
+  // "all" alcanza a toda la unidad de una vez: cogerlo dos veces no significa
+  // nada, y dejarlo abierto permitia comprar la misma mejora varias veces.
+  if (affects.type === "all") return 1;
   return Math.max(1, unitSize);
 }
 
@@ -187,7 +190,13 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
     for (const option of section.options ?? []) {
       const count = entry.choices[optionId(option)] ?? 0;
       if (count > 0) {
-        applied.push({ variant: section.variant, targets: section.targets, gains: option.gains, count });
+        applied.push({
+          variant: section.variant,
+          targets: section.targets,
+          affects: section.affects,
+          gains: option.gains,
+          count,
+        });
       }
     }
   }

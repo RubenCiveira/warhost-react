@@ -176,3 +176,23 @@ Renderiza cada unidad, le pregunta al navegador si el contenido cabe en la caja
 y falla si alguna se pasa. Ahora mismo: **740 unidades de 30 libros, ninguna se
 recorta**. Si tocas tamanos, tipos o espaciados de la carta, esto es lo que dice
 si te has pasado.
+
+## Reemplazos de equipo
+
+Una seccion `replace` dice en `targets` que armas quita. Dos cosas que hay que
+saber, porque cuando fallan no se ve nada raro: simplemente no se quita.
+
+**El objetivo viene como suena en la frase.** Una seccion "Replace all Adrenaline
+Fueleds" apunta a `"Adrenaline Fueleds"` aunque el equipo se llame `"Adrenaline
+Fueled"`. De los 6193 objetivos del catalogo, 883 (14%) solo casan quitando la
+"s" final.
+
+**`affects: all` cambia todas las copias de una vez.** Una unidad con 3 copias
+acaba con 3 del nuevo equipo, no con 1, y la seccion solo se puede coger una vez.
+
+```bash
+pnpm test:reemplazos
+```
+
+Ojo al comprobarlo: hay opciones que quitan un `CCW (A2)` y devuelven un
+`CCW (A1)` distinto, asi que hay que comparar etiquetas y no nombres.

@@ -72,6 +72,7 @@ interface ForgeUpgradeOption {
 interface ForgeUpgradeSection {
   variant?: string;
   targets?: string[];
+  affects?: { type: string; value?: number } | null;
   options?: ForgeUpgradeOption[];
 }
 
@@ -217,7 +218,13 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
     }
     // Cada seleccion cuenta como una aplicacion: si la misma opcion aparece dos
     // veces en la lista, reemplaza y anade dos veces.
-    applied.push({ variant: section.variant, targets: section.targets, gains: option.gains, count: 1 });
+    applied.push({
+      variant: section.variant,
+      targets: section.targets,
+      affects: section.affects,
+      gains: option.gains,
+      count: 1,
+    });
   }
 
   const size = definition?.size ?? 1;

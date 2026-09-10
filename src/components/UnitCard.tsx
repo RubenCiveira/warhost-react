@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { normalizeLoadout } from "../lib/loadout";
 import type { LoadoutEntry } from "../lib/loadout";
-import { maxDistinctOptions, maxPicks, optionCost, optionId } from "../lib/builder";
+import { maxDistinctOptions, optionCost, optionId } from "../lib/builder";
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import IconoArma from "./IconoArma";
 
@@ -75,18 +75,18 @@ interface Props {
   footer?: ReactNode;
 }
 
-function limitLabel(section: UpgradeSection, unitSize: number): string {
-  const parts: string[] = [];
-  const affects = section.affects;
-  if (affects) {
-    if (affects.type === "exactly") parts.push(`${affects.value} modelo${affects.value === 1 ? "" : "s"}`);
-    else if (affects.type === "up to") parts.push(`hasta ${affects.value}`);
-    else if (affects.type === "all") parts.push("todos");
-    else parts.push(`max ${maxPicks(section, unitSize)}`);
-  }
+/**
+ * Anotacion sobre los limites de una seccion.
+ *
+ * No repite a cuantos modelos alcanza: la etiqueta de Army Forge ya lo dice
+ * —"Replace all Adrenaline Fueleds", "Replace one Heavy Rifle"— y al anadirlo
+ * detras salia "Replace all Adrenaline Fueleds todos". Solo se anota lo que la
+ * etiqueta no cuenta: cuantas opciones distintas caben.
+ */
+function limitLabel(section: UpgradeSection): string {
   const distinct = maxDistinctOptions(section);
-  if (distinct !== Number.POSITIVE_INFINITY) parts.push(`elige ${distinct}`);
-  return parts.join(" · ");
+  if (distinct === Number.POSITIVE_INFINITY) return "";
+  return `elige ${distinct === 1 ? "una" : distinct}`;
 }
 
 export default function UnitCard({
@@ -220,9 +220,7 @@ export default function UnitCard({
             <div key={section.id ?? section.uid} className="ucard-section">
               <p className="ucard-section-head">
                 {section.label}
-                {limitLabel(section, unit.size) ? (
-                  <span className="ucard-limit"> {limitLabel(section, unit.size)}</span>
-                ) : null}
+                {limitLabel(section) ? <span className="ucard-limit"> · {limitLabel(section)}</span> : null}
               </p>
               <ul className="ucard-option-list">
                 {(section.options ?? []).map((option) => (

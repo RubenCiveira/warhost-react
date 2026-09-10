@@ -41,6 +41,8 @@ export interface AppliedOption {
   variant?: string;
   targets?: string[];
   gains?: Gain[];
+  /** A cuantos modelos alcanza la seccion. `all` reemplaza todo de una vez. */
+  affects?: { type: string; value?: number } | null;
   /** Cuantas veces se ha cogido. */
   count: number;
 }
@@ -105,13 +107,42 @@ function add(entries: LoadoutEntry[], entry: LoadoutEntry): void {
   else entries.push({ ...entry });
 }
 
+/**
+ * Busca lo que una seccion dice reemplazar.
+ *
+ * Army Forge escribe el objetivo tal como suena en la frase, asi que una
+ * seccion "Replace all Adrenaline Fueleds" apunta a "Adrenaline Fueleds" cuando
+ * el equipo se llama "Adrenaline Fueled". Sin tolerar ese plural, 883 de los
+ * 6193 objetivos del catalogo no encuentran nada y el reemplazo no quita nada
+ * en absoluto, que es peor que quitar de menos.
+ */
+function findTarget(entries: LoadoutEntry[], name: string): number {
+  const busca = (aguja: string) =>
+    entries.findIndex(
+      (entry) => entry.name.toLowerCase() === aguja.toLowerCase() || entry.label.toLowerCase() === aguja.toLowerCase(),
+    );
+
+  const exacto = busca(name);
+  if (exacto !== -1) return exacto;
+  return name.endsWith("s") ? busca(name.slice(0, -1)) : -1;
+}
+
 /** Quita una unidad del arma indicada, si la unidad la lleva. */
 function removeOne(entries: LoadoutEntry[], name: string): void {
-  const index = entries.findIndex((entry) => entry.name === name || entry.label === name);
+  const index = findTarget(entries, name);
   if (index === -1) return;
   const entry = entries[index];
   if (entry.count > 1) entry.count -= 1;
   else entries.splice(index, 1);
+}
+
+/** Quita todas las que lleve, y dice cuantas eran. */
+function removeAll(entries: LoadoutEntry[], name: string): number {
+  const index = findTarget(entries, name);
+  if (index === -1) return 0;
+  const cuantas = entries[index].count;
+  entries.splice(index, 1);
+  return cuantas;
 }
 
 /**
@@ -122,15 +153,25 @@ export function applyOptions(base: LoadoutEntry[], options: AppliedOption[]): Lo
   const result = base.map((entry) => ({ ...entry }));
 
   for (const option of options) {
+    // "Replace all" se coge una vez y cambia todas las copias a la vez, asi que
+    // lo que se gana viene multiplicado por lo que se quito: tres modelos que
+    // cambian su equipo acaban con tres del nuevo, no con uno.
+    const todas = option.variant === "replace" && option.affects?.type === "all";
+
     for (let i = 0; i < option.count; i += 1) {
+      let quitadas = 1;
       if (option.variant === "replace") {
-        for (const target of option.targets ?? []) removeOne(result, target);
+        for (const target of option.targets ?? []) {
+          if (todas) quitadas = Math.max(quitadas, removeAll(result, target));
+          else removeOne(result, target);
+        }
       }
       for (const gain of option.gains ?? []) {
         // Las reglas ganadas se tratan aparte; aqui solo armas y equipo.
         if (gain.type === "ArmyBookRule") continue;
         if (!(gain.label ?? gain.name)) continue;
-        add(result, toEntry(gain, gain.type === "ArmyBookItem" ? "gear" : "weapon"));
+        const entrada = toEntry(gain, gain.type === "ArmyBookItem" ? "gear" : "weapon");
+        add(result, todas ? { ...entrada, count: entrada.count * quitadas } : entrada);
       }
     }
   }
