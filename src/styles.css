@@ -145,7 +145,7 @@ code {
   padding: 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 1.05rem; letter-spacing: 0.14em;
+  font-weight: 700; font-size: 1rem; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--band-text); white-space: nowrap;
 }
 .topbar .brand span { color: var(--accent); }
@@ -490,7 +490,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 
 /* Carta de unidad --------------------------------------------------------- */
-/* Carta apaisada de tamano fijo, con la proporcion 121x70 de una carta de mesa.
+/* Carta apaisada de tamano fijo, 120 x 70 mm: una carta de tarot.
    Dentro: banda de titulo con los atributos, el armamento a todo el ancho y
    debajo dos columnas, reglas y equipo.
 
@@ -499,7 +499,11 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    ves es siempre la misma carta, no una version movil de ella.
 
    El material sigue al tema: en grimdark es vitela clara que contrasta con el
-   fondo de acero; en fantasy es la misma piel del resto. */
+   fondo de acero; en fantasy es la misma piel del resto.
+
+   Proporciones tomadas de kt-cartas: banda de titulo baja —un quinto del alto
+   era demasiado en apaisado—, atributos en cajas estrechas a su derecha, y el
+   armamento como una pieza enmarcada y embutida, no como una tabla a sangre. */
 
 /* Una carta de tarot mide 120 x 70 mm, y eso es lo que mide esta: en
    milimetros, no en pixeles con una proporcion parecida. La escala es solo el
@@ -538,7 +542,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   color: var(--ucard-tinta);
   border: 1px solid var(--border-strong);
   border-top: 3px solid var(--accent);
-  border-radius: var(--plate-radius);
+  border-radius: 2mm;
   overflow: hidden;
   font-family: "IBM Plex Sans", system-ui, sans-serif;
   box-shadow: var(--raise);
@@ -547,9 +551,9 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-head { display: flex; align-items: stretch; gap: 1px; background: var(--ucard-banda); flex: 0 0 auto; }
 .ucard-title {
   flex: 1; margin: 0; display: flex; align-items: center;
-  padding: 9px 12px; color: var(--band-text);
+  padding: 5px 11px; line-height: 1.1; color: var(--band-text);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 1.05rem;
+  font-weight: 700; font-size: 1rem;
   /* La banda de la carta es una banda mas: sigue al material del tema, en
      mayusculas condensadas en grimdark y en versalitas en fantasy. */
   letter-spacing: var(--band-letter);
@@ -559,17 +563,20 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 .ucard-stats { display: flex; flex: 0 0 auto; }
 .ucard-stat {
-  min-width: 46px; padding: 6px 8px; text-align: center;
+  min-width: 9.5mm; padding: 4px 6px 3px; text-align: center;
   background: var(--ucard-banda); color: var(--band-text);
   border-left: 1px solid rgba(255, 255, 255, 0.14);
 }
 .ucard-stat-key {
   display: block; color: var(--ucard-realce);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 0.6rem; letter-spacing: 0.12em;
+  font-weight: 700; font-size: 0.58rem; line-height: 1.1; letter-spacing: 0.12em;
   text-transform: var(--band-transform); font-variant: var(--band-variant);
 }
-.ucard-stat-value { display: block; font-weight: 600; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.ucard-stat-value {
+  display: block; font-weight: 600; font-size: 0.95rem; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Armamento arriba, reglas y equipo abajo. Con tamano fijo el sobrante hay que
    ponerlo en algun sitio: repartido entre los dos bloques se lee como una carta
@@ -581,12 +588,19 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 
 /* Armamento: a todo el ancho, que es la informacion que mas se consulta. */
-.ucard-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; flex: 0 0 auto; }
+.ucard-table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 0.85rem; flex: 0 0 auto;
+  /* Enmarcado como en kt-cartas, pero en la tinta de la carta y no en el color
+     de realce: el acento vale para una raya o una etiqueta, y como relleno de
+     media carta se come todo lo demas. */
+  border: 1px solid var(--ucard-tinta); border-radius: 1mm; overflow: hidden;
+}
 .ucard-table thead th {
   background: var(--ucard-tinta); color: var(--ucard-papel);
   font-family: "Saira Condensed", sans-serif;
   font-weight: 700; font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase;
-  padding: 4px 8px; text-align: left;
+  padding: 3px 8px; text-align: left;
 }
 .ucard-table td { padding: 4px 8px; vertical-align: top; }
 .ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
