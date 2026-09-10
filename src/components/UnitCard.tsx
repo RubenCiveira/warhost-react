@@ -338,38 +338,51 @@ export default function UnitCard({
   const densidadOpciones = hoja ? pasoDeOpciones(sections, weapons.length, unit.rules.length, gear.length) : "";
   // En la ficha grande las opciones van dentro; en la de mesa no caben y
   // cuelgan del marco.
+  const listaDeSecciones = (
+    <div className="ucard-secciones">
+      {sections.map((section) => (
+        <div key={section.id ?? section.uid} className="ucard-section">
+          <p className="ucard-section-head">
+            {section.label}
+            {limitLabel(section) ? <span className="ucard-limit"> · {limitLabel(section)}</span> : null}
+          </p>
+          <ul className="ucard-option-list">
+            {(section.options ?? []).map((option) => (
+              <li key={optionId(option)}>
+                <OpcionTexto option={option} conTexto={conTexto} onAbrir={onHabilidad} />
+                {optionAction ? (
+                  optionAction(section, option)
+                ) : (
+                  <span className="ucard-price">
+                    {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+
+  // En la ficha de faccion las opciones estan siempre a la vista: es lo que se
+  // viene a leer, y en papel un desplegable no se puede abrir. Alli el titulo
+  // es un rotulo. Fuera de la ficha si se pliega, porque la carta de mesa
+  // ensena la unidad ya configurada y las opciones son consulta.
   const opciones =
-    sections.length > 0 && (variant === "catalogo" || optionAction) ? (
-      <details className="ucard-options" open={hoja || optionsOpen}>
+    sections.length === 0 || (variant !== "catalogo" && !optionAction) ? null : hoja ? (
+      <div className="ucard-options">
+        <p className="ucard-options-title">Opciones</p>
+        {listaDeSecciones}
+      </div>
+    ) : (
+      <details className="ucard-options" open={optionsOpen}>
         <summary>
           {optionsLabel ?? "Como configurarla"} <span className="ucard-count">({sections.length} secciones)</span>
         </summary>
-        <div className="ucard-secciones">
-          {sections.map((section) => (
-            <div key={section.id ?? section.uid} className="ucard-section">
-              <p className="ucard-section-head">
-                {section.label}
-                {limitLabel(section) ? <span className="ucard-limit"> · {limitLabel(section)}</span> : null}
-              </p>
-              <ul className="ucard-option-list">
-                {(section.options ?? []).map((option) => (
-                  <li key={optionId(option)}>
-                    <OpcionTexto option={option} conTexto={conTexto} onAbrir={onHabilidad} />
-                    {optionAction ? (
-                      optionAction(section, option)
-                    ) : (
-                      <span className="ucard-price">
-                        {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        {listaDeSecciones}
       </details>
-    ) : null;
+    );
 
   return (
     <div className={hoja ? "ucard-wrap hoja" : "ucard-wrap"}>

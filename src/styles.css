@@ -723,6 +723,14 @@ label.check.tiny input { margin: 0; }
   font-family: "Saira Condensed", sans-serif;
   font-weight: 700; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase;
 }
+/* En la ficha las opciones no se pliegan, asi que esto es un rotulo y no un
+   mando: misma tipografia que los demas rotulos de la carta, sin color de
+   accion ni cursor que invite a pulsarlo. */
+.ucard-options-title {
+  margin: 0 0 1mm; color: var(--ucard-tenue);
+  font-family: "Saira Condensed", sans-serif;
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
 .ucard-section { margin-top: 8px; }
 .ucard-section-head { margin: 0 0 3px; font-size: 0.8rem; font-weight: 600; }
 .ucard-limit { color: var(--ucard-tenue); font-weight: 400; }
@@ -1132,7 +1140,7 @@ label.check.tiny input { margin: 0; }
    no entrarian. Las secciones no se parten entre columnas. */
 .ucard-opciones-dentro { flex: 1; min-height: 0; overflow: hidden; }
 .ucard.hoja .ucard-options { margin-top: 0; border-top: 0.3mm solid var(--ucard-filete); padding-top: 1.6mm; }
-.ucard.hoja .ucard-options summary { font-size: 2.6mm; color: var(--ucard-tenue); cursor: default; }
+.ucard.hoja .ucard-options-title { font-size: 2.6mm; }
 .ucard.hoja .ucard-secciones { columns: 3; column-gap: 4mm; margin-top: 1.4mm; }
 .ucard.hoja .ucard-section { margin: 0 0 2mm; break-inside: avoid; }
 .ucard.hoja .ucard-section-head { font-size: 2.9mm; }

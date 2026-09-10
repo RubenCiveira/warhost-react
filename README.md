@@ -227,6 +227,11 @@ consulta en turno. Pero una unidad **sin** configurar se mira para elegir, y
 entonces lo importante son sus opciones —hay unidades con 35 repartidas en 8
 secciones—, que no caben en 120 x 70 mm.
 
+En la ficha las opciones estan **siempre a la vista**, y su titulo es un rotulo
+—"Opciones"— y no un desplegable: es lo que se viene a leer, y en papel un
+desplegable no se puede abrir. Fuera de la ficha si se pliega, porque la carta
+de mesa ensena la unidad ya configurada y sus opciones son consulta.
+
 Asi que la vista de faccion y el asistente de anadir unidades usan otro formato:
 **190 x 134 mm**, el ancho util de un A4 y la mitad de su alto, con las opciones
 dentro de la propia ficha en tres columnas. Dos por hoja, sin cortar ninguna.
