@@ -11,11 +11,29 @@ import { baseLoadout } from "./loadout";
  * `coreType` las que vienen del reglamento, y deja en nulo las suyas. Sobre 14
  * libros de Grimdark Future, el 56% de las reglas son exclusivas de una faccion.
  */
-export function habilidadesDeFaccion(book: ArmyBook | null, glosario: Map<string, CatalogRule>): CatalogRule[] {
-  if (!book?.ruleNames?.length) return [];
-  return book.ruleNames
+export function habilidadesDeFaccion(
+  book: ArmyBook | null,
+  glosario: Map<string, CatalogRule>,
+  units: ArmyUnit[] = [],
+): CatalogRule[] {
+  // Lo que publica el libro es la respuesta buena. Pero un libro que aun no se
+  // haya vuelto a volcar no lo lleva, y entonces no es que no tenga reglas
+  // propias: es que no lo sabemos. En ese caso se deducen de las que usan sus
+  // unidades, que se queda corto —no incluye las publicadas y no usadas— pero
+  // no miente diciendo que no hay ninguna.
+  const nombres = book?.ruleNames?.length
+    ? book.ruleNames
+    : [...new Set(units.flatMap((unit) => unit.rules ?? []).map((etiqueta) => etiqueta.replace(/\(.*\)$/, "").trim()))];
+
+  const vistas = new Set<string>();
+  return nombres
     .map((nombre) => glosario.get(nombre.toLowerCase()))
-    .filter((regla): regla is CatalogRule => Boolean(regla) && regla!.coreType === null)
+    .filter((regla): regla is CatalogRule => {
+      if (!regla || regla.coreType !== null) return false;
+      if (vistas.has(regla.$id)) return false;
+      vistas.add(regla.$id);
+      return true;
+    })
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
 

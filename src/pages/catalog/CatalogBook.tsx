@@ -83,7 +83,7 @@ export default function CatalogBook() {
   // Cada faccion existe una vez por modo de juego, y su contenido difiere.
   const bookSystem = getGameSystem(book?.gameSystem);
   const hechizos = useMemo(() => parseSpells(book?.spells ?? null), [book]);
-  const habilidades = useMemo(() => habilidadesDeFaccion(book, glosario), [book, glosario]);
+  const habilidades = useMemo(() => habilidadesDeFaccion(book, glosario, units), [book, glosario, units]);
   const equipo = useMemo(() => equipoDeFaccion(units), [units]);
 
   const upload = useCallback(

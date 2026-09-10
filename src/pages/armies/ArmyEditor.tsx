@@ -222,7 +222,10 @@ export default function ArmyEditor() {
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
   const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
-  const habilidades = useMemo(() => habilidadesDeFaccion(libro, glosario), [libro, glosario]);
+  const habilidades = useMemo(
+    () => habilidadesDeFaccion(libro, glosario, unidadesLibro),
+    [libro, glosario, unidadesLibro],
+  );
   const equipo = useMemo(() => equipoDeFaccion(unidadesLibro), [unidadesLibro]);
 
   /**
