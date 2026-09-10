@@ -75,8 +75,12 @@ export default function ArmyEditor() {
   const abriendoBorrador = useRef<Promise<Army> | null>(null);
   /** Se esta trabajando sobre el borrador, o mirando la version publicada. */
   const [viendoBorrador, setViendoBorrador] = useState(false);
-  /** Hay que preguntar que hacer con el borrador que se acaba de encontrar. */
-  const [decidirBorrador, setDecidirBorrador] = useState(false);
+  /**
+   * De donde sale la pregunta sobre el borrador. Al entrar hay que decidir si o
+   * si: cerrar sin elegir dejaria la edicion bloqueada sin que se sepa por que.
+   * Reabierta desde la barra ya se sabe, y basta con poder cerrarla.
+   */
+  const [decidirBorrador, setDecidirBorrador] = useState<"entrada" | "peticion" | null>(null);
 
   useEffect(() => {
     if (!armyId) return;
@@ -89,7 +93,7 @@ export default function ArmyEditor() {
         // Se entra siempre viendo la version publicada; si hay un borrador a
         // medias se pregunta que hacer con el antes de tocar nada.
         mostrar(row);
-        setDecidirBorrador(Boolean(pendiente));
+        setDecidirBorrador(pendiente ? "entrada" : null);
       })
       .catch((err: unknown) => !cancelled && setError(errorMessage(err)))
       .finally(() => !cancelled && setLoading(false));
@@ -128,18 +132,13 @@ export default function ArmyEditor() {
     };
   }, [menuOpen]);
 
-  // Cerrar el popup del borrador con Escape equivale a ignorarlo.
+  // La pregunta de entrada no se puede esquivar; la reabierta a peticion si.
   useEffect(() => {
-    if (!decidirBorrador) return undefined;
-    const conEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (army) mostrar(army);
-      setViendoBorrador(false);
-      setDecidirBorrador(false);
-    };
+    if (decidirBorrador !== "peticion") return undefined;
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setDecidirBorrador(null);
     document.addEventListener("keydown", conEscape);
     return () => document.removeEventListener("keydown", conEscape);
-  }, [decidirBorrador, army, mostrar]);
+  }, [decidirBorrador]);
 
   useEffect(() => {
     if (!importOpen) return undefined;
@@ -306,13 +305,13 @@ export default function ArmyEditor() {
   function continuarBorrador() {
     if (draft) mostrar(draft);
     setViendoBorrador(true);
-    setDecidirBorrador(false);
+    setDecidirBorrador(null);
   }
 
   function ignorarBorrador() {
     if (army) mostrar(army);
     setViendoBorrador(false);
-    setDecidirBorrador(false);
+    setDecidirBorrador(null);
   }
 
   /** Acepta el borrador: pasa a ser el ejercito y el anterior queda archivado. */
@@ -341,7 +340,7 @@ export default function ArmyEditor() {
       await discardDraft(draft);
       setDraft(null);
       setViendoBorrador(false);
-      setDecidirBorrador(false);
+      setDecidirBorrador(null);
       mostrar(army);
       setNotice("Borrador descartado.");
     } catch (err) {
@@ -401,7 +400,7 @@ export default function ArmyEditor() {
 
         <div className="army-bar-actions">
           {draft && !viendoBorrador ? (
-            <button type="button" className="primary" onClick={() => setDecidirBorrador(true)}>
+            <button type="button" className="primary" onClick={() => setDecidirBorrador("peticion")}>
               Borrador
             </button>
           ) : null}
@@ -515,7 +514,7 @@ export default function ArmyEditor() {
           role="dialog"
           aria-modal="true"
           aria-label="Borrador pendiente"
-          onClick={ignorarBorrador}
+          onClick={decidirBorrador === "peticion" ? () => setDecidirBorrador(null) : undefined}
         >
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Borrador sin aplicar</h2>
@@ -524,17 +523,24 @@ export default function ArmyEditor() {
               {draft.updatedAt ? `, de ${formatDateTime(draft.updatedAt)}` : ""}. Estas viendo la version publicada, y
               no se puede editar sin decidir antes que hacer con el.
             </p>
-            <div className="row">
+            <div className="stack">
+              <button type="button" className="primary" onClick={continuarBorrador}>
+                {decidirBorrador === "entrada" ? "Continuar editando el borrador" : "Editar el borrador"}
+              </button>
+              {decidirBorrador === "entrada" ? (
+                <button type="button" onClick={ignorarBorrador}>
+                  Ignorar el borrador y ver el ejercito
+                </button>
+              ) : null}
               <button type="button" className="danger" disabled={busy} onClick={() => void onDiscard()}>
                 Descartar el borrador
               </button>
-              <button type="button" className="primary" onClick={continuarBorrador}>
-                Editar el borrador
-              </button>
             </div>
-            <p className="small muted" style={{ marginTop: 12, marginBottom: 0 }}>
-              Si cierras sin elegir, el borrador se queda como esta y podras volver desde el boton Borrador.
-            </p>
+            {decidirBorrador === "entrada" ? (
+              <p className="small muted" style={{ marginTop: 12, marginBottom: 0 }}>
+                Ignorarlo no lo borra: podras volver a el desde el boton Borrador.
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
