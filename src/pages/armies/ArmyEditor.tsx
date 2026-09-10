@@ -411,11 +411,6 @@ export default function ArmyEditor() {
               Borrador
             </button>
           ) : null}
-          {draft && viendoBorrador ? (
-            <button type="button" className="ghost tiny" onClick={() => void onDiscard()} disabled={busy}>
-              Descartar
-            </button>
-          ) : null}
           {ignorandoBorrador ? null : (
             <button
               type="button"
@@ -454,6 +449,20 @@ export default function ArmyEditor() {
                   >
                     Importar desde Army Forge
                   </button>
+                  {draft && viendoBorrador ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="danger"
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void onDiscard();
+                      }}
+                    >
+                      Descartar el borrador
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     role="menuitem"
