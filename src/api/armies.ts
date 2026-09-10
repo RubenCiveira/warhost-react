@@ -98,9 +98,35 @@ export async function updateArmy(armyId: string, draft: Partial<ArmyDraft>): Pro
   });
 }
 
+/**
+ * Borra el ejercito entero: la version publicada, su borrador y todo el
+ * historial. Borrar solo la fila activa dejaria las demas huerfanas, y el
+ * borrador seguiria apareciendo al abrir esa linea.
+ */
 export async function deleteArmy(army: Army): Promise<void> {
-  await Promise.all(army.imageIds.map((fileId) => deleteImage(fileId).catch(() => undefined)));
-  await tables.deleteRow({ databaseId: env.databaseId, tableId: TABLES.armies, rowId: army.$id });
+  const lineageId = army.lineageId ?? army.$id;
+  const versiones = await listLineage(lineageId);
+  const filas = versiones.length > 0 ? versiones : [army];
+
+  // Las imagenes se comparten entre versiones, asi que se borra cada fichero
+  // una sola vez.
+  const ficheros = new Set(filas.flatMap((fila) => fila.imageIds ?? []));
+  await Promise.all([...ficheros].map((fileId) => deleteImage(fileId).catch(() => undefined)));
+  await Promise.all(
+    filas.map((fila) =>
+      tables.deleteRow({ databaseId: env.databaseId, tableId: TABLES.armies, rowId: fila.$id }),
+    ),
+  );
+}
+
+/** Todas las versiones de un ejercito: activa, borrador y archivadas. */
+export async function listLineage(lineageId: string): Promise<Army[]> {
+  const result = await tables.listRows<Army>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armies,
+    queries: [Query.equal("lineageId", lineageId), Query.orderDesc("version"), Query.limit(100)],
+  });
+  return result.rows;
 }
 
 export async function uploadImage(userId: string, file: File): Promise<string> {

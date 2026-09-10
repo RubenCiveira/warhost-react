@@ -27,6 +27,7 @@ import type { Army } from "../../lib/types";
 import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
+import ConfirmDialog from "../../components/ConfirmDialog";
 
 interface FormState {
   name: string;
@@ -67,6 +68,8 @@ export default function ArmyEditor() {
   const [draft, setDraft] = useState<Army | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  /** Accion destructiva a la espera de confirmacion. */
+  const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
    * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
@@ -457,7 +460,7 @@ export default function ArmyEditor() {
                       disabled={busy}
                       onClick={() => {
                         setMenuOpen(false);
-                        void onDiscard();
+                        setConfirmando("descartar");
                       }}
                     >
                       Descartar el borrador
@@ -468,7 +471,10 @@ export default function ArmyEditor() {
                     role="menuitem"
                     className="danger"
                     disabled={busy}
-                    onClick={() => void onDelete()}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmando("borrar");
+                    }}
                   >
                     Borrar ejercito
                   </button>
@@ -550,7 +556,7 @@ export default function ArmyEditor() {
                   Ignorar el borrador y ver el ejercito
                 </button>
               ) : null}
-              <button type="button" className="danger" disabled={busy} onClick={() => void onDiscard()}>
+              <button type="button" className="danger" disabled={busy} onClick={() => setConfirmando("descartar")}>
                 Descartar el borrador
               </button>
             </div>
@@ -561,6 +567,44 @@ export default function ArmyEditor() {
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {confirmando === "descartar" && draft ? (
+        <ConfirmDialog
+          title="Descartar el borrador"
+          confirmLabel="Descartar"
+          danger
+          busy={busy}
+          onCancel={() => setConfirmando(null)}
+          onConfirm={() => {
+            setConfirmando(null);
+            void onDiscard();
+          }}
+        >
+          <p>
+            Se perderan los cambios sin aplicar de <strong>{draft.name}</strong>. El ejercito publicado se queda como
+            esta.
+          </p>
+        </ConfirmDialog>
+      ) : null}
+
+      {confirmando === "borrar" && army ? (
+        <ConfirmDialog
+          title="Borrar el ejercito"
+          confirmLabel="Borrar"
+          danger
+          busy={busy}
+          onCancel={() => setConfirmando(null)}
+          onConfirm={() => {
+            setConfirmando(null);
+            void onDelete();
+          }}
+        >
+          <p>
+            Se borra <strong>{army.name}</strong> entero: la version publicada, su borrador si lo hay y todas las
+            versiones archivadas. No se puede deshacer.
+          </p>
+        </ConfirmDialog>
       ) : null}
 
       {importOpen ? (
