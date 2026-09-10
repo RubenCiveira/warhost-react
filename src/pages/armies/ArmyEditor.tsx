@@ -22,7 +22,7 @@ import {
 } from "../../api/armyForge";
 import type { Army } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
-import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
+import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 
 interface FormState {
@@ -215,21 +215,98 @@ export default function ArmyEditor() {
 
   return (
     <>
-      <PageHead
-        title={army ? army.name : "Nuevo ejercito"}
-        sub={army ? "Edita los datos o vuelve a importar la lista." : "Crealo a mano o importalo desde Army Forge."}
-        actions={
-          army ? (
-            <button type="button" className="ghost danger" onClick={() => void onDelete()} disabled={busy}>
+      <header className="army-bar">
+        <div className="army-bar-main">
+          <input
+            className="army-bar-name"
+            value={form.name}
+            aria-label="Nombre del ejercito"
+            placeholder="Nombre del ejercito"
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <p className="army-bar-sub small muted">
+            {form.faction || "Sin faccion"}
+            {getGameSystem(form.gameSystem) ? ` · ${getGameSystem(form.gameSystem)?.name}` : ""}
+          </p>
+        </div>
+
+        <div className="army-bar-stats">
+          <div className="army-stat">
+            <span className="army-stat-key">Puntos</span>
+            <span className="army-stat-value mono">{form.points}</span>
+          </div>
+          <div className="army-stat">
+            <span className="army-stat-key">Miniaturas</span>
+            <span className="army-stat-value mono">{form.modelCount}</span>
+          </div>
+          <div className="army-stat">
+            <span className="army-stat-key">Unidades</span>
+            <span className="army-stat-value mono">{units.length}</span>
+          </div>
+        </div>
+
+        <div className="army-bar-actions">
+          {armyId && bookKey ? (
+            <Link to={`/ejercitos/${armyId}/unidades`} className="button-link">
+              Anadir o cambiar unidades
+            </Link>
+          ) : null}
+          <button type="submit" form="army-form" className="primary" disabled={busy}>
+            {busy ? "Guardando…" : "Guardar"}
+          </button>
+          {army ? (
+            <button type="button" className="ghost danger tiny" onClick={() => void onDelete()} disabled={busy}>
               Borrar
             </button>
-          ) : null
-        }
-      />
+          ) : null}
+        </div>
+      </header>
+
       <ErrorBanner error={error} />
       {notice ? <div className="banner ok">{notice}</div> : null}
+      {armyId && !bookKey ? (
+        <p className="small muted">
+          Este ejercito se importo de Army Forge y no guarda de que faccion del catalogo viene, asi que no se pueden
+          anadir unidades desde aqui. Editalo en Army Forge y vuelve a importarlo, o crea uno nuevo desde su faccion.
+        </p>
+      ) : null}
 
-      <form onSubmit={onSubmit} className="stack">
+      {units.length > 0 ? (
+        <div className="army-strip">
+          {units.map((unit) => (
+            <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-slide">
+              <UnitCard
+                variant="ejercito"
+                upgrades={unit.upgrades ?? []}
+                unit={{
+                  name: unit.name,
+                  size: unit.size,
+                  quality: unit.quality,
+                  defense: unit.defense,
+                  cost: unit.cost,
+                  maxWounds: unit.maxWounds,
+                  rules: unit.rules,
+                  loadout: unit.loadout,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title="Este ejercito no tiene unidades todavia">
+          <p className="muted">
+            {bookKey
+              ? "Anadelas desde su faccion, o importa una lista de Army Forge."
+              : "Importa una lista de Army Forge, o crealo desde una faccion del catalogo."}
+          </p>
+        </EmptyState>
+      )}
+
+      {/* La vista es de consulta: los datos y las imagenes se pliegan para que
+          las cartas lleven el peso, y se abren cuando hay algo que cambiar. */}
+      <details className="army-details" open={!army}>
+        <summary>Datos, importacion e imagenes</summary>
+        <form id="army-form" onSubmit={onSubmit} className="stack">
         <section className="card">
           <h2>Importar desde Army Forge</h2>
           <p className="muted small">
@@ -352,58 +429,13 @@ export default function ArmyEditor() {
           ) : null}
         </section>
 
-        {units.length > 0 ? (
-          <section className="card">
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Unidades ({units.length})</h2>
-              {armyId && bookKey ? (
-                <Link to={`/ejercitos/${armyId}/unidades`} className="button-link">
-                  Anadir o cambiar unidades
-                </Link>
-              ) : null}
-            </div>
-            {armyId && !bookKey ? (
-              <p className="small muted">
-                Este ejercito se importo de Army Forge y no guarda de que faccion del catalogo viene, asi que no se
-                pueden anadir unidades desde aqui. Editalo en Army Forge y vuelve a importarlo, o crea uno nuevo desde
-                su faccion.
-              </p>
-            ) : null}
-            <div className="ucard-grid">
-              {units.map((unit) => (
-                <UnitCard
-                  key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`}
-                  variant="ejercito"
-                  upgrades={unit.upgrades ?? []}
-                  unit={{
-                    name: unit.name,
-                    size: unit.size,
-                    quality: unit.quality,
-                    defense: unit.defense,
-                    cost: unit.cost,
-                    maxWounds: unit.maxWounds,
-                    rules: unit.rules,
-                    loadout: unit.loadout,
-                  }}
-                  footer={
-                    unit.loadout && (unit.loadout as unknown[]).length > 0 ? null : (
-                      <span className="small muted">
-                        Esta lista se guardo antes de que se calculara el equipamiento. Vuelve a importarla para verlo.
-                      </span>
-                    )
-                  }
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
         <div className="row">
           <button type="submit" className="primary" disabled={busy}>
             {busy ? "Guardando…" : "Guardar"}
           </button>
         </div>
       </form>
+      </details>
     </>
   );
 }

@@ -433,3 +433,11 @@ a.button-link:hover { text-decoration: none; opacity: 0.9; }
   .army-bar { top: 44px; }
   .picker-grid { grid-template-columns: 1fr; }
 }
+
+.army-details { margin-top: 8px; }
+.army-details > summary {
+  cursor: pointer; color: var(--accent); padding: 8px 0;
+  font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.army-details > form { margin-top: 8px; }
