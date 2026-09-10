@@ -16,6 +16,7 @@
     "preview:cards": "node scripts/preview-cards.mjs",
     "check:cards": "node scripts/check-cards.mjs",
     "test:reemplazos": "node scripts/test-reemplazos.mjs",
+    "test:loadout": "node scripts/test-loadout.mjs",
     "audit:armies": "node scripts/audit-armies.mjs",
     "preview:spells": "node scripts/preview-spells.mjs",
     "test:faccion": "node scripts/test-faccion.mjs",

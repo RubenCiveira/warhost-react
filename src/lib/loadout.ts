@@ -108,6 +108,21 @@ function add(entries: LoadoutEntry[], entry: LoadoutEntry): void {
 }
 
 /**
+ * Que clase de arma da una opcion: cuerpo a cuerpo o a distancia. Se usa para,
+ * cuando el objetivo de un reemplazo no aparece tal cual, decidir sobre que
+ * arma equivalente de la unidad aplicarlo.
+ */
+type FormaArma = "cuerpo" | "distancia";
+
+function formaDelArma(gains: Gain[]): FormaArma | null {
+  const arma = gains.find(
+    (gain) => gain.type !== "ArmyBookRule" && gain.type !== "ArmyBookItem" && (gain.label ?? gain.name),
+  );
+  if (!arma) return null;
+  return typeof arma.range === "number" && arma.range > 0 ? "distancia" : "cuerpo";
+}
+
+/**
  * Busca lo que una seccion dice reemplazar.
  *
  * Army Forge escribe el objetivo tal como suena en la frase, asi que una
@@ -115,8 +130,16 @@ function add(entries: LoadoutEntry[], entry: LoadoutEntry): void {
  * el equipo se llama "Adrenaline Fueled". Sin tolerar ese plural, 883 de los
  * 6193 objetivos del catalogo no encuentran nada y el reemplazo no quita nada
  * en absoluto, que es peor que quitar de menos.
+ *
+ * Cuando aun asi no aparece, el unico candidato evidente es el CCW: el arma de
+ * cuerpo a cuerpo que todo modelo lleva de serie y sobre la que encadenan los
+ * reemplazos ("Replace Energy Sword" elegido sin haber cogido antes el Energy
+ * Sword cae sobre el CCW). Solo vale si la opcion da un arma de cuerpo a
+ * cuerpo. Para las armas a distancia no hay equivalente universal, y adivinar
+ * —cambiar un "Heavy Rifle" quitando el "Heavy Pistol" de serie— quita lo que
+ * no toca y ademas deja de ser consistente en cuanto se anade la primera copia.
  */
-function findTarget(entries: LoadoutEntry[], name: string): number {
+function findTarget(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): number {
   const busca = (aguja: string) =>
     entries.findIndex(
       (entry) => entry.name.toLowerCase() === aguja.toLowerCase() || entry.label.toLowerCase() === aguja.toLowerCase(),
@@ -124,12 +147,16 @@ function findTarget(entries: LoadoutEntry[], name: string): number {
 
   const exacto = busca(name);
   if (exacto !== -1) return exacto;
-  return name.endsWith("s") ? busca(name.slice(0, -1)) : -1;
+  const singular = name.endsWith("s") ? busca(name.slice(0, -1)) : -1;
+  if (singular !== -1) return singular;
+
+  if (forma !== "cuerpo") return -1;
+  return entries.findIndex((entry) => entry.kind === "weapon" && entry.name.toLowerCase() === "ccw");
 }
 
 /** Quita una unidad del arma indicada, si la unidad la lleva. */
-function removeOne(entries: LoadoutEntry[], name: string): void {
-  const index = findTarget(entries, name);
+function removeOne(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): void {
+  const index = findTarget(entries, name, forma);
   if (index === -1) return;
   const entry = entries[index];
   if (entry.count > 1) entry.count -= 1;
@@ -137,8 +164,8 @@ function removeOne(entries: LoadoutEntry[], name: string): void {
 }
 
 /** Quita todas las que lleve, y dice cuantas eran. */
-function removeAll(entries: LoadoutEntry[], name: string): number {
-  const index = findTarget(entries, name);
+function removeAll(entries: LoadoutEntry[], name: string, forma: FormaArma | null = null): number {
+  const index = findTarget(entries, name, forma);
   if (index === -1) return 0;
   const cuantas = entries[index].count;
   entries.splice(index, 1);
@@ -157,13 +184,14 @@ export function applyOptions(base: LoadoutEntry[], options: AppliedOption[]): Lo
     // lo que se gana viene multiplicado por lo que se quito: tres modelos que
     // cambian su equipo acaban con tres del nuevo, no con uno.
     const todas = option.variant === "replace" && option.affects?.type === "all";
+    const forma = formaDelArma(option.gains ?? []);
 
     for (let i = 0; i < option.count; i += 1) {
       let quitadas = 1;
       if (option.variant === "replace") {
         for (const target of option.targets ?? []) {
-          if (todas) quitadas = Math.max(quitadas, removeAll(result, target));
-          else removeOne(result, target);
+          if (todas) quitadas = Math.max(quitadas, removeAll(result, target, forma));
+          else removeOne(result, target, forma);
         }
       }
       for (const gain of option.gains ?? []) {
