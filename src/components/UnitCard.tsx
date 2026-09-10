@@ -5,13 +5,22 @@ import { maxDistinctOptions, maxPicks, optionCost, optionId } from "../lib/build
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 
 /**
- * Ficha de unidad con aire de carta de juego: apaisada, clara sobre el fondo
- * oscuro, con banda de titulo, atributos en cajas y el armamento en tabla.
+ * Ficha de unidad como carta de juego: apaisada y de tamano fijo, con la
+ * proporcion 121x70 de kt-cartas. Dentro, el armamento a todo el ancho y debajo
+ * dos columnas, reglas y equipo.
  *
- * Sirve para dos cosas que se parecen mucho pero no son iguales:
- *   - `catalogo`: la unidad como la ofrece el libro, con sus opciones y precios.
- *   - `ejercito`: una unidad ya configurada, con el equipo que le quedo.
+ * El tamano es fijo de verdad, no "hasta donde llegue el contenido": la carta
+ * mide siempre lo mismo y en pantallas estrechas se encoge entera, como un
+ * naipe. Cabe lo que cabe en una carta, que segun el catalogo cubre el 99% de
+ * las unidades; lo que sobra se resume en una linea en vez de estirar la caja.
+ *
+ * Lo que no es perfil de la unidad —las mejoras compradas, las opciones de
+ * configuracion, los botones— vive fuera del marco, debajo. La carta es el
+ * objeto de consulta; lo demas es anotacion sobre ella.
  */
+
+/** Armas que caben en el cuerpo de la carta sin apretar la tipografia. */
+const ARMAS_VISIBLES = 4;
 
 export interface UnitCardData {
   name: string;
@@ -27,17 +36,10 @@ export interface UnitCardData {
 interface Props {
   unit: UnitCardData;
   variant: "catalogo" | "ejercito";
-  /** Secciones de mejora de la unidad. */
   sections?: UpgradeSection[];
   unitId?: string;
-  /** Solo en `ejercito`: las opciones que se compraron. */
   upgrades?: string[];
-  /**
-   * Sustituye el precio de cada opcion por un control propio. Es lo que
-   * convierte la carta de consulta en la del constructor, sin duplicarla.
-   */
   optionAction?: (section: UpgradeSection, option: UpgradeOption) => ReactNode;
-  /** Abre el bloque de opciones de entrada. */
   optionsOpen?: boolean;
   optionsLabel?: string;
   footer?: ReactNode;
@@ -71,120 +73,140 @@ export default function UnitCard({
   const loadout = normalizeLoadout(unit.loadout);
   const weapons = loadout.filter((entry) => entry.kind === "weapon");
   const gear = loadout.filter((entry) => entry.kind === "gear");
+  const visibles = weapons.slice(0, ARMAS_VISIBLES);
+  const ocultas = weapons.length - visibles.length;
 
   const stats: Array<[string, string]> = [
-    ["MIN", String(unit.size)],
-    ["CAL", `${unit.quality}+`],
-    ["DEF", `${unit.defense}+`],
+    ["Min", String(unit.size)],
+    ["Cal", `${unit.quality}+`],
+    ["Def", `${unit.defense}+`],
   ];
-  if (unit.maxWounds !== undefined) stats.push(["HER", String(unit.maxWounds)]);
-  if (unit.cost !== undefined) stats.push(["PTS", String(unit.cost)]);
+  if (unit.maxWounds !== undefined) stats.push(["Her", String(unit.maxWounds)]);
+  if (unit.cost !== undefined) stats.push(["Pts", String(unit.cost)]);
 
   return (
-    <article className={`ucard ucard-${variant}`}>
-      <header className="ucard-head">
-        <h3 className="ucard-title">{unit.name}</h3>
-        <div className="ucard-stats">
-          {stats.map(([label, value]) => (
-            <div key={label} className="ucard-stat">
-              <span className="ucard-stat-key">{label}</span>
-              <span className="ucard-stat-value">{value}</span>
+    <div className="ucard-wrap">
+      <div className="ucard-frame">
+        <article className={`ucard ucard-${variant}`}>
+          <header className="ucard-head">
+            <h3 className="ucard-title">{unit.name}</h3>
+            <div className="ucard-stats">
+              {stats.map(([label, value]) => (
+                <div key={label} className="ucard-stat">
+                  <span className="ucard-stat-key">{label}</span>
+                  <span className="ucard-stat-value">{value}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </header>
+          </header>
 
-      <div className="ucard-body">
-        {weapons.length > 0 ? (
-          <table className="ucard-table">
-            <thead>
-              <tr>
-                <th>Arma</th>
-                <th className="num">Alc.</th>
-                <th className="num">Atq.</th>
-                <th>Reglas de arma</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weapons.map((weapon, index) => (
-                <tr key={`${weapon.label}-${index}`}>
-                  <td>
-                    {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
-                    {weapon.name}
-                  </td>
-                  <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
-                  <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>
-                  <td className="ucard-wrules">{weapon.rules.join(", ") || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {gear.length > 0 ? (
-          <p className="ucard-line">
-            <span className="ucard-label">Equipo</span>
-            {gear
-              .map((item) => `${item.count > 1 ? `${item.count}× ` : ""}${item.name}${item.rules.length ? ` (${item.rules.join(", ")})` : ""}`)
-              .join(" · ")}
-          </p>
-        ) : null}
-
-        {unit.rules.length > 0 ? (
-          <p className="ucard-line">
-            <span className="ucard-label">Reglas</span>
-            <span className="ucard-tags">
-              {unit.rules.map((rule) => (
-                <span key={rule} className="ucard-tag">
-                  {rule}
-                </span>
-              ))}
-            </span>
-          </p>
-        ) : null}
-
-        {variant === "ejercito" && upgrades.length > 0 ? (
-          <p className="ucard-line">
-            <span className="ucard-label">Mejoras</span>
-            {upgrades.join(" · ")}
-          </p>
-        ) : null}
-
-        {sections.length > 0 && (variant === "catalogo" || optionAction) ? (
-          <details className="ucard-options" open={optionsOpen}>
-            <summary>
-              {optionsLabel ?? "Como configurarla"}{" "}
-              <span className="ucard-count">({sections.length} secciones)</span>
-            </summary>
-            {sections.map((section) => (
-              <div key={section.id ?? section.uid} className="ucard-section">
-                <p className="ucard-section-head">
-                  {section.label}
-                  {limitLabel(section, unit.size) ? (
-                    <span className="ucard-limit"> {limitLabel(section, unit.size)}</span>
-                  ) : null}
-                </p>
-                <ul className="ucard-option-list">
-                  {(section.options ?? []).map((option) => (
-                    <li key={optionId(option)}>
-                      <span>{option.label}</span>
-                      {optionAction ? (
-                        optionAction(section, option)
-                      ) : (
-                        <span className="ucard-price">
-                          {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
-                        </span>
-                      )}
-                    </li>
+          <div className="ucard-body">
+            {weapons.length > 0 ? (
+              <table className="ucard-table">
+                <thead>
+                  <tr>
+                    <th>Arma</th>
+                    <th className="num">Alc.</th>
+                    <th className="num">Atq.</th>
+                    <th>Reglas de arma</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((weapon, index) => (
+                    <tr key={`${weapon.label}-${index}`}>
+                      <td>
+                        {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
+                        {weapon.name}
+                      </td>
+                      <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
+                      <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>
+                      <td className="ucard-wrules">{weapon.rules.join(", ") || "—"}</td>
+                    </tr>
                   ))}
-                </ul>
-              </div>
-            ))}
-          </details>
-        ) : null}
+                </tbody>
+              </table>
+            ) : null}
+            {ocultas > 0 ? (
+              <p className="ucard-mas">
+                y {ocultas} arma{ocultas === 1 ? "" : "s"} mas, en el detalle de la unidad
+              </p>
+            ) : null}
+
+            <div className={gear.length > 0 ? "ucard-cols" : "ucard-cols sin-equipo"}>
+              <section className="ucard-col">
+                <h4 className="ucard-col-title">Reglas</h4>
+                {unit.rules.length > 0 ? (
+                  <div className="ucard-tags">
+                    {unit.rules.map((rule) => (
+                      <span key={rule} className="ucard-tag">
+                        {rule}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="ucard-vacio">Ninguna</p>
+                )}
+              </section>
+
+              {gear.length > 0 ? (
+                <section className="ucard-col">
+                  <h4 className="ucard-col-title">Equipo</h4>
+                  <ul className="ucard-gear">
+                    {gear.map((item, index) => (
+                      <li key={`${item.label}-${index}`}>
+                        {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
+                        {item.name}
+                        {item.rules.length > 0 ? <span className="ucard-wrules"> ({item.rules.join(", ")})</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+          </div>
+        </article>
       </div>
 
+      {variant === "ejercito" && upgrades.length > 0 ? (
+        <p className="ucard-upgrades">
+          <span className="ucard-label">Mejoras</span>
+          {upgrades.join(" · ")}
+        </p>
+      ) : null}
+
+      {sections.length > 0 && (variant === "catalogo" || optionAction) ? (
+        <details className="ucard-options" open={optionsOpen}>
+          <summary>
+            {optionsLabel ?? "Como configurarla"} <span className="ucard-count">({sections.length} secciones)</span>
+          </summary>
+          {sections.map((section) => (
+            <div key={section.id ?? section.uid} className="ucard-section">
+              <p className="ucard-section-head">
+                {section.label}
+                {limitLabel(section, unit.size) ? (
+                  <span className="ucard-limit"> {limitLabel(section, unit.size)}</span>
+                ) : null}
+              </p>
+              <ul className="ucard-option-list">
+                {(section.options ?? []).map((option) => (
+                  <li key={optionId(option)}>
+                    <span>{option.label}</span>
+                    {optionAction ? (
+                      optionAction(section, option)
+                    ) : (
+                      <span className="ucard-price">
+                        {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </details>
+      ) : null}
+
       {footer ? <footer className="ucard-foot">{footer}</footer> : null}
-    </article>
+    </div>
   );
 }

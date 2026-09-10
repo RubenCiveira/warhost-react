@@ -25,19 +25,17 @@ function SystemPicker({ onPick }: { onPick: (id: (typeof GAME_SYSTEMS)[number]["
     return (
       <>
         <PageHead title="Elige ambientacion" sub="Tus ejercitos, partidas y reglas se filtran por lo que elijas aqui." />
-        <div className="grid">
+        <div className="setting-split">
           {Object.values(SETTINGS).map((option) => (
             <button
               key={option.id}
               type="button"
-              className="card"
-              style={{ textAlign: "left", cursor: "pointer" }}
+              className={`setting-half ${option.id}`}
               onClick={() => setSetting(option.id)}
             >
               <h2>{option.name}</h2>
-              <p className="muted small" style={{ marginBottom: 0 }}>
-                {option.blurb}
-              </p>
+              <p className="blurb">{option.blurb}</p>
+              <span className="go">Elegir</span>
             </button>
           ))}
         </div>
@@ -123,7 +121,7 @@ function Dashboard({ userId }: { userId: string }) {
             <section>
               <h2>Partida en curso</h2>
               {active.map((game) => (
-                <Link key={game.$id} to={`/partidas/${game.$id}`} className="card card-link">
+                <Link key={game.$id} to={`/partidas/${game.$id}`} className="card card-link live">
                   <div className="spread">
                     <strong>{game.name}</strong>
                     <span className="tag accent">Ronda {game.round}</span>

@@ -4,6 +4,16 @@ export function Spinner() {
   return <div className="spinner" role="status" aria-label="Cargando" />;
 }
 
+/** La linea de estadisticas del juego (C4+ / D3+) como caja: clave arriba, valor abajo. */
+export function StatBox({ k, v }: { k: string; v: string | number }) {
+  return (
+    <span className="statbox">
+      <span className="k">{k}</span>
+      <span className="v">{v}</span>
+    </span>
+  );
+}
+
 export function ErrorBanner({ error }: { error: string | null }) {
   if (!error) return null;
   return (

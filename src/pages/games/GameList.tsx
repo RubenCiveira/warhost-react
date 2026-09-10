@@ -103,7 +103,11 @@ export default function GameList() {
           {games.map((game) => {
             const roster = players[game.$id] ?? [];
             return (
-              <Link key={game.$id} to={`/partidas/${game.$id}`} className="card card-link">
+              <Link
+                key={game.$id}
+                to={`/partidas/${game.$id}`}
+                className={`card card-link${game.status === "active" ? " live" : ""}`}
+              >
                 <div className="spread">
                   <strong>{game.name}</strong>
                   <span className={`tag ${game.status === "active" ? "accent" : ""}`}>

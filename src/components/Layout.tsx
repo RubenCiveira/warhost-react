@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useGameSystem } from "../context/GameSystemContext";
+import { StatBox } from "./ui";
 
 const LINKS = [
   { to: "/", label: "Inicio", end: true },
@@ -36,7 +37,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="row small">
-          {system ? <span className="tag accent">{system.short}</span> : null}
+          {system ? <StatBox k="Modo" v={system.short} /> : null}
           <span className="muted">{user?.name || user?.email}</span>
           <button type="button" className="ghost tiny" onClick={() => void logout()}>
             Salir

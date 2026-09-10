@@ -130,3 +130,23 @@ original: la composicion se reconstruye de ahi, porque los identificadores de
 unidad y de opcion son los mismos que usa el catalogo. Lo que se pierde en esa
 reconstruccion son las unidades y opciones que ya no existan en la version
 actual del libro, y el constructor avisa de cuantas.
+
+## Mirar las cartas
+
+La carta de unidad es de **tamano fijo**, con la proporcion 121x70 de una carta
+de mesa. Eso significa que el diseno solo se puede juzgar viendola llena, y con
+las unidades que mas la aprietan, no con una de dos lineas:
+
+```bash
+pnpm preview:cards                       # Grimdark, Battle Brothers
+pnpm preview:cards <bookKey> fantasy     # la otra ambientacion
+```
+
+Dibuja el componente que se despliega con el CSS que se despliega y datos del
+catalogo, elige la unidad con mas armas, la de mas reglas y una con equipo, y
+saca una foto. Usa el Chrome del sistema, asi que Playwright no se baja el suyo.
+
+El cuerpo cabe holgado en el 99% de las unidades: el catalogo dice que como
+mucho tienen 4 armas y 7 reglas. Lo que pase de ahi se resume en una linea en
+vez de estirar la caja, porque una carta que cambia de tamano deja de ser una
+carta.

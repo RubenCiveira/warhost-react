@@ -166,9 +166,16 @@ export default function GameLive() {
       />
       <ErrorBanner error={error} />
 
-      <div className="row" style={{ marginBottom: 16 }}>
+      <div className="game-tabs" role="tablist">
         {TABS.map(([id, label]) => (
-          <button key={id} type="button" className={tab === id ? "primary" : "ghost"} onClick={() => setTab(id)}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? "primary" : "ghost"}
+            onClick={() => setTab(id)}
+          >
             {label}
           </button>
         ))}
