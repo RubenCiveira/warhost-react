@@ -982,3 +982,35 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   color: var(--ucard-trim);
 }
 .scard-tirada { font-style: italic; }
+
+/* Una regla sin texto no se disimula: se dice, y se distingue de una con el. */
+.scard-sin-texto { color: var(--ucard-tenue); font-style: italic; }
+
+/* Chips de habilidad y equipo en la carta de unidad ------------------------- */
+/* Se pulsan para abrir su carta, asi que tienen que parecer pulsables sin
+   convertirse en botones de interfaz: siguen siendo tipografia de la ficha. */
+
+.ucard-chips { display: flex; flex-wrap: wrap; gap: 1mm; }
+.ucard-chip {
+  /* Los botones del sistema van en versales condensadas; un chip no: lleva el
+     nombre propio de una regla del juego —"Battleborn"— y a 2,4 mm en caja alta
+     cuesta leerlo. Aqui manda la tipografia de la carta. */
+  font: inherit; font-size: 2.38mm; line-height: 1.25;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-weight: 500; letter-spacing: 0; text-transform: none;
+  padding: 0.6mm 1.6mm;
+  background: var(--ucard-cebra); color: var(--ucard-tinta);
+  border: 0.25mm solid var(--ucard-filete); border-radius: 0.8mm;
+  cursor: pointer;
+}
+.ucard-chip:hover:not(:disabled) { border-color: var(--ucard-trim); background: #e2dbc8; color: var(--ucard-tinta); }
+.ucard-chip:disabled { opacity: 1; cursor: default; }
+.ucard-chip:focus-visible { outline: 0.4mm solid var(--ucard-trim); outline-offset: 0.3mm; }
+.ucard-chip .valor { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 0.2mm; }
+/* Sin descripcion que enseñar: se marca en punteado y no invita a pulsar. */
+.ucard-chip.sin-texto { border-style: dashed; color: var(--ucard-tenue); }
+.ucard-chip.equipo { background: transparent; }
+
+/* La carta de una regla se abre sola, sin caja alrededor: es la carta lo que se
+   mira, no un dialogo con una carta dentro. */
+.regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }

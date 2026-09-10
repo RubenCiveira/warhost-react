@@ -31,9 +31,11 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
 import { rehydrateEntries } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { getBook } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit } from "../../api/catalog";
+import { getBook, listRuleGlossary } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
 import SpellCard from "../../components/SpellCard";
+import RuleCardModal from "../../components/RuleCardModal";
+import type { Habilidad } from "../../lib/reglas";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload } from "../../lib/armyPayload";
@@ -83,6 +85,8 @@ export default function ArmyEditor() {
   const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
   /** El libro de origen, solo para sus hechizos: el ejercito no los guarda. */
   const [libro, setLibro] = useState<ArmyBook | null>(null);
+  const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
    * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
@@ -237,7 +241,11 @@ export default function ArmyEditor() {
     // Un fallo aqui solo deja la pestana de hechizos vacia: no es motivo para
     // teñir de rojo la vista del ejercito.
     getBook(bookKey)
-      .then((row) => !cancelado && setLibro(row))
+      .then((row) => {
+        if (cancelado) return;
+        setLibro(row);
+        return listRuleGlossary(row.gameSystem).then((g) => !cancelado && setGlosario(g));
+      })
       .catch(() => !cancelado && setLibro(null));
     return () => {
       cancelado = true;
@@ -607,6 +615,8 @@ export default function ArmyEditor() {
               <UnitCard
                 variant="ejercito"
                 upgrades={unit.upgrades ?? []}
+                conTexto={new Set(glosario.keys())}
+                onHabilidad={setHabilidad}
                 unit={{
                   name: unit.name,
                   size: unit.size,
@@ -760,6 +770,10 @@ export default function ArmyEditor() {
         >
           +
         </button>
+      ) : null}
+
+      {habilidad ? (
+        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
       ) : null}
 
       {anadiendo && bookKey ? (

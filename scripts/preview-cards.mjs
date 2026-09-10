@@ -51,7 +51,9 @@ await build({
     contents: `
       import { renderToStaticMarkup } from "react-dom/server";
       import UnitCard from "./src/components/UnitCard";
+      import RuleCard from "./src/components/RuleCard";
       import { baseLoadout } from "./src/lib/loadout";
+      import { parseHabilidad } from "./src/lib/reglas";
       const UNITS = ${JSON.stringify(elegidas)};
       globalThis.__HTML__ = UNITS.map((u) =>
         renderToStaticMarkup(
@@ -64,7 +66,17 @@ await build({
             }}
           />,
         ),
-      ).join("");
+      ).join("") +
+        // Una carta de regla al lado, para ver las dos piezas juntas.
+        ${JSON.stringify(process.env.PREVIEW_RULE ?? "")}.split("|").filter(Boolean).map((x) => {
+          const [nombre, texto] = x.split("::");
+          return renderToStaticMarkup(
+            <RuleCard
+              habilidad={parseHabilidad(nombre, "regla")}
+              regla={texto ? { description: texto } : null}
+            />,
+          );
+        }).join("");
     `,
     resolveDir: process.cwd(),
     loader: "tsx",

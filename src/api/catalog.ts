@@ -236,3 +236,36 @@ export function pickCover(images: CatalogImage[] | undefined): CatalogImage | nu
   if (!images?.length) return null;
   return images.find((image) => image.isPrimary) ?? images[0];
 }
+
+export interface CatalogRule extends Row {
+  name: string;
+  gameSystem: GameSystemId;
+  setting: Setting;
+  description: string;
+  hasRating: boolean;
+  coreType: number | null;
+  sourceBook: string | null;
+}
+
+/**
+ * Glosario de reglas de un modo de juego, indexado por nombre.
+ *
+ * Es comun a todos los libros a proposito: cada uno solo describe las suyas, y
+ * juntandolos se cubre la gran mayoria de las que usan las unidades.
+ */
+export async function listRuleGlossary(gameSystem: GameSystemId): Promise<Map<string, CatalogRule>> {
+  const glosario = new Map<string, CatalogRule>();
+  let cursor: string | null = null;
+  for (;;) {
+    const queries = [Query.equal("gameSystem", gameSystem), Query.limit(100)];
+    if (cursor) queries.push(Query.cursorAfter(cursor));
+    const page: { rows: CatalogRule[] } = await tables.listRows<CatalogRule>({
+      databaseId: env.databaseId,
+      tableId: TABLES.armyRules,
+      queries,
+    });
+    for (const row of page.rows) glosario.set(row.name.toLowerCase(), row);
+    if (page.rows.length < 100) return glosario;
+    cursor = page.rows[page.rows.length - 1].$id;
+  }
+}

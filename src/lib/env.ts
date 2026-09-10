@@ -25,6 +25,7 @@ export const TABLES = {
   armyBooks: "army_books",
   armyUnits: "army_units",
   armyUpgradePackages: "army_upgrade_packages",
+  armyRules: "army_rules",
   catalogImages: "catalog_images",
 } as const;
 

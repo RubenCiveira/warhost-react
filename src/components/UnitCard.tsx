@@ -4,6 +4,8 @@ import type { LoadoutEntry } from "../lib/loadout";
 import { maxDistinctOptions, optionCost, optionId } from "../lib/builder";
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import IconoArma from "./IconoArma";
+import { parseHabilidad } from "../lib/reglas";
+import type { Habilidad } from "../lib/reglas";
 
 /**
  * Ficha de unidad como carta de juego: apaisada y de tamano fijo, con la
@@ -73,6 +75,13 @@ interface Props {
   optionsOpen?: boolean;
   optionsLabel?: string;
   footer?: ReactNode;
+  /**
+   * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
+   * marcan como del reglamento basico y no invitan a pulsar.
+   */
+  conTexto?: Set<string>;
+  /** Abrir la carta de una habilidad o de un equipo. */
+  onHabilidad?: (habilidad: Habilidad) => void;
 }
 
 /**
@@ -89,6 +98,40 @@ function limitLabel(section: UpgradeSection): string {
   return `elige ${distinct === 1 ? "una" : distinct}`;
 }
 
+/** Una habilidad o un equipo, pulsable para abrir su carta. */
+function Chip({
+  habilidad,
+  cuantos = 1,
+  conTexto,
+  onAbrir,
+}: {
+  habilidad: Habilidad;
+  cuantos?: number;
+  conTexto?: Set<string>;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  // Sin glosario cargado no se sabe cuales tienen texto: se dejan todas
+  // pulsables antes que marcarlas en falso.
+  const tieneTexto = !conTexto || conTexto.has(habilidad.nombre.toLowerCase());
+  const clases = ["ucard-chip", habilidad.tipo === "equipo" ? "equipo" : "", tieneTexto ? "" : "sin-texto"]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <button
+      type="button"
+      className={clases}
+      disabled={!onAbrir}
+      title={tieneTexto ? `Ver ${habilidad.nombre}` : `${habilidad.nombre}: regla del reglamento basico`}
+      onClick={() => onAbrir?.(habilidad)}
+    >
+      {cuantos > 1 ? <span className="ucard-count">{cuantos}×</span> : null}
+      {habilidad.nombre}
+      {habilidad.valor ? <span className="valor">({habilidad.valor})</span> : null}
+    </button>
+  );
+}
+
 export default function UnitCard({
   unit,
   variant,
@@ -99,6 +142,8 @@ export default function UnitCard({
   optionsOpen = false,
   optionsLabel,
   footer,
+  conTexto,
+  onHabilidad,
 }: Props) {
   const loadout = normalizeLoadout(unit.loadout);
   const weapons = loadout.filter((entry) => entry.kind === "weapon");
@@ -173,13 +218,16 @@ export default function UnitCard({
               <section className="ucard-col">
                 <h4 className="ucard-col-title">Reglas</h4>
                 {unit.rules.length > 0 ? (
-                  <ul className="ucard-list">
+                  <div className="ucard-chips">
                     {unit.rules.map((rule) => (
-                      <li key={rule}>
-                        <span className="ucard-term">{rule}</span>
-                      </li>
+                      <Chip
+                        key={rule}
+                        habilidad={parseHabilidad(rule, "regla")}
+                        conTexto={conTexto}
+                        onAbrir={onHabilidad}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="ucard-vacio">Ninguna</p>
                 )}
@@ -188,15 +236,17 @@ export default function UnitCard({
               {gear.length > 0 ? (
                 <section className="ucard-col">
                   <h4 className="ucard-col-title">Equipo</h4>
-                  <ul className="ucard-list">
+                  <div className="ucard-chips">
                     {gear.map((item, index) => (
-                      <li key={`${item.label}-${index}`}>
-                        {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
-                        <span className="ucard-term">{item.name}</span>
-                        {item.rules.length > 0 ? <span className="ucard-gloss"> {item.rules.join(", ")}</span> : null}
-                      </li>
+                      <Chip
+                        key={`${item.label}-${index}`}
+                        habilidad={{ ...parseHabilidad(item.name, "equipo"), concede: item.rules }}
+                        cuantos={item.count}
+                        conTexto={conTexto}
+                        onAbrir={onHabilidad}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 </section>
               ) : null}
             </div>

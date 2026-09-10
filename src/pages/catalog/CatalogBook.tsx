@@ -11,11 +11,12 @@ import {
   listBookImages,
   listUnits,
   listUpgradePackages,
+  listRuleGlossary,
   setPrimaryImage,
   targetKeyFor,
   uploadCatalogImage,
 } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit, CatalogImage } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../../api/catalog";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
@@ -23,6 +24,8 @@ import UnitCard from "../../components/UnitCard";
 import { sectionsForUnit } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
 import SpellCard from "../../components/SpellCard";
+import RuleCardModal from "../../components/RuleCardModal";
+import type { Habilidad } from "../../lib/reglas";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
@@ -38,6 +41,8 @@ export default function CatalogBook() {
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [pestana, setPestana] = useState<"unidades" | "hechizos">("unidades");
+  const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +57,11 @@ export default function CatalogBook() {
         listUpgradePackages(bookKey),
       ]);
       setBook(loadedBook);
+      // El glosario no bloquea la ficha: sin el, los chips siguen ahi y solo se
+      // quedan sin descripcion.
+      listRuleGlossary(loadedBook.gameSystem)
+        .then((g) => setGlosario(g))
+        .catch(() => undefined);
       setUnits(loadedUnits);
       setImages(loadedImages);
       setPackages(loadedPackages);
@@ -182,6 +192,10 @@ export default function CatalogBook() {
           <Link to="/facciones">Ver las facciones de {system.name}</Link>.
         </div>
       ) : null}
+      {habilidad ? (
+        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+      ) : null}
+
       {admin ? null : (
         <p className="muted small">
           Las imagenes del catalogo las mantienen los administradores. Si quieres aportar alguna, pidesela a uno.
@@ -225,6 +239,8 @@ export default function CatalogBook() {
             <div key={unit.$id} className="army-slide">
             <UnitCard
               variant="catalogo"
+              conTexto={new Set(glosario.keys())}
+              onHabilidad={setHabilidad}
               unitId={unit.unitId}
               sections={sectionsForUnit(unit, packages)}
               unit={{
