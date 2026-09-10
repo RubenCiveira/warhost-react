@@ -605,8 +605,13 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-table td { padding: 0.7mm 1.4mm; vertical-align: middle; }
 .ucard-table tbody tr:nth-child(odd) { background: var(--ucard-cebra); }
 .ucard-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ucard-table td:first-child, .ucard-wrules { overflow: hidden; text-overflow: ellipsis; }
+.ucard-table td:first-child { overflow: hidden; text-overflow: ellipsis; }
 .ucard-wrules { color: #575043; }
+/* Las reglas de arma tambien son chips: se pulsan para ver su carta. Van mas
+   apretadas que las de la unidad porque comparten fila con el perfil. */
+.ucard-chips-arma { gap: 0.7mm; }
+.ucard-chips-arma .ucard-chip { font-size: 2.2mm; padding: 0.3mm 1.1mm; }
+.ucard.hoja .ucard-chips-arma .ucard-chip { font-size: 2.5mm; padding: 0.5mm 1.4mm; }
 .ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 0.6mm; }
 .ucard-mas { margin: 0.8mm 0 0; font-size: 2.2mm; color: var(--ucard-tenue); font-style: italic; }
 
@@ -663,7 +668,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   color: var(--muted);
 }
 
-.ucard-options { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.ucard-options { margin-top: 8px; border-top: 1px solid var(--ucard-filete); padding-top: 8px; }
 .ucard-options summary {
   cursor: pointer; color: var(--accent);
   font-family: "Saira Condensed", sans-serif;
@@ -671,11 +676,11 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 .ucard-section { margin-top: 8px; }
 .ucard-section-head { margin: 0 0 3px; font-size: 0.8rem; font-weight: 600; }
-.ucard-limit { color: var(--muted); font-weight: 400; }
+.ucard-limit { color: var(--ucard-tenue); font-weight: 400; }
 .ucard-option-list { list-style: none; margin: 0; padding: 0; font-size: 0.82rem; }
 .ucard-option-list li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 4px; }
-.ucard-option-list li:nth-child(odd) { background: var(--surface-2); }
-.ucard-price { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; padding-right: 4px; }
+.ucard-option-list li:nth-child(odd) { background: var(--ucard-cebra); }
+.ucard-price { font-variant-numeric: tabular-nums; color: var(--ucard-tenue); white-space: nowrap; padding-right: 1mm; }
 
 .ucard-foot {
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
@@ -1017,3 +1022,76 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    por encima de el, no debajo. */
 .sobre-modal { position: relative; z-index: 50; }
 .sobre-modal .modal-backdrop { z-index: 50; }
+
+/* Ficha de catalogo --------------------------------------------------------- */
+/* La otra cara de la misma pieza: 190 x 134 mm, dos por A4 con margenes de
+   10 mm. Existe porque una unidad del catalogo sin sus opciones de
+   configuracion esta a medias, y esas no caben en una carta de mesa: hay
+   unidades con 8 secciones y 36 opciones.
+ *
+ * Comparte todo con la carta de tarot —banda, tabla de armas, chips— y solo
+ * cambia de caja y mete las opciones dentro. */
+
+:root { --uhoja-w: 190mm; --uhoja-h: 134mm; --uhoja-esc: 0.86; }
+@media (max-width: 1000px) { :root { --uhoja-esc: 0.6; } }
+@media (max-width: 700px) { :root { --uhoja-esc: 0.44; } }
+
+.ucard-wrap.hoja { width: calc(var(--uhoja-w) * var(--uhoja-esc)); }
+.ucard-frame.hoja {
+  width: calc(var(--uhoja-w) * var(--uhoja-esc));
+  height: calc(var(--uhoja-h) * var(--uhoja-esc));
+}
+.ucard.hoja {
+  width: var(--uhoja-w); height: var(--uhoja-h);
+  transform: scale(var(--uhoja-esc));
+}
+
+/* Con el doble de ancho, la banda y el armamento pueden respirar. */
+.ucard.hoja .ucard-title { font-size: 4.4mm; }
+.ucard.hoja .ucard-stat { width: 13mm; padding: 1.2mm 0 1mm; }
+.ucard.hoja .ucard-stat-key { font-size: 2.4mm; }
+.ucard.hoja .ucard-stat-value { font-size: 4.2mm; }
+.ucard.hoja .ucard-table { font-size: 3mm; }
+.ucard.hoja .ucard-table thead th { font-size: 2.5mm; }
+.ucard.hoja .ucard-chip { font-size: 2.8mm; padding: 0.8mm 2mm; }
+.ucard.hoja .ucard-bloque-title { font-size: 2.5mm; }
+
+/* Las opciones, dentro y a dos columnas: con 36 en el peor caso, en una sola
+   no entrarian. Las secciones no se parten entre columnas. */
+.ucard-opciones-dentro { flex: 1; min-height: 0; overflow: hidden; }
+.ucard.hoja .ucard-options { margin-top: 0; border-top: 0.3mm solid var(--ucard-filete); padding-top: 1.6mm; }
+.ucard.hoja .ucard-options summary { font-size: 2.5mm; color: var(--ucard-tenue); cursor: default; }
+.ucard.hoja .ucard-secciones { columns: 2; column-gap: 5mm; margin-top: 1.4mm; }
+.ucard.hoja .ucard-section { margin: 0 0 2mm; break-inside: avoid; }
+.ucard.hoja .ucard-section-head { font-size: 2.5mm; }
+.ucard.hoja .ucard-option-list { font-size: 2.5mm; }
+.ucard.hoja .ucard-option-list li { padding: 0.3mm 0.8mm; }
+
+/* Una unidad puede llegar a 8 secciones y 36 opciones: cuando se acumulan, la
+   ficha aprieta el bloque de opciones en vez de recortarlo. */
+.ucard.hoja.opciones-densas .ucard-secciones { columns: 3; }
+.ucard.hoja.opciones-densas .ucard-section-head,
+.ucard.hoja.opciones-densas .ucard-option-list { font-size: 2.2mm; }
+.ucard.hoja.opciones-densas .ucard-section { margin-bottom: 1.4mm; }
+.ucard.hoja.opciones-muy-densas .ucard-secciones { columns: 3; }
+.ucard.hoja.opciones-muy-densas .ucard-section-head,
+.ucard.hoja.opciones-muy-densas .ucard-option-list { font-size: 2mm; }
+.ucard.hoja.opciones-muy-densas .ucard-option-list li { padding: 0.15mm 0.6mm; }
+.ucard.hoja.opciones-muy-densas .ucard-section { margin-bottom: 1.2mm; }
+
+/* Impresion: A4, dos fichas por hoja y a tamano real. Fuera todo lo que no sea
+   la ficha, que en papel no se puede pulsar. */
+@media print {
+  :root { --uhoja-esc: 1; }
+  @page { size: A4 portrait; margin: 10mm; }
+
+  body { background: #fff; }
+  .topbar, .fab, .tabs, .page-head, .army-details, .modal-backdrop, .ucard-foot { display: none !important; }
+  .content { max-width: none; padding: 0; }
+
+  .army-strip { display: block; overflow: visible; padding: 0; }
+  .army-slide { break-inside: avoid; margin: 0 0 8mm; }
+  .ucard.hoja { box-shadow: none; }
+  /* Las galerias y los formularios de subida no pintan nada en papel. */
+  .gallery, .uploader { display: none !important; }
+}

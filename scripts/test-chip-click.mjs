@@ -25,10 +25,16 @@ await build({
       import UnitCard from "./src/components/UnitCard";
       import RuleCardModal from "./src/components/RuleCardModal";
 
-      const GLOSARIO = new Map([["hive bond", {
-        $id: "r1", name: "Hive Bond", description: "Units where all models have this rule get +1 to morale.",
-        coreType: null, hasRating: false,
-      }]]);
+      const GLOSARIO = new Map([
+        ["hive bond", {
+          $id: "r1", name: "Hive Bond", description: "Units where all models have this rule get +1 to morale.",
+          coreType: null, hasRating: false,
+        }],
+        ["ap", {
+          $id: "r2", name: "AP", description: "Reduces the defense of the target by X.",
+          coreType: "weapon", hasRating: true,
+        }],
+      ]);
 
       function App() {
         const [habilidad, setHabilidad] = useState(null);
@@ -43,6 +49,7 @@ await build({
                 rules: ["Hive Bond", "Fast"],
                 loadout: [
                   { name: "CCW", label: "CCW (A2)", count: 1, range: null, attacks: 2, rules: [], kind: "weapon" },
+                  { name: "Heavy Pistol", label: "Heavy Pistol (12\\", A1, AP(1))", count: 1, range: 12, attacks: 1, rules: ["AP(1)"], kind: "weapon" },
                   { name: "Combat Shield", label: "Combat Shield", count: 1, range: null, attacks: null, rules: ["Hive Bond"], kind: "gear" },
                 ],
               }}
@@ -91,6 +98,23 @@ await comprobar(
 );
 await p.keyboard.press("Escape");
 await comprobar(p.locator(".scard").isHidden(), "Escape la cierra");
+
+// Las reglas de arma tambien son chips: el fallo que se busca aqui es que
+// vuelvan a ser texto plano al tocar la tabla de armas.
+await p.keyboard.press("Escape");
+const chipArma = p.locator(".ucard-wrules .ucard-chip");
+await comprobar(Promise.resolve((await chipArma.count()) === 1), "la regla de arma se pinta como chip");
+await chipArma.first().click();
+await comprobar(p.locator(".scard").isVisible(), "pulsar una regla de arma abre su carta");
+await comprobar(
+  p.locator(".scard-efecto").innerText().then((t) => t.includes("defense")),
+  "la carta de la regla de arma trae su descripcion",
+);
+await comprobar(
+  p.locator(".scard-title").innerText().then((t) => /AP/.test(t)),
+  "y es la regla del arma, no otra",
+);
+await p.keyboard.press("Escape");
 
 // Y una del reglamento basico, sin texto.
 await p.getByRole("button", { name: /^Fast$/ }).click();

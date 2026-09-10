@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { getBook, listUnits, listUpgradePackages } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit } from "../../api/catalog";
+import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
 import { createArmy, getArmy, getDraftFor, saveDraft, startDraft } from "../../api/armies";
 import type { Army } from "../../lib/types";
 import {
@@ -25,6 +25,8 @@ import { errorMessage } from "../../lib/format";
 import { getGameSystem } from "../../lib/gameSystems";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
+import RuleCardModal from "../../components/RuleCardModal";
+import type { Habilidad } from "../../lib/reglas";
 
 /** Constructor de ejercitos a partir del catalogo propio. */
 /** Lo que guarda la columna `listJson` de un ejercito. */
@@ -55,6 +57,8 @@ export default function ArmyBuilder() {
   const [warning, setWarning] = useState<string | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
+  const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   const [entries, setEntries] = useState<BuilderEntry[]>([]);
   const [openEntry, setOpenEntry] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -102,6 +106,11 @@ export default function ArmyBuilder() {
         setBook(loadedBook);
         setUnits(loadedUnits);
         setPackages(loadedPackages);
+        // El glosario no bloquea la pagina: sin el los chips siguen ahi y solo
+        // se quedan sin descripcion.
+        listRuleGlossary(loadedBook.gameSystem)
+          .then((g) => { if (!cancelled) setGlosario(g); })
+          .catch(() => undefined);
         setName((current) => current || loadedArmy?.name || loadedBook.name);
         if (loadedArmy?.points) setPointsLimit((current) => Math.max(current, loadedArmy.points));
 
@@ -301,6 +310,9 @@ export default function ArmyBuilder() {
       </header>
 
       <ErrorBanner error={error} />
+      {habilidad ? (
+        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+      ) : null}
       {warning ? <div className="banner">{warning}</div> : null}
       {over ? <div className="banner error">Te has pasado del limite de puntos.</div> : null}
 
@@ -320,6 +332,8 @@ export default function ArmyBuilder() {
                 <UnitCard
                   variant="ejercito"
                   unitId={entry.unit.unitId}
+                  conTexto={new Set(glosario.keys())}
+                  onHabilidad={setHabilidad}
                   sections={sections}
                   upgrades={entryUpgradeLabels(entry, sections)}
                   optionsOpen={open}
@@ -420,6 +434,8 @@ export default function ArmyBuilder() {
                   key={unit.$id}
                   variant="catalogo"
                   unitId={unit.unitId}
+                  conTexto={new Set(glosario.keys())}
+                  onHabilidad={setHabilidad}
                   sections={sectionsForUnit(unit, packages)}
                   unit={{
                     name: unit.name,

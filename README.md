@@ -114,6 +114,16 @@ Tiene dos variantes, porque son dos preguntas distintas sobre la misma unidad:
 A diferencia de una carta impresa, no tiene tamano fijo: el contenido manda,
 porque una unidad puede llevar dos armas o diez.
 
+Toda regla que aparece en la carta es un **chip**, y al pulsarlo se abre la
+carta de esa regla con su descripcion: las innatas de la unidad, las que concede
+cada pieza de equipo y tambien las **reglas de arma** de la tabla de armamento
+—AP, Blast, Rending—. Era justo la columna donde mas falta hace: se lee "AP(1)"
+en mitad de una partida y hay que saber que hace.
+
+Las reglas de arma se cubren al 91%: `Reliable` y `Limited` no traen
+descripcion en ningun libro de ejercito, porque son del reglamento basico. Su
+chip sale en punteado y su carta lo dice, que es mejor que inventarselas.
+
 ## Editar un ejercito
 
 Un ejercito guardado lleva dos cosas en `listJson`: las **unidades resueltas**,
@@ -165,6 +175,7 @@ las unidades que mas la aprietan, no con una de dos lineas:
 pnpm preview:cards                       # unidades: Grimdark, Battle Brothers
 pnpm preview:cards <bookKey> fantasy     # la otra ambientacion
 pnpm preview:spells [bookKey] [tema]     # hechizos
+pnpm preview:hoja [bookKey]              # la ficha grande de catalogo
 ```
 
 Dibuja el componente que se despliega con el CSS que se despliega y datos del
@@ -181,12 +192,33 @@ Que eso baste no se decide mirando: se comprueba.
 
 ```bash
 pnpm check:cards [nLibros]    # pasa TODAS las unidades y avisa de las que se recortan
+pnpm test:impresion           # comprueba que salen dos fichas por hoja A4
 ```
 
-Renderiza cada unidad y cada hechizo, le pregunta al navegador si el contenido
-cabe en su caja y falla si alguno se pasa. Ahora mismo: **740 unidades de 30 libros, ninguna se
-recorta**. Si tocas tamanos, tipos o espaciados de la carta, esto es lo que dice
-si te has pasado.
+Renderiza cada unidad en sus dos formatos y cada hechizo, le pregunta al
+navegador si el contenido cabe en su caja y falla si alguno se pasa. Ultima
+pasada: **14 libros, 816 cartas —366 de unidad, 366 fichas y 84 hechizos—,
+ninguna se recorta**. Si tocas tamanos, tipos o espaciados de la carta, esto es
+lo que dice si te has pasado.
+
+## La ficha de catalogo
+
+La carta de tarot es para la mesa: la unidad ya configurada, con lo que se
+consulta en turno. Pero una unidad **sin** configurar se mira para elegir, y
+entonces lo importante son sus opciones —hay unidades con 35 repartidas en 8
+secciones—, que no caben en 120 x 70 mm.
+
+Asi que la vista de faccion y el asistente de anadir unidades usan otro formato:
+**190 x 134 mm**, el ancho util de un A4 y la mitad de su alto, con las opciones
+dentro de la propia ficha en tres columnas. Dos por hoja, sin cortar ninguna.
+`@page` fija A4 vertical con 10 mm de margen y `--uhoja-esc` vuelve a 1 al
+imprimir, para que salga a tamano real.
+
+Lo que decide si desborda no es cuantas opciones hay sino cuanto ocupan: hay
+opciones de un renglon —"Jetpacks (Ambush, Flying)"— y otras de tres —"Energy
+Hammer (A1, Blast(3)), Combat Shield (Shielded)"—. El peso se estima por
+renglones, no por numero de opciones, y la ficha aprieta la tipografia en dos
+escalones cuando hace falta.
 
 ## Reemplazos de equipo
 

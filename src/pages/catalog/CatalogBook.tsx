@@ -287,6 +287,7 @@ export default function CatalogBook() {
             <div key={unit.$id} className="army-slide">
             <UnitCard
               variant="catalogo"
+              formato="hoja"
               conTexto={new Set(glosario.keys())}
               onHabilidad={setHabilidad}
               unitId={unit.unitId}

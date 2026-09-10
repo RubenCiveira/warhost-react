@@ -74,6 +74,13 @@ interface Props {
   optionAction?: (section: UpgradeSection, option: UpgradeOption) => ReactNode;
   optionsOpen?: boolean;
   optionsLabel?: string;
+  /**
+   * `tarot` es la carta de mesa, 120 x 70 mm, para una unidad ya configurada.
+   * `hoja` es la ficha de catalogo: 190 x 134 mm, dos por A4, con las opciones
+   * de configuracion dentro en vez de colgando debajo. Una unidad del catalogo
+   * sin sus opciones esta a medias, y esas no caben en una carta de mesa.
+   */
+  formato?: "tarot" | "hoja";
   footer?: ReactNode;
   /**
    * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
@@ -142,6 +149,7 @@ export default function UnitCard({
   optionAction,
   optionsOpen = false,
   optionsLabel,
+  formato = "tarot",
   footer,
   conTexto,
   onHabilidad,
@@ -160,10 +168,62 @@ export default function UnitCard({
   if (unit.maxWounds !== undefined) stats.push(["Her", String(unit.maxWounds)]);
   if (unit.cost !== undefined) stats.push(["Pts", String(unit.cost)]);
 
+  const hoja = formato === "hoja";
+  // El bloque de opciones es lo que decide si una ficha de catalogo desborda:
+  // hay unidades con 36 repartidas en 8 secciones.
+  // No basta con contarlas: hay opciones de una linea —"Jetpacks (Ambush,
+  // Flying)"— y otras que ocupan tres —"Energy Hammer (A1, Blast(3)), Combat
+  // Shield (Shielded)"—. Se estiman las lineas que va a ocupar cada columna.
+  const pesoOpciones = sections.reduce(
+    (suma, section) =>
+      suma +
+      2 +
+      (section.options ?? []).reduce((lineas, option) => lineas + Math.ceil(((option.label?.length ?? 20) + 5) / 30), 0),
+    0,
+  );
+  const densidadOpciones =
+    pesoOpciones >= 44 ? " opciones-muy-densas" : pesoOpciones >= 30 ? " opciones-densas" : "";
+  // En la ficha grande las opciones van dentro; en la de mesa no caben y
+  // cuelgan del marco.
+  const opciones =
+    sections.length > 0 && (variant === "catalogo" || optionAction) ? (
+      <details className="ucard-options" open={hoja || optionsOpen}>
+        <summary>
+          {optionsLabel ?? "Como configurarla"} <span className="ucard-count">({sections.length} secciones)</span>
+        </summary>
+        <div className="ucard-secciones">
+          {sections.map((section) => (
+            <div key={section.id ?? section.uid} className="ucard-section">
+              <p className="ucard-section-head">
+                {section.label}
+                {limitLabel(section) ? <span className="ucard-limit"> · {limitLabel(section)}</span> : null}
+              </p>
+              <ul className="ucard-option-list">
+                {(section.options ?? []).map((option) => (
+                  <li key={optionId(option)}>
+                    <span>{option.label}</span>
+                    {optionAction ? (
+                      optionAction(section, option)
+                    ) : (
+                      <span className="ucard-price">
+                        {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </details>
+    ) : null;
+
   return (
-    <div className="ucard-wrap">
-      <div className="ucard-frame">
-        <article className={`ucard ucard-${variant}${densidad(weapons, unit.rules, gear)}`}>
+    <div className={hoja ? "ucard-wrap hoja" : "ucard-wrap"}>
+      <div className={hoja ? "ucard-frame hoja" : "ucard-frame"}>
+        <article
+          className={`ucard ucard-${variant}${hoja ? ` hoja${densidadOpciones}` : densidad(weapons, unit.rules, gear)}`}
+        >
           <header className="ucard-head">
             <h3 className="ucard-title">{unit.name}</h3>
             <div className="ucard-stats">
@@ -202,7 +262,22 @@ export default function UnitCard({
                       </td>
                       <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
                       <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>
-                      <td className="ucard-wrules">{weapon.rules.join(", ") || "—"}</td>
+                      <td className="ucard-wrules">
+                        {weapon.rules.length > 0 ? (
+                          <div className="ucard-chips ucard-chips-arma">
+                            {weapon.rules.map((rule) => (
+                              <Chip
+                                key={rule}
+                                habilidad={parseHabilidad(rule, "regla")}
+                                conTexto={conTexto}
+                                onAbrir={onHabilidad}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="ucard-vacio">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -276,6 +351,8 @@ export default function UnitCard({
                 </table>
               </section>
             ) : null}
+
+            {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
           </div>
         </article>
       </div>
@@ -287,35 +364,7 @@ export default function UnitCard({
         </p>
       ) : null}
 
-      {sections.length > 0 && (variant === "catalogo" || optionAction) ? (
-        <details className="ucard-options" open={optionsOpen}>
-          <summary>
-            {optionsLabel ?? "Como configurarla"} <span className="ucard-count">({sections.length} secciones)</span>
-          </summary>
-          {sections.map((section) => (
-            <div key={section.id ?? section.uid} className="ucard-section">
-              <p className="ucard-section-head">
-                {section.label}
-                {limitLabel(section) ? <span className="ucard-limit"> · {limitLabel(section)}</span> : null}
-              </p>
-              <ul className="ucard-option-list">
-                {(section.options ?? []).map((option) => (
-                  <li key={optionId(option)}>
-                    <span>{option.label}</span>
-                    {optionAction ? (
-                      optionAction(section, option)
-                    ) : (
-                      <span className="ucard-price">
-                        {optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </details>
-      ) : null}
+      {hoja ? null : opciones}
 
       {footer ? <footer className="ucard-foot">{footer}</footer> : null}
     </div>

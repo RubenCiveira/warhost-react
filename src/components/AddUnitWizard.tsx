@@ -181,6 +181,7 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                   <div key={unit.$id} className="army-slide">
                     <UnitCard
                       variant="catalogo"
+                      formato="hoja"
                       unitId={unit.unitId}
                       conTexto={new Set(glosario.keys())}
                       onHabilidad={setHabilidad}

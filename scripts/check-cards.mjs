@@ -31,6 +31,14 @@ const unidades = libros.flatMap((libro) =>
   ]).rows.map((u) => ({ ...u, setting: libro.setting })),
 );
 
+const paquetes = libros.flatMap((libro) =>
+  cli([
+    "tables-db", "list-rows", "--database-id", "warhost", "--table-id", "army_upgrade_packages",
+    "--queries", JSON.stringify({ method: "equal", attribute: "bookKey", values: [libro.$id] }),
+    "--queries", JSON.stringify({ method: "limit", values: [100] }),
+  ]).rows.map((p) => [p.packageUid, p.sections]),
+);
+
 const dir = await mkdtemp(join(tmpdir(), "warhost-check-"));
 const bundle = join(dir, "cartas.cjs");
 await build({
@@ -41,7 +49,9 @@ await build({
       import SpellCard from "./src/components/SpellCard";
       import { baseLoadout } from "./src/lib/loadout";
       import { parseSpells } from "./src/lib/spells";
+      import { parseSections, sectionsForUnit } from "./src/lib/builder";
       const UNITS = ${JSON.stringify(unidades)};
+      const PAQUETES = new Map(${JSON.stringify(paquetes)}.map(([k, v]) => [k, parseSections(v)]));
       const BOOKS = ${JSON.stringify(libros.map((l) => ({ name: l.name, spells: l.spells })))};
       globalThis.__HTML__ =
         UNITS.map((u) =>
@@ -51,6 +61,17 @@ await build({
               cost: u.cost, maxWounds: u.size, rules: u.rules,
               loadout: baseLoadout(u.weapons, u.items),
             }} />,
+          ),
+        ).join("") +
+        // La misma unidad en ficha de catalogo, con sus opciones dentro.
+        UNITS.map((u) =>
+          renderToStaticMarkup(
+            <UnitCard variant="catalogo" formato="hoja" unitId={u.unitId}
+              sections={sectionsForUnit(u, PAQUETES)}
+              unit={{
+                name: u.name, size: u.size, quality: u.quality, defense: u.defense,
+                cost: u.cost, rules: u.rules, loadout: baseLoadout(u.weapons, u.items),
+              }} />,
           ),
         ).join("") +
         BOOKS.flatMap((b) =>
@@ -89,16 +110,26 @@ const malas = await p.evaluate(() => {
     }));
 
   return [
-    ...mirar(".ucard", ".ucard-title", ".ucard-cols, .ucard-body", "unidad"),
+    ...mirar(".ucard:not(.hoja)", ".ucard-title", ".ucard-bloque, .ucard-body", "unidad"),
     ...mirar(".scard", ".scard-title", ".scard-body", "hechizo"),
+    ...mirar(".ucard.hoja", ".ucard-title", ".ucard-opciones-dentro, .ucard-body", "ficha"),
   ].filter((c) => c.sobra > 1);
 });
-const cartas = await p.evaluate(() => document.querySelectorAll(".ucard, .scard").length);
+// Contar por tipo: ahora hay tres piezas distintas en la pagina y sumarlas
+// todas y restar hacia atras daba cifras falsas.
+const cartas = await p.evaluate(() => ({
+  unidad: document.querySelectorAll(".ucard:not(.hoja)").length,
+  ficha: document.querySelectorAll(".ucard.hoja").length,
+  hechizo: document.querySelectorAll(".scard").length,
+}));
 await navegador.close();
 await rm(dir, { recursive: true, force: true });
 
-const reparto = cartas;
-console.log(`${libros.length} libros · ${reparto} cartas (${unidades.length} unidades y ${reparto - unidades.length} hechizos)`);
+const reparto = cartas.unidad + cartas.ficha + cartas.hechizo;
+console.log(
+  `${libros.length} libros · ${reparto} cartas ` +
+    `(${cartas.unidad} de unidad, ${cartas.ficha} fichas de catalogo, ${cartas.hechizo} hechizos)`,
+);
 if (malas.length === 0) {
   console.log("Ninguna carta se recorta.");
 } else {
