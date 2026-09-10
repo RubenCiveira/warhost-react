@@ -87,6 +87,10 @@ interface Props {
    * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
    * marcan como del reglamento basico y no invitan a pulsar.
    */
+  /** Unidad reforzada: se avisa en la carta porque el perfil ya viene doblado. */
+  reforzada?: boolean;
+  /** Anotacion del jugador sobre esta unidad. */
+  notas?: string;
   conTexto?: Set<string>;
   /** Abrir la carta de una habilidad o de un equipo. */
   onHabilidad?: (habilidad: Habilidad) => void;
@@ -311,6 +315,8 @@ export default function UnitCard({
   optionsLabel,
   formato = "tarot",
   footer,
+  reforzada = false,
+  notas,
   conTexto,
   onHabilidad,
 }: Props) {
@@ -372,7 +378,12 @@ export default function UnitCard({
           className={`ucard ucard-${variant}${hoja ? ` hoja${densidadOpciones}` : densidad(weapons, unit.rules, gear)}`}
         >
           <header className="ucard-head">
-            <h3 className="ucard-title">{unit.name}</h3>
+            <h3 className="ucard-title">
+              {unit.name}
+              {/* El perfil de una reforzada ya viene doblado, asi que hay que
+                  decirlo o parecera que la unidad es de otro tamaño. */}
+              {reforzada ? <span className="ucard-reforzada">Reforzada</span> : null}
+            </h3>
             <div className="ucard-stats">
               {stats.map(([label, value]) => (
                 <div key={label} className="ucard-stat">
@@ -497,6 +508,13 @@ export default function UnitCard({
                   </tbody>
                 </table>
               </section>
+            ) : null}
+
+            {notas ? (
+              <p className="ucard-notas">
+                <span className="ucard-label">Notas</span>
+                {notas}
+              </p>
             ) : null}
 
             {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}

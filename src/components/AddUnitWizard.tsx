@@ -4,7 +4,8 @@ import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
 import {
   blockReason,
   entryCost,
-  entryLoadout,
+  entryLoadoutFinal,
+  sePuedeReforzar,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -117,15 +118,39 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
 
   const sections = entry ? sectionsForUnit(entry.unit, packages) : [];
 
+  // La carta ensena la unidad tal como sale a la mesa: si va reforzada, con el
+  // tamano, el coste y el equipo ya doblados.
   const tarjeta = (actual: BuilderEntry) => ({
     name: actual.unit.name,
-    size: actual.unit.size,
+    size: actual.unit.size * (actual.combined ? 2 : 1),
     quality: actual.unit.quality,
     defense: actual.unit.defense,
     cost: entryCost(actual, sections),
     rules: entryRules(actual, sections),
-    loadout: entryLoadout(actual, sections),
+    loadout: entryLoadoutFinal(actual, sections),
   });
+
+  const controlesDeUnidad = (actual: BuilderEntry) => (
+    <>
+      {sePuedeReforzar(actual.unit) ? (
+        <label className="check tiny">
+          <input
+            type="checkbox"
+            checked={Boolean(actual.combined)}
+            onChange={(event) => setEntry((previo) => (previo ? { ...previo, combined: event.target.checked } : previo))}
+          />
+          Reforzar
+        </label>
+      ) : null}
+      <input
+        className="tiny nota"
+        type="text"
+        placeholder="Notas de la unidad"
+        value={actual.notes ?? ""}
+        onChange={(event) => setEntry((previo) => (previo ? { ...previo, notes: event.target.value } : previo))}
+      />
+    </>
+  );
 
   const pasos: Array<[Paso, string]> = [
     ["elegir", "Elegir unidad"],
@@ -225,6 +250,9 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
                 optionsOpen
                 optionsLabel="Opciones de la unidad"
                 unit={tarjeta(entry)}
+                reforzada={entry.combined}
+                notas={entry.notes}
+                footer={controlesDeUnidad(entry)}
                 optionAction={(section, option) => {
                   const id = optionId(option);
                   const cuantas = entry.choices[id] ?? 0;
@@ -275,6 +303,8 @@ export default function AddUnitWizard({ bookKey, onCancel, onConfirm, busy = fal
               <UnitCard
                 variant="ejercito"
                 unit={tarjeta(entry)}
+                reforzada={entry.combined}
+                notas={entry.notes}
                 upgrades={entryUpgradeLabels(entry, sections)}
                 conTexto={new Set(glosario.keys())}
                 onHabilidad={setHabilidad}

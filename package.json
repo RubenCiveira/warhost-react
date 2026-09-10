@@ -24,7 +24,8 @@
     "preview:hoja": "node scripts/preview-hoja.mjs",
     "test:impresion": "node scripts/test-impresion.mjs",
     "test:opciones": "node scripts/test-opciones.mjs",
-    "audit:opciones": "node scripts/audit-opciones.mjs"
+    "audit:opciones": "node scripts/audit-opciones.mjs",
+    "test:refuerzo": "node scripts/test-refuerzo.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

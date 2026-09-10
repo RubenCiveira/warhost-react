@@ -10,7 +10,8 @@ import {
   buildArmy,
   entriesFromForgeList,
   entryCost,
-  entryLoadout,
+  entryLoadoutFinal,
+  sePuedeReforzar,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -178,11 +179,18 @@ export default function ArmyBuilder() {
   /** Repetir una unidad con sus mismas mejoras es lo mas comun al montar lista. */
   const duplicateEntry = useCallback((entry: BuilderEntry) => {
     const key = `${entry.unit.unitId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setEntries((prev) => [...prev, { key, unit: entry.unit, choices: { ...entry.choices } }]);
+    setEntries((prev) => [
+      ...prev,
+      { key, unit: entry.unit, choices: { ...entry.choices }, combined: entry.combined, notes: entry.notes },
+    ]);
   }, []);
 
   const removeEntry = useCallback((key: string) => {
     setEntries((prev) => prev.filter((entry) => entry.key !== key));
+  }, []);
+
+  const setEntryField = useCallback((key: string, patch: Partial<BuilderEntry>) => {
+    setEntries((prev) => prev.map((entry) => (entry.key === key ? { ...entry, ...patch } : entry)));
   }, []);
 
   const changeChoice = useCallback((key: string, id: string, delta: number) => {
@@ -340,13 +348,15 @@ export default function ArmyBuilder() {
                   optionsLabel="Mejoras de esta unidad"
                   unit={{
                     name: entry.unit.name,
-                    size: entry.unit.size,
+                    size: entry.unit.size * (entry.combined ? 2 : 1),
                     quality: entry.unit.quality,
                     defense: entry.unit.defense,
                     cost: entryCost(entry, sections),
                     rules: entryRules(entry, sections),
-                    loadout: entryLoadout(entry, sections),
+                    loadout: entryLoadoutFinal(entry, sections),
                   }}
+                  reforzada={entry.combined}
+                  notas={entry.notes}
                   optionAction={(section, option) => {
                     const id = optionId(option);
                     const count = entry.choices[id] ?? 0;
@@ -379,6 +389,23 @@ export default function ArmyBuilder() {
                   }}
                   footer={
                     <>
+                      {sePuedeReforzar(entry.unit) ? (
+                        <label className="check tiny">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(entry.combined)}
+                            onChange={(event) => setEntryField(entry.key, { combined: event.target.checked })}
+                          />
+                          Reforzar
+                        </label>
+                      ) : null}
+                      <input
+                        className="tiny nota"
+                        type="text"
+                        placeholder="Notas"
+                        value={entry.notes ?? ""}
+                        onChange={(event) => setEntryField(entry.key, { notes: event.target.value })}
+                      />
                       {sections.length > 0 ? (
                         <button type="button" className="tiny" onClick={() => setOpenEntry(open ? null : entry.key)}>
                           {open ? "Cerrar mejoras" : "Mejoras"}

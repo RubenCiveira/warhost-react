@@ -306,6 +306,31 @@ primera, y comprarlo dos veces solo cobra dos veces. La excepcion es el
 reemplazo, donde si es por seccion: "Replace all Bio-Spiners" se lleva los
 Bio-Spiners enteros y un segundo reemplazo no tendria nada que quitar.
 
+## Unidades reforzadas y notas
+
+Una unidad **reforzada** —"combined" en Army Forge— es el doble de miniaturas y
+el doble de puntos. Lo que no se dobla es la configuracion: **se elige sobre la
+unidad normal y se dobla el resultado**. Unos Pathfinders de 5 con Heavy Pistol
+que cambian todas por Heavy Rifle y luego tres de esos por Sniper Rifle quedan
+en 2 Heavy y 3 Sniper; reforzados son 10 miniaturas, 4 Heavy, 6 Sniper y el
+doble de puntos.
+
+Por eso hay dos funciones y no una: `entryLoadout` da el equipo de la unidad
+normal —de ahi sale con que cuenta para decidir que reemplazos estan
+disponibles, y esos se resuelven sobre la unidad de siempre— y
+`entryLoadoutFinal` lo dobla para lo que sale a la mesa. Los limites de cada
+seccion tampoco cambian: "Replace up to three" siguen siendo tres.
+
+Un Heroe no se puede reforzar: reforzar es juntar dos unidades iguales, y un
+Heroe es una miniatura.
+
+Army Forge guarda una unidad reforzada como **dos** selecciones, las dos con
+`combined`, la segunda apuntando a la primera con `joinToUnit` y sin mejoras
+propias. Al importar se descarta la segunda: es la otra mitad, no otra unidad.
+
+Cada unidad admite ademas una **nota** del jugador, que se guarda con el
+ejercito y se pinta en su carta.
+
 ## Reemplazos encadenados
 
 Los Pathfinders de Battle Brothers llevan Flamer Pistol, y una de sus secciones

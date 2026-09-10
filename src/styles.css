@@ -618,6 +618,50 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 .ucard-chips-arma .ucard-chip { font-size: 2.2mm; padding: 0.3mm 1.1mm; }
 .ucard.hoja .ucard-chips-arma .ucard-chip { font-size: 2.5mm; padding: 0.5mm 1.4mm; }
 .ucard-count { color: var(--ucard-tenue); font-variant-numeric: tabular-nums; margin-right: 0.6mm; }
+/* Va en la banda de titulo, con su tipografia, no como una pegatina encima: es
+   parte de lo que la unidad es, igual que su nombre. */
+.ucard-reforzada {
+  margin-left: 2mm; padding: 0.3mm 1.4mm;
+  font-size: 2.1mm; letter-spacing: 0.08em; text-transform: uppercase;
+  border: 0.3mm solid currentColor; border-radius: 0.8mm;
+  color: var(--ucard-realce); vertical-align: middle;
+}
+/* El pie de la carta ya lleva botones; el control de notas se alinea con
+   ellos y se queda con el hueco que sobre. */
+input.tiny.nota {
+  flex: 1 1 12ch; min-width: 10ch;
+  padding: 2px 8px; font-size: 0.82rem;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+label.check.tiny {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.82rem; color: var(--muted); white-space: nowrap; cursor: pointer;
+}
+label.check.tiny input { margin: 0; }
+
+/* Con el mismo margen lateral que la tabla de armas: el cuerpo de la carta no
+   lleva padding propio, cada pieza pone el suyo. */
+.ucard-notas {
+  margin: 1.2mm 0 0; padding: 1mm 2.5mm 0; font-size: 2.3mm; line-height: 1.3;
+  color: var(--ucard-tinta);
+}
+.ucard-notas .ucard-label { color: var(--ucard-tenue); margin-right: 1.2mm; }
+.ucard.hoja /* El pie de la carta ya lleva botones; el control de notas se alinea con
+   ellos y se queda con el hueco que sobre. */
+input.tiny.nota {
+  flex: 1 1 12ch; min-width: 10ch;
+  padding: 2px 8px; font-size: 0.82rem;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+label.check.tiny {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.82rem; color: var(--muted); white-space: nowrap; cursor: pointer;
+}
+label.check.tiny input { margin: 0; }
+
+.ucard-notas { font-size: 2.7mm; }
 .ucard-mas { margin: 0.8mm 0 0; font-size: 2.2mm; color: var(--ucard-tenue); font-style: italic; }
 
 /* El icono de tipo de arma, con hueco fijo para que los nombres sigan

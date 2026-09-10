@@ -57,6 +57,35 @@ export interface BuilderEntry {
   unit: CatalogUnitLike;
   /** optionId -> cuantas veces se ha cogido esa opcion. */
   choices: Record<string, number>;
+  /**
+   * Unidad reforzada ("combined" en Army Forge): el doble de miniaturas y el
+   * doble de coste.
+   */
+  combined?: boolean;
+  /** Anotacion del jugador sobre esta unidad concreta. */
+  notes?: string;
+}
+
+/**
+ * Una unidad reforzada se **configura como la normal** y se duplica despues.
+ *
+ * Los limites de cada seccion siguen contando sobre la unidad de siempre, asi
+ * que unos Pathfinders de 5 con Heavy Rifle a los que se les ponen 3 Sniper
+ * Rifle quedan en 2 Heavy y 3 Sniper; reforzados son 10 miniaturas, 4 Heavy y 6
+ * Sniper, y el doble de puntos.
+ */
+export const FACTOR_REFUERZO = 2;
+
+export function refuerzo(entry: BuilderEntry): number {
+  return entry.combined ? FACTOR_REFUERZO : 1;
+}
+
+/**
+ * Una unidad de un solo modelo no se puede reforzar: reforzar es juntar dos
+ * unidades iguales, y un Heroe es una miniatura.
+ */
+export function sePuedeReforzar(unit: CatalogUnitLike): boolean {
+  return unit.size > 1;
 }
 
 export function parseSections(json: string | null | undefined): UpgradeSection[] {
@@ -221,7 +250,8 @@ export function entryCost(entry: BuilderEntry, sections: UpgradeSection[]): numb
       if (count > 0) cost += optionCost(option, entry.unit.unitId) * count;
     }
   }
-  return cost;
+  // El refuerzo dobla el total, mejoras incluidas: son dos unidades iguales.
+  return cost * refuerzo(entry);
 }
 
 export function entryRules(entry: BuilderEntry, sections: UpgradeSection[]): string[] {
@@ -262,8 +292,13 @@ function toughOf(rules: string[]): number {
 export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]): AppliedOption[] {
   const applied: AppliedOption[] = [];
   for (const section of sections) {
+    // Los limites se respetan al elegir, pero lo guardado puede venir de una
+    // importacion o de una version anterior del libro. Sin acotar aqui, una
+    // eleccion repetida de mas pinta cosas imposibles —quince rifles en una
+    // unidad de cinco— sin que nada avise.
+    const tope = maxPorOpcion(section, entry.unit.size);
     for (const option of section.options ?? []) {
-      const count = entry.choices[optionId(option)] ?? 0;
+      const count = Math.min(entry.choices[optionId(option)] ?? 0, tope);
       if (count > 0) {
         applied.push({
           variant: section.variant,
@@ -278,9 +313,24 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
   return applied;
 }
 
+/**
+ * El equipo de la unidad **normal**, ya configurada.
+ *
+ * Sin doblar aunque este reforzada, a proposito: de aqui sale con que cuenta la
+ * unidad para decidir que reemplazos estan disponibles, y esos se resuelven
+ * sobre la unidad de siempre. Doblar aqui haria que un "Replace all" tuviera
+ * que quitar diez cosas donde el catalogo cuenta cinco.
+ */
 export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
   const base = baseLoadout(entry.unit.weapons ?? null, entry.unit.items ?? null);
   return applyOptions(base, appliedOptions(entry, sections));
+}
+
+/** El equipo que sale a la mesa: el de la unidad normal, doblado si va reforzada. */
+export function entryLoadoutFinal(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
+  const equipo = entryLoadout(entry, sections);
+  const factor = refuerzo(entry);
+  return factor === 1 ? equipo : equipo.map((pieza) => ({ ...pieza, count: pieza.count * factor }));
 }
 
 export function toResolvedUnit(
@@ -289,16 +339,19 @@ export function toResolvedUnit(
   index: number,
 ): ResolvedUnit {
   const rules = entryRules(entry, sections);
+  const size = entry.unit.size * refuerzo(entry);
   return {
     name: entry.unit.name,
     unitKey: entry.unit.unitId,
-    size: entry.unit.size,
+    size,
     quality: entry.unit.quality,
     defense: entry.unit.defense,
-    maxWounds: entry.unit.size * toughOf(rules),
+    maxWounds: size * toughOf(rules),
     cost: entryCost(entry, sections),
     rules: rules.slice(0, 20),
-    loadout: entryLoadout(entry, sections),
+    loadout: entryLoadoutFinal(entry, sections),
+    combined: entry.combined ? true : undefined,
+    notes: entry.notes || undefined,
     upgrades: entryUpgradeLabels(entry, sections),
     unresolvedUpgrades: 0,
     sortOrder: index,
@@ -336,10 +389,18 @@ export function buildArmy(
 export interface StoredEntry {
   unitId: string;
   choices: Record<string, number>;
+  /** Solo se guarda cuando es cierto, para no engordar el JSON. */
+  combined?: boolean;
+  notes?: string;
 }
 
 export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
-  return entries.map((entry) => ({ unitId: entry.unit.unitId, choices: { ...entry.choices } }));
+  return entries.map((entry) => ({
+    unitId: entry.unit.unitId,
+    choices: { ...entry.choices },
+    ...(entry.combined ? { combined: true } : {}),
+    ...(entry.notes ? { notes: entry.notes } : {}),
+  }));
 }
 
 function newKey(unitId: string, index: number): string {
@@ -362,13 +423,30 @@ export function rehydrateEntries(stored: unknown, units: CatalogUnitLike[]): Bui
     for (const [id, count] of Object.entries(item.choices ?? {})) {
       if (typeof count === "number" && count > 0) choices[id] = count;
     }
-    return [{ key: newKey(unit.unitId, index), unit, choices }];
+    return [
+      {
+        key: newKey(unit.unitId, index),
+        unit,
+        choices,
+        ...(item.combined ? { combined: true } : {}),
+        ...(typeof item.notes === "string" && item.notes ? { notes: item.notes } : {}),
+      },
+    ];
   });
 }
 
 /** Forma minima de una lista de Army Forge, para reconstruir una importacion. */
 interface ForgeListShape {
-  list?: { units?: Array<{ id?: string; selectedUpgrades?: Array<{ optionId?: string }> }> };
+  list?: {
+    units?: Array<{
+      id?: string;
+      selectedUpgrades?: Array<{ optionId?: string }>;
+      combined?: boolean;
+      notes?: string | null;
+      /** Puesto en la segunda mitad de una unidad reforzada. */
+      joinToUnit?: string | null;
+    }>;
+  };
 }
 
 /**
@@ -383,6 +461,11 @@ export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): Bu
   const byId = new Map(units.map((unit) => [unit.unitId, unit]));
 
   return list.flatMap((forgeUnit, index) => {
+    // Army Forge guarda una unidad reforzada como **dos** selecciones: las dos
+    // con `combined`, y la segunda apuntando a la primera con `joinToUnit`. Esa
+    // segunda es la otra mitad, no otra unidad, y las mejoras van todas en la
+    // primera: importarla aparte duplicaria la unidad en la lista.
+    if (forgeUnit.joinToUnit) return [];
     const unit = forgeUnit.id ? byId.get(forgeUnit.id) : undefined;
     if (!unit) return [];
     const choices: Record<string, number> = {};
@@ -390,6 +473,14 @@ export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): Bu
       if (!selected.optionId) continue;
       choices[selected.optionId] = (choices[selected.optionId] ?? 0) + 1;
     }
-    return [{ key: newKey(unit.unitId, index), unit, choices }];
+    return [
+      {
+        key: newKey(unit.unitId, index),
+        unit,
+        choices,
+        ...(forgeUnit.combined && sePuedeReforzar(unit) ? { combined: true } : {}),
+        ...(typeof forgeUnit.notes === "string" && forgeUnit.notes ? { notes: forgeUnit.notes } : {}),
+      },
+    ];
   });
 }
