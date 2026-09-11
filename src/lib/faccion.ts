@@ -112,12 +112,20 @@ export interface EquipoDeFaccion {
  * No hay una lista de equipo en el libro: cada unidad lleva el suyo, asi que se
  * juntan y se cuenta en cuantas sale. Es lo que permite ver de un vistazo si un
  * objeto es de una unidad concreta o de toda la faccion.
+ *
+ * `baseLoadout` tambien saca, de cada objeto, las armas que trae dentro (el
+ * Combat Shield concede Bash, un cuerpo a cuerpo) como entradas propias de
+ * tipo "weapon": eso esta bien para la ficha de la unidad, donde tienen que
+ * salir en su tabla de armas, pero aqui colarian como si "Bash" fuera un
+ * objeto mas de equipo, con una carta vacia porque un arma no tiene reglas
+ * propias que conceder. Solo interesan los objetos de verdad (`kind ===
+ * "gear"`); sus armas ya se ven en la unidad que las lleva.
  */
 export function equipoDeFaccion(units: ArmyUnit[]): EquipoDeFaccion[] {
   const porNombre = new Map<string, EquipoDeFaccion>();
 
   for (const unit of units) {
-    for (const item of baseLoadout(null, unit.items)) {
+    for (const item of baseLoadout(null, unit.items).filter((entry) => entry.kind === "gear")) {
       const clave = item.name.toLowerCase();
       const ya = porNombre.get(clave);
       if (ya) {
