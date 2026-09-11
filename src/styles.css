@@ -626,6 +626,61 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   border: 0.3mm solid currentColor; border-radius: 0.8mm;
   color: var(--ucard-realce); vertical-align: middle;
 }
+.ucard-mas-heroe { margin-left: 1.6mm; font-weight: 600; opacity: 0.82; }
+.ucard.emparejada .ucard-title { font-size: 3mm; }
+
+/* Carta de un heroe con su unidad unida: mismo tamano de tarot que cualquier
+   otra ficha, nada de marco mas alto. La banda de arriba es la de siempre
+   —Cal y Def no se pueden sumar entre los dos, asi que ahi solo quedan Min y
+   Pts, que si son de la pareja entera— y el cuerpo se parte en dos columnas
+   apretadas, cada una el perfil completo de un lado, con su boton de
+   configurar al fondo. */
+.ucard-body-par { flex-direction: row; align-items: stretch; }
+.ucard-columna { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; padding: 1mm 1.6mm 0.8mm; }
+.ucard-columna + .ucard-columna { border-left: 0.35mm solid var(--ucard-filete); }
+
+/* Nombre y Cal/Def/Her en un solo renglon: el nombre se lleva el hueco que
+   sobra y se recorta con puntos suspensivos antes que empujar los datos a una
+   segunda linea, que en un tarot de 70 mm no sobra. */
+.ucard-columna-cab { display: flex; align-items: baseline; gap: 1.4mm; margin-bottom: 0.6mm; }
+.ucard-columna-nombre {
+  flex: 1 1 auto; min-width: 0;
+  font-family: "Saira Condensed", sans-serif;
+  font-weight: 700; font-size: 2.1mm; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--ucard-tenue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ucard-columna-mini {
+  flex: 0 0 auto; display: flex; gap: 1.1mm; white-space: nowrap;
+  font-weight: 600; font-size: 1.8mm; font-variant-numeric: tabular-nums;
+  text-transform: uppercase; letter-spacing: 0.02em;
+}
+.ucard-columna-mini > span + span { padding-left: 1.1mm; border-left: 0.3mm solid var(--ucard-filete); }
+/* Dentro de la columna el padding lateral ya lo pone ella; las piezas que
+   traian el suyo propio para ir a todo el ancho de la carta se lo quitan. */
+.ucard-columna .ucard-armas,
+.ucard-columna .ucard-bloque { padding-left: 0; padding-right: 0; margin-top: 0.9mm; }
+.ucard-columna .ucard-table { font-size: 1.95mm; }
+.ucard-columna .ucard-table td { padding: 0.35mm 0.9mm; }
+.ucard-columna .ucard-bloque-title { font-size: 1.8mm; margin-bottom: 0.4mm; }
+.ucard-columna .ucard-chips { gap: 0.5mm; }
+.ucard-columna .ucard-chip { font-size: 1.85mm; padding: 0.3mm 1mm; }
+.ucard-columna .ucard-vacio { font-size: 1.85mm; }
+.ucard-columna .ucard-mas { font-size: 1.75mm; margin: 0.4mm 0 0; }
+.ucard-columna .ucard-accion { padding: 0.8mm 0 0; }
+
+/* "El mando aporta": lo que el heroe unido le presta a la unidad, aparte de lo
+   suyo. Va al final de la columna, justo antes de Configurar. */
+.ucard-mando { margin-top: 0.9mm; }
+/* El liderazgo, en una pastilla rellena y no un contorno en el naranja
+   apagado de acento —eso se perdia entre las fichas de arma, y esto es justo
+   lo que hay que ver rapido. */
+.ucard-chip-liderazgo {
+  background: var(--ucard-trim); color: var(--ucard-banda-texto); border-color: var(--ucard-trim);
+  font-family: "Saira Condensed", sans-serif; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase; cursor: default;
+}
+.ucard-chip-liderazgo b { color: var(--accent); font-size: 1.15em; }
 /* El pie de la carta ya lleva botones; el control de notas se alinea con
    ellos y se queda con el hueco que sobre. */
 input.tiny.nota {

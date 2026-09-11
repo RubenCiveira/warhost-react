@@ -24,7 +24,7 @@ const filas = (tabla, queries) =>
 const dir = await mkdtemp(join(tmpdir(), "warhost-uni-"));
 const salida = join(dir, "unidades.mjs");
 await build({ entryPoints: ["src/lib/unidades.ts"], outfile: salida, format: "esm", bundle: true, platform: "node", logLevel: "error" });
-const { grupoDeUnidad, agruparUnidades } = await import(salida);
+const { grupoDeUnidad, agruparUnidades, emparejarHeroes } = await import(salida);
 
 let fallos = 0;
 const comprobar = (ok, que, detalle) => {
@@ -56,6 +56,31 @@ comprobar(grupos[2].unidades.map((u) => u.$id).join("") === "fc", "vehiculos de 
 // --- Un grupo vacio no aparece.
 const soloBase = agruparUnidades([{ $id: "x", rules: ["Fast"], size: 5, cost: 100 }]);
 comprobar(soloBase.length === 1 && soloBase[0].grupo === "base", "los grupos sin unidades no salen");
+
+// --- Emparejar un heroe con su unidad.
+const ru = (name, over = {}) => ({
+  name, unitKey: name, sortOrder: 0, size: 1, quality: 3, defense: 3, cost: 80, maxWounds: 3,
+  rules: [], loadout: [], upgrades: [], unresolvedUpgrades: 0, ...over,
+});
+const lista = [
+  ru("Master Brother", { rules: ["Hero", "Tough(3)"], cost: 60, size: 1 }),
+  ru("Battle Brothers", { rules: ["Battleborn"], cost: 150, size: 5 }),
+  ru("Assault Brothers", { rules: ["Battleborn"], cost: 165, size: 5 }),
+];
+const filas1 = emparejarHeroes(lista, [1, undefined, undefined]);
+comprobar(filas1.length === 2, "la unidad unida sale de la lista", `${filas1.length}`);
+const par = filas1.find((f) => f.adjunta);
+comprobar(par && par.principal.name === "Master Brother" && par.adjunta.name === "Battle Brothers", "el heroe lleva su unidad dentro");
+comprobar(par && par.size === 6 && par.cost === 210, "miniaturas y puntos se suman", `${par?.size}/${par?.cost}`);
+comprobar(grupoDeUnidad(par) === "heroe", "el par se clasifica por el heroe");
+const secs = agruparUnidades(filas1);
+comprobar(secs[0].grupo === "heroe" && secs[0].unidades[0].adjunta, "el par va en Heroes");
+comprobar(secs[1].grupo === "base" && secs[1].unidades.length === 1, "la otra unidad suelta queda en Base");
+
+// --- Sin uniones, una fila por unidad.
+comprobar(emparejarHeroes(lista, [undefined, undefined, undefined]).every((f) => !f.adjunta), "sin attachedTo, nada se empareja");
+// --- Un indice fuera de rango no rompe nada.
+comprobar(emparejarHeroes(lista, [9, undefined, undefined]).length === 3, "un destino que no existe deja al heroe suelto");
 
 // --- Datos reales.
 const libros = filas("army_books", [{ method: "limit", values: [N_LIBROS] }]);

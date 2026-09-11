@@ -40,7 +40,7 @@ import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
 import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
-import { agruparUnidades } from "../../lib/unidades";
+import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
 import { listUnits as listCatalogUnits } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
@@ -252,6 +252,15 @@ export default function ArmyEditor() {
         .filter((u) => !u.heroe && u.indice !== editandoIndice)
         .map(({ indice, nombre }) => ({ indice, nombre })),
     [units, editandoIndice],
+  );
+  /**
+   * Las filas de la lista, con los heroes ya emparejados con su unidad. La
+   * union se guarda por indice en `entradasGuardadas`, que va en el mismo orden
+   * que `units`.
+   */
+  const filasEjercito = useMemo(
+    () => emparejarHeroes(units, entradasGuardadas.map((e) => e.attachedTo)),
+    [units, entradasGuardadas],
   );
   const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
   const habilidades = useMemo(
@@ -748,41 +757,51 @@ export default function ArmyEditor() {
         )
       ) : units.length > 0 ? (
         <div className="army-strip">
-          {agruparUnidades(units).map((seccion) => (
+          {agruparUnidades(filasEjercito).map((seccion) => (
             <Fragment key={seccion.grupo}>
               <div className="army-divider" role="separator" aria-label={seccion.etiqueta}>
                 <span className="army-divider-label">{seccion.etiqueta}</span>
                 <span className="army-divider-count">{seccion.unidades.length}</span>
               </div>
-              {seccion.unidades.map((unit) => (
-                <div key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="army-slide">
-                  <UnitCard
-                    variant="ejercito"
-                    upgrades={unit.upgrades ?? []}
-                    glosario={glosario}
-                    onHabilidad={setHabilidad}
-                    unit={{
-                      name: unit.name,
-                      size: unit.size,
-                      quality: unit.quality,
-                      defense: unit.defense,
-                      cost: unit.cost,
-                      maxWounds: unit.maxWounds,
-                      rules: unit.rules,
-                      loadout: unit.loadout,
-                    }}
-                    combinada={unit.combined}
-                    notas={unit.notes}
-                    accion={
-                      bookKey && entradasGuardadas[unit.sortOrder] ? (
-                        <button type="button" onClick={() => setEditandoIndice(unit.sortOrder)}>
-                          Configurar
-                        </button>
-                      ) : null
-                    }
-                  />
-                </div>
-              ))}
+              {seccion.unidades.map((fila) => {
+                const u = fila.principal;
+                const perfil = (v: (typeof fila)["principal"]) => ({
+                  name: v.name,
+                  size: v.size,
+                  quality: v.quality,
+                  defense: v.defense,
+                  cost: v.cost,
+                  maxWounds: v.maxWounds,
+                  rules: v.rules,
+                  loadout: v.loadout,
+                });
+                const botonConfig = (indice: number) =>
+                  bookKey && entradasGuardadas[indice] ? (
+                    <button type="button" onClick={() => setEditandoIndice(indice)}>
+                      Configurar
+                    </button>
+                  ) : null;
+                return (
+                  <div key={fila.key} className="army-slide">
+                    <UnitCard
+                      variant="ejercito"
+                      upgrades={u.upgrades ?? []}
+                      glosario={glosario}
+                      onHabilidad={setHabilidad}
+                      unit={perfil(u)}
+                      combinada={u.combined}
+                      notas={u.notes}
+                      adjunta={
+                        fila.adjunta
+                          ? { ...perfil(fila.adjunta), combinada: fila.adjunta.combined, upgrades: fila.adjunta.upgrades ?? [] }
+                          : undefined
+                      }
+                      accion={botonConfig(fila.indice)}
+                      accionAdjunta={fila.indiceAdjunta !== undefined ? botonConfig(fila.indiceAdjunta) : null}
+                    />
+                  </div>
+                );
+              })}
             </Fragment>
           ))}
         </div>

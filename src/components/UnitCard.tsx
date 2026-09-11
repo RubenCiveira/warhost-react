@@ -6,7 +6,7 @@ import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import IconoArma from "./IconoArma";
 import { parseHabilidad } from "../lib/reglas";
 import { desglosarOpcion } from "../lib/opciones";
-import { reglaDelAura } from "../lib/auras";
+import { reglaDelAura, reglaParaLaUnidad } from "../lib/auras";
 import type { Habilidad } from "../lib/reglas";
 
 /**
@@ -38,6 +38,13 @@ export type GlosarioCarta = Map<string, { description?: string | null }>;
  * importado trae una unidad con mas de las que existen en los libros.
  */
 const ARMAS_VISIBLES = 6;
+
+/**
+ * En la carta emparejada cada columna va a media anchura y la carta mide lo
+ * mismo que cualquier otra tarot: el tope baja para que quepa, y lo que sobra
+ * se resume en la misma linea de "y N armas mas" que ya usaba la carta entera.
+ */
+const ARMAS_VISIBLES_COLUMNA = 4;
 
 /*
  * Las reglas y el equipo van en lista, una por linea, y no en etiquetas: es la
@@ -109,6 +116,14 @@ interface Props {
    * no en el pie porque es sobre esta unidad, no sobre la lista.
    */
   accion?: ReactNode;
+  /**
+   * La unidad a la que se ha unido este heroe: `unit` es el heroe y se pinta en
+   * la primera columna, `adjunta` la unidad en la segunda, y la carta propia de
+   * la unidad desaparece de la lista. Solo en la carta de mesa de un ejercito.
+   */
+  adjunta?: UnitCardData & { combinada?: boolean; upgrades?: string[] };
+  /** El "Configurar" de la columna de la unidad unida. */
+  accionAdjunta?: ReactNode;
   /** Unidad combinada: se avisa en la carta porque el perfil ya viene doblado. */
   combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
@@ -411,6 +426,271 @@ function OpcionTexto({
   );
 }
 
+/** Una fila de la tabla de armas. Se reutiliza en la carta con heroe unido, que
+ *  la pinta dos veces, una por cada perfil. */
+function FilaArma({
+  weapon,
+  glosario,
+  onAbrir,
+}: {
+  weapon: LoadoutEntry;
+  glosario?: GlosarioCarta;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  return (
+    <tr>
+      <td>
+        <span className="ucard-arma">
+          <IconoArma tipo={weapon.range === null ? "cac" : "distancia"} />
+          <span className="ucard-arma-nombre">
+            {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
+            {weapon.name}
+          </span>
+        </span>
+      </td>
+      <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
+      <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>
+      <td className="ucard-wrules">
+        {weapon.rules.length > 0 ? (
+          <div className="ucard-chips ucard-chips-arma">
+            {weapon.rules.map((rule) => (
+              <Chip key={rule} habilidad={parseHabilidad(rule, "regla")} glosario={glosario} onAbrir={onAbrir} />
+            ))}
+          </div>
+        ) : (
+          <span className="ucard-vacio">—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/** El racimo de chips de reglas de un perfil. */
+function ClusterReglas({
+  rules,
+  glosario,
+  onAbrir,
+}: {
+  rules: string[];
+  glosario?: GlosarioCarta;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  if (rules.length === 0) return <p className="ucard-vacio">Ninguna</p>;
+  return (
+    <div className="ucard-chips">
+      {rules.map((rule) => (
+        <Chip key={rule} habilidad={parseHabilidad(rule, "regla")} glosario={glosario} onAbrir={onAbrir} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * El doble chip de lo que el heroe le presta a la unidad: su regla —"Bane in
+ * Melee Aura", la lleve el mismo o se la de un objeto como "Preacher"— y lo
+ * que concede, pegado detras. Es el mismo par que ya se ve en la carta del
+ * heroe; aqui se repite porque es la unidad la que se beneficia.
+ */
+function ChipAporte({
+  nombre,
+  concede,
+  alcance,
+  onAbrir,
+}: {
+  nombre: string;
+  concede: Habilidad;
+  alcance: string | null;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  return (
+    <span className="ucard-chip-doble">
+      <button
+        type="button"
+        className="ucard-chip"
+        disabled={!onAbrir}
+        title={`Ver ${nombre}`}
+        onClick={() => onAbrir?.(parseHabilidad(nombre, "regla"))}
+      >
+        {nombre}
+      </button>
+      <button
+        type="button"
+        className="ucard-chip ucard-chip-concede"
+        disabled={!onAbrir}
+        title={`Concede ${concede.etiqueta}${alcance ? ` ${alcance}` : ""}: ver la regla`}
+        onClick={() => onAbrir?.(concede)}
+      >
+        {concede.nombre}
+        {concede.valor ? <span className="valor">({concede.valor})</span> : null}
+      </button>
+    </span>
+  );
+}
+
+/** La tabla de armas completa: cabecera, filas, y el aviso de las que no caben. */
+function TablaArmas({
+  weapons,
+  max = ARMAS_VISIBLES,
+  glosario,
+  onAbrir,
+}: {
+  weapons: LoadoutEntry[];
+  /** Tope de filas visibles: mas bajo en la carta emparejada, que va a media anchura. */
+  max?: number;
+  glosario?: GlosarioCarta;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  if (weapons.length === 0) return null;
+  const visibles = weapons.slice(0, max);
+  const ocultas = weapons.length - visibles.length;
+  return (
+    <div className="ucard-armas">
+      <table className="ucard-table">
+        <thead>
+          <tr>
+            <th>Arma</th>
+            <th className="num">Alc.</th>
+            <th className="num">Atq.</th>
+            <th>Reglas de arma</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibles.map((weapon, index) => (
+            <FilaArma key={`${weapon.label}-${index}`} weapon={weapon} glosario={glosario} onAbrir={onAbrir} />
+          ))}
+        </tbody>
+      </table>
+      {ocultas > 0 ? (
+        <p className="ucard-mas">
+          y {ocultas} arma{ocultas === 1 ? "" : "s"} mas, en el detalle de la unidad
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** El equipo en tabla: cada pieza y a su derecha lo que concede. */
+function TablaEquipo({
+  gear,
+  glosario,
+  onAbrir,
+}: {
+  gear: LoadoutEntry[];
+  glosario?: GlosarioCarta;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  if (gear.length === 0) return null;
+  return (
+    <section className="ucard-bloque">
+      <table className="ucard-table ucard-equipo-tabla">
+        <thead>
+          <tr>
+            <th>Equipo</th>
+            <th>Concede</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gear.map((item, index) => (
+            <tr key={`${item.label}-${index}`}>
+              <td>
+                {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
+                {item.name}
+              </td>
+              <td>
+                <div className="ucard-chips">
+                  {item.rules.length > 0 ? (
+                    item.rules.map((rule) => (
+                      <Chip key={rule} habilidad={parseHabilidad(rule, "regla")} glosario={glosario} onAbrir={onAbrir} />
+                    ))
+                  ) : (
+                    <span className="ucard-vacio">—</span>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/**
+ * Una columna de la carta emparejada: el perfil completo de un lado —heroe o
+ * unidad—, con su nombre, sus datos, su armamento, sus reglas y su equipo, y el
+ * boton de configurar al fondo. Es la misma informacion que llevaria su propia
+ * carta, solo que a media anchura.
+ */
+function ColumnaPerfil({
+  nombre,
+  perfil,
+  accion,
+  aportesHeroe = [],
+  liderazgo,
+  glosario,
+  onAbrir,
+}: {
+  nombre: string;
+  perfil: UnitCardData;
+  accion?: ReactNode;
+  /** Lo que el heroe unido le presta a esta unidad: sus auras, via regla o via equipo. */
+  aportesHeroe?: Array<{ nombre: string; concede: Habilidad; alcance: string | null }>;
+  /** "3+": la unidad puede usar la Calidad del heroe unido para el liderazgo. */
+  liderazgo?: string;
+  glosario?: GlosarioCarta;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
+  const loadout = normalizeLoadout(perfil.loadout);
+  const weapons = loadout.filter((entry) => entry.kind === "weapon");
+  const gear = loadout.filter((entry) => entry.kind === "gear");
+
+  return (
+    <div className="ucard-columna">
+      {/* Nombre y datos en un solo renglon: el nombre se recorta con puntos
+          suspensivos antes que robarle una linea entera a Cal/Def/Her. */}
+      <div className="ucard-columna-cab">
+        <span className="ucard-columna-nombre">{nombre}</span>
+        <span className="ucard-columna-mini">
+          <span>Cal {perfil.quality}+</span>
+          <span>Def {perfil.defense}+</span>
+          {perfil.maxWounds !== undefined ? <span>Her {perfil.maxWounds}</span> : null}
+        </span>
+      </div>
+      <TablaArmas weapons={weapons} max={ARMAS_VISIBLES_COLUMNA} glosario={glosario} onAbrir={onAbrir} />
+      <section className="ucard-bloque">
+        <h4 className="ucard-bloque-title">Reglas</h4>
+        <ClusterReglas rules={perfil.rules} glosario={glosario} onAbrir={onAbrir} />
+      </section>
+      <TablaEquipo gear={gear} glosario={glosario} onAbrir={onAbrir} />
+      {/* Lo que trae el mando, aparte de lo suyo: el liderazgo que presta y las
+          auras que alcanzan a toda la unidad, se lleve la regla el heroe mismo
+          o se la de un objeto como "Preacher". */}
+      {liderazgo || aportesHeroe.length > 0 ? (
+        <section className="ucard-bloque ucard-mando">
+          <h4 className="ucard-bloque-title">El mando aporta</h4>
+          <div className="ucard-chips">
+            {liderazgo ? (
+              <span className="ucard-chip ucard-chip-liderazgo">
+                Liderazgo <b>{liderazgo}</b>
+              </span>
+            ) : null}
+            {aportesHeroe.map((aporte) => (
+              <ChipAporte
+                key={aporte.nombre}
+                nombre={aporte.nombre}
+                concede={aporte.concede}
+                alcance={aporte.alcance}
+                onAbrir={onAbrir}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {accion ? <div className="ucard-accion">{accion}</div> : null}
+    </div>
+  );
+}
+
 export default function UnitCard({
   unit,
   variant,
@@ -423,26 +703,73 @@ export default function UnitCard({
   formato = "tarot",
   footer,
   accion,
+  adjunta,
+  accionAdjunta,
   combinada = false,
   notas,
   glosario,
   onHabilidad,
 }: Props) {
+  const hoja = formato === "hoja";
+  // La union heroe + unidad solo tiene sentido en la carta de mesa de un
+  // ejercito: la ficha de catalogo no sabe de listas.
+  const emparejada = Boolean(adjunta) && variant === "ejercito" && !hoja;
+
   const loadout = normalizeLoadout(unit.loadout);
   const weapons = loadout.filter((entry) => entry.kind === "weapon");
   const gear = loadout.filter((entry) => entry.kind === "gear");
-  const visibles = weapons.slice(0, ARMAS_VISIBLES);
-  const ocultas = weapons.length - visibles.length;
+  const adjLoadout = emparejada && adjunta ? normalizeLoadout(adjunta.loadout) : [];
+  const adjWeapons = adjLoadout.filter((entry) => entry.kind === "weapon");
+  const adjGear = adjLoadout.filter((entry) => entry.kind === "gear");
 
-  const stats: Array<[string, string]> = [
-    ["Min", String(unit.size)],
-    ["Cal", `${unit.quality}+`],
-    ["Def", `${unit.defense}+`],
-  ];
-  if (unit.maxWounds !== undefined) stats.push(["Her", String(unit.maxWounds)]);
-  if (unit.cost !== undefined) stats.push(["Pts", String(unit.cost)]);
+  /**
+   * Lo que el heroe le presta a la unidad entera: cualquier regla cuya
+   * descripcion lo diga de forma expresa —"This model and its unit get X"—, la
+   * lleve el mismo escrita o se la de un objeto de su equipo. "Preacher" es
+   * justo eso: un objeto que concede "Bane in Melee Aura", y esa regla vive en
+   * `rules` del objeto, no en las del heroe — mirar solo `unit.rules` se lo
+   * dejaria fuera. Sin glosario no hay forma de saber que concede cada una, asi
+   * que se deja la lista vacia antes que adivinar.
+   */
+  const aportesDelHeroe: Array<{ nombre: string; concede: Habilidad; alcance: string | null }> =
+    emparejada && adjunta && glosario
+      ? [...new Set([...unit.rules, ...loadout.flatMap((entrada) => entrada.rules)])]
+          .map((etiqueta) => {
+            const nombre = parseHabilidad(etiqueta, "regla").nombre;
+            const aporte = reglaParaLaUnidad(glosario.get(nombre.toLowerCase())?.description, (n) => glosario.has(n.toLowerCase()));
+            return aporte ? { nombre, concede: aporte.concede, alcance: aporte.alcance } : null;
+          })
+          .filter((aporte): aporte is { nombre: string; concede: Habilidad; alcance: string | null } => aporte !== null)
+          // Si la unidad ya lo lleva de por si, no hace falta repetirlo.
+          .filter(
+            (aporte) =>
+              !adjunta.rules.some((regla) => parseHabilidad(regla, "regla").nombre.toLowerCase() === aporte.concede.nombre.toLowerCase()),
+          )
+      : [];
 
-  const hoja = formato === "hoja";
+  /**
+   * La banda de arriba es siempre la misma pieza, tenga la carta uno o dos
+   * perfiles: Calidad y Defensa no se pueden sumar entre un heroe y su unidad,
+   * asi que en la emparejada solo quedan las dos que si son un numero de la
+   * pareja entera —cuantas miniaturas hay, cuanto cuesta—. El resto vive dentro
+   * de cada columna.
+   */
+  const stats: Array<[string, string]> =
+    emparejada && adjunta
+      ? [
+          ["Min", String(unit.size + adjunta.size)],
+          ...(unit.cost !== undefined || adjunta.cost !== undefined
+            ? ([["Pts", String((unit.cost ?? 0) + (adjunta.cost ?? 0))]] as Array<[string, string]>)
+            : []),
+        ]
+      : [
+          ["Min", String(unit.size)],
+          ["Cal", `${unit.quality}+`],
+          ["Def", `${unit.defense}+`],
+          ...(unit.maxWounds !== undefined ? ([["Her", String(unit.maxWounds)]] as Array<[string, string]>) : []),
+          ...(unit.cost !== undefined ? ([["Pts", String(unit.cost)]] as Array<[string, string]>) : []),
+        ];
+
   // Las auras ocupan dos chips en el bloque de reglas, asi que cuentan doble
   // para saber cuantos renglones se lleva ese bloque.
   const anchoDeReglas = unit.rules.reduce((suma, regla) => {
@@ -505,18 +832,37 @@ export default function UnitCard({
       </details>
     );
 
+  // La carta emparejada respeta el mismo tamano de tarot que el resto: nada de
+  // marco mas alto, el contenido se aprieta para caber en el de siempre.
+  const wrapClase = hoja ? "ucard-wrap hoja" : "ucard-wrap";
+  const marcoClase = hoja ? "ucard-frame hoja" : "ucard-frame";
+
   return (
-    <div className={hoja ? "ucard-wrap hoja" : "ucard-wrap"}>
-      <div className={hoja ? "ucard-frame hoja" : "ucard-frame"}>
+    <div className={wrapClase}>
+      <div className={marcoClase}>
         <article
-          className={`ucard ucard-${variant}${hoja ? ` hoja${densidadOpciones}` : densidad(weapons, unit.rules, gear, Boolean(accion))}`}
+          className={`ucard ucard-${variant}${
+            hoja
+              ? ` hoja${densidadOpciones}`
+              : emparejada && adjunta
+                ? ` emparejada${densidad(
+                    [...weapons, ...adjWeapons],
+                    [...unit.rules, ...adjunta.rules],
+                    [...gear, ...adjGear],
+                    true,
+                  )}`
+                : densidad(weapons, unit.rules, gear, Boolean(accion))
+          }`}
         >
           <header className="ucard-head">
             <h3 className="ucard-title">
               {unit.name}
+              {emparejada && adjunta ? <span className="ucard-mas-heroe">+ {adjunta.name}</span> : null}
               {/* El perfil de una combinada ya viene doblado, asi que hay que
                   decirlo o parecera que la unidad es de otro tamaño. */}
-              {combinada ? <span className="ucard-combinada">Combinada</span> : null}
+              {combinada || (emparejada && adjunta?.combinada) ? (
+                <span className="ucard-combinada">Combinada</span>
+              ) : null}
             </h3>
             <div className="ucard-stats">
               {stats.map(([label, value]) => (
@@ -528,140 +874,57 @@ export default function UnitCard({
             </div>
           </header>
 
-          <div className="ucard-body">
-            {weapons.length > 0 ? (
-              <div className="ucard-armas">
-              <table className="ucard-table">
-                <thead>
-                  <tr>
-                    <th>Arma</th>
-                    <th className="num">Alc.</th>
-                    <th className="num">Atq.</th>
-                    <th>Reglas de arma</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibles.map((weapon, index) => (
-                    <tr key={`${weapon.label}-${index}`}>
-                      <td>
-                        <span className="ucard-arma">
-                          <IconoArma tipo={weapon.range === null ? "cac" : "distancia"} />
-                          <span className="ucard-arma-nombre">
-                            {weapon.count > 1 ? <span className="ucard-count">{weapon.count}×</span> : null}
-                            {weapon.name}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="num">{weapon.range === null ? "CaC" : `${weapon.range}"`}</td>
-                      <td className="num">{weapon.attacks === null ? "—" : `A${weapon.attacks}`}</td>
-                      <td className="ucard-wrules">
-                        {weapon.rules.length > 0 ? (
-                          <div className="ucard-chips ucard-chips-arma">
-                            {weapon.rules.map((rule) => (
-                              <Chip
-                                key={rule}
-                                habilidad={parseHabilidad(rule, "regla")}
-                                glosario={glosario}
-                                onAbrir={onHabilidad}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="ucard-vacio">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {ocultas > 0 ? (
-                <p className="ucard-mas">
-                  y {ocultas} arma{ocultas === 1 ? "" : "s"} mas, en el detalle de la unidad
+          {emparejada && adjunta ? (
+            <div className="ucard-body ucard-body-par">
+              <ColumnaPerfil nombre={unit.name} perfil={unit} accion={accion} glosario={glosario} onAbrir={onHabilidad} />
+              <ColumnaPerfil
+                nombre={adjunta.name}
+                perfil={adjunta}
+                accion={accionAdjunta}
+                aportesHeroe={aportesDelHeroe}
+                liderazgo={`${unit.quality}+`}
+                glosario={glosario}
+                onAbrir={onHabilidad}
+              />
+            </div>
+          ) : (
+            <div className="ucard-body">
+              <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />
+
+              {/* Reglas innatas: a todo el ancho, que es como se recorren. Las que
+                  da el equipo van con su objeto, en la tabla de abajo. */}
+              <section className="ucard-bloque">
+                <h4 className="ucard-bloque-title">Reglas</h4>
+                <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
+              </section>
+
+              {/* El equipo, en tabla: cada pieza y a su derecha lo que concede.
+                  Ninguna del catalogo deja de conceder algo, asi que el nombre
+                  por si solo no informaria. */}
+              <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
+
+              {notas ? (
+                <p className="ucard-notas">
+                  <span className="ucard-label">Notas</span>
+                  {notas}
                 </p>
               ) : null}
-              </div>
-            ) : null}
 
-            {/* Reglas innatas: a todo el ancho, que es como se recorren. Las que
-                da el equipo van con su objeto, en la tabla de abajo. */}
-            <section className="ucard-bloque">
-              <h4 className="ucard-bloque-title">Reglas</h4>
-              {unit.rules.length > 0 ? (
-                <div className="ucard-chips">
-                  {unit.rules.map((rule) => (
-                    <Chip
-                      key={rule}
-                      habilidad={parseHabilidad(rule, "regla")}
-                      glosario={glosario}
-                      onAbrir={onHabilidad}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="ucard-vacio">Ninguna</p>
-              )}
-            </section>
+              {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
 
-            {/* El equipo, en tabla: cada pieza y a su derecha lo que concede.
-                Ninguna del catalogo deja de conceder algo, asi que el nombre
-                por si solo no informaria. */}
-            {gear.length > 0 ? (
-              <section className="ucard-bloque">
-                <table className="ucard-table ucard-equipo-tabla">
-                  <thead>
-                    <tr>
-                      <th>Equipo</th>
-                      <th>Concede</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gear.map((item, index) => (
-                      <tr key={`${item.label}-${index}`}>
-                        <td>
-                          {item.count > 1 ? <span className="ucard-count">{item.count}×</span> : null}
-                          {item.name}
-                        </td>
-                        <td>
-                          <div className="ucard-chips">
-                            {item.rules.length > 0 ? (
-                              item.rules.map((rule) => (
-                                <Chip
-                                  key={rule}
-                                  habilidad={parseHabilidad(rule, "regla")}
-                                  glosario={glosario}
-                                  onAbrir={onHabilidad}
-                                />
-                              ))
-                            ) : (
-                              <span className="ucard-vacio">—</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-            ) : null}
-
-            {notas ? (
-              <p className="ucard-notas">
-                <span className="ucard-label">Notas</span>
-                {notas}
-              </p>
-            ) : null}
-
-            {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
-
-            {accion ? <div className="ucard-accion">{accion}</div> : null}
-          </div>
+              {accion ? <div className="ucard-accion">{accion}</div> : null}
+            </div>
+          )}
         </article>
       </div>
 
-      {variant === "ejercito" && upgrades.length > 0 ? (
+      {variant === "ejercito" && (upgrades.length > 0 || (emparejada && (adjunta?.upgrades?.length ?? 0) > 0)) ? (
         <p className="ucard-upgrades">
           <span className="ucard-label">Mejoras</span>
-          {upgrades.join(" · ")}
+          {[
+            ...upgrades,
+            ...(emparejada && adjunta?.upgrades ? adjunta.upgrades : []),
+          ].join(" · ")}
         </p>
       ) : null}
 

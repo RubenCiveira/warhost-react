@@ -7,6 +7,7 @@
  * vehiculo o un monstruo —esa regla es la que los mantiene en pie de una sola
  * herida—. Todo lo demas es tropa.
  */
+import type { ResolvedUnit } from "./armyForgeResolve";
 
 export type GrupoUnidad = "heroe" | "base" | "vehiculo";
 
@@ -54,5 +55,60 @@ export function agruparUnidades<T extends UnidadClasificable>(units: T[]): Grupo
     const unidades = porGrupo.get(grupo);
     if (!unidades?.length) return [];
     return [{ grupo, etiqueta: ETIQUETA_GRUPO[grupo], unidades: [...unidades].sort((a, b) => b.cost - a.cost) }];
+  });
+}
+
+/** Una entrada de la lista: una unidad suelta, o un heroe con su unidad unida. */
+export interface FilaEjercito extends UnidadClasificable {
+  key: string;
+  /** La carta que se pinta. Si hay union, es el heroe. */
+  principal: ResolvedUnit;
+  /** Indice en la lista guardada, para reconfigurar. */
+  indice: number;
+  /** La unidad a la que se ha unido el heroe, si la hay. */
+  adjunta?: ResolvedUnit;
+  indiceAdjunta?: number;
+}
+
+/**
+ * Empareja cada heroe unido con su unidad: la unidad sale de su seccion y se
+ * pinta dentro de la carta del heroe. `attachedTo` viene por indice en la lista
+ * guardada, que va en el mismo orden que `units`.
+ *
+ * Para clasificar y ordenar, la fila expone las reglas del heroe y la suma de
+ * miniaturas y puntos de los dos.
+ */
+export function emparejarHeroes(
+  units: ResolvedUnit[],
+  attachedTo: Array<number | undefined>,
+): FilaEjercito[] {
+  const absorbidas = new Set<number>();
+  attachedTo.forEach((destino, i) => {
+    if (typeof destino === "number" && destino >= 0 && destino < units.length && destino !== i) {
+      absorbidas.add(destino);
+    }
+  });
+
+  return units.flatMap((unit, i) => {
+    if (absorbidas.has(i)) return [];
+    const key = `${unit.unitKey ?? unit.name}-${unit.sortOrder}`;
+    const destino = attachedTo[i];
+    const adjunta =
+      typeof destino === "number" && destino >= 0 && destino < units.length && destino !== i ? units[destino] : undefined;
+    if (!adjunta) {
+      return [{ key, rules: unit.rules, size: unit.size, cost: unit.cost, principal: unit, indice: i }];
+    }
+    return [
+      {
+        key,
+        rules: unit.rules,
+        size: unit.size + adjunta.size,
+        cost: unit.cost + adjunta.cost,
+        principal: unit,
+        indice: i,
+        adjunta,
+        indiceAdjunta: destino,
+      },
+    ];
   });
 }
