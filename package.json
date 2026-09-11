@@ -30,7 +30,9 @@
     "test:auras": "node scripts/test-auras.mjs",
     "test:reconfigurar": "node scripts/test-reconfigurar.mjs",
     "test:adjuntar": "node scripts/test-adjuntar.mjs",
-    "test:mando": "node scripts/test-mando.mjs"
+    "test:mando": "node scripts/test-mando.mjs",
+    "test:composicion": "node scripts/test-composicion.mjs",
+    "test:aviso": "node scripts/test-aviso-composicion.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

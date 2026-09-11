@@ -39,9 +39,10 @@ import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
+import AvisoComposicion from "../../components/AvisoComposicion";
 import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
 import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
-import { listUnits as listCatalogUnits } from "../../api/catalog";
+import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload } from "../../lib/armyPayload";
@@ -178,6 +179,23 @@ export default function ArmyEditor() {
     return () => document.removeEventListener("keydown", conEscape);
   }, [importOpen]);
 
+  /** Pasar a edicion: abre el borrador y se planta en el. */
+  async function onEditar() {
+    setBusy(true);
+    setError(null);
+    try {
+      const abierto = await conBorrador();
+      if (!abierto) return;
+      setViendoBorrador(true);
+      mostrar(abierto);
+      setNotice("Editando un borrador. El ejercito sigue como estaba hasta que pulses Guardar.");
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** Devuelve el borrador sobre el que escribir, creandolo la primera vez. */
   const conBorrador = useCallback(async (): Promise<Army | null> => {
     if (!army || !user) return null;
@@ -193,11 +211,23 @@ export default function ArmyEditor() {
   }, [army, draft, user]);
 
   /**
+   * Solo se edita el borrador, nunca el ejercito publicado.
+   *
+   * Mientras no haya uno, la vista es de consulta y no ensena nada que se pueda
+   * tocar: ni configurar, ni quitar, ni anadir, ni los formularios. El paso a
+   * edicion es explicito —el boton "Editar", que abre el borrador— en vez de
+   * que cualquier cambio suelto lo abra por detras.
+   */
+  const editable = Boolean(draft) && viendoBorrador;
+
+  /**
    * El nombre se edita en la barra y se guarda solo, con un respiro para no
    * escribir a cada tecla. Si no habia borrador, escribirlo es lo que lo abre.
    */
   useEffect(() => {
-    if (!army || (draft && !viendoBorrador)) return undefined;
+    // Solo se escribe estando en el borrador: fuera de el, el nombre es de
+    // consulta como el resto.
+    if (!army || !editable) return undefined;
     const guardado = (viendoBorrador && draft ? draft : army).name;
     const nuevo = form.name.trim();
     if (!nuevo || nuevo === guardado) return undefined;
@@ -216,7 +246,7 @@ export default function ArmyEditor() {
     }, 700);
 
     return () => window.clearTimeout(temporizador);
-  }, [form.name, army, draft, viendoBorrador, conBorrador]);
+  }, [form.name, army, editable, draft, viendoBorrador, conBorrador]);
 
   /**
    * Hay borrador pero se esta mirando la version publicada. Nada de lo que se
@@ -224,6 +254,7 @@ export default function ArmyEditor() {
    * hacer con el borrador.
    */
   const ignorandoBorrador = Boolean(draft) && !viendoBorrador;
+
 
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
   /**
@@ -428,6 +459,53 @@ export default function ArmyEditor() {
    * lista entera —no basta con anadir una tarjeta— porque los puntos y las
    * miniaturas salen de la suma de todas.
    */
+  /**
+   * Quita una unidad del borrador.
+   *
+   * Se hace sobre lo guardado, donde el indice vale, y con dos cuidados que no
+   * se ven hasta que fallan: `attachedTo` es un **indice**, asi que quitar una
+   * unidad corre los de las que van detras, y la que estuviera unida a esta se
+   * queda suelta en vez de apuntar a quien no es.
+   */
+  async function onRemoveUnit(indice: number, nombre: string) {
+    if (!army || !bookKey || !libro) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const restantes = entradasGuardadas
+        .filter((_, i) => i !== indice)
+        .map((entrada) => {
+          if (entrada.attachedTo === undefined) return entrada;
+          if (entrada.attachedTo === indice) {
+            const { attachedTo: _quitada, ...suelta } = entrada;
+            return suelta;
+          }
+          return entrada.attachedTo > indice ? { ...entrada, attachedTo: entrada.attachedTo - 1 } : entrada;
+        });
+
+      const packages = await listUpgradePackages(bookKey);
+      const payload = composeArmyPayload(
+        rehydrateEntries(restantes, unidadesLibro),
+        packages,
+        libro,
+        form.name,
+        form.listId,
+      );
+
+      const destino = await conBorrador();
+      if (!destino) return;
+      const guardado = await saveDraft(destino.$id, payload);
+      setDraft(guardado);
+      setViendoBorrador(true);
+      mostrar(guardado);
+      setNotice(`${nombre} quitada del borrador.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onAddUnit(
     nueva: BuilderEntry,
     book: ArmyBook,
@@ -542,15 +620,24 @@ export default function ArmyEditor() {
     <>
       <header className="army-bar">
         <div className="army-bar-main">
-          <input
-            className="army-bar-name"
-            value={form.name}
-            aria-label="Nombre del ejercito"
-            placeholder="Nombre del ejercito"
-            disabled={ignorandoBorrador}
-            title={ignorandoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
+          <span className="row" style={{ gap: 8 }}>
+            <input
+              className="army-bar-name"
+              value={form.name}
+              aria-label="Nombre del ejercito"
+              placeholder="Nombre del ejercito"
+              readOnly={!editable}
+              title={
+                ignorandoBorrador
+                  ? "Decide antes que hacer con el borrador pendiente"
+                  : editable
+                    ? undefined
+                    : "Pulsa Editar para cambiar el ejercito"
+              }
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <AvisoComposicion puntos={form.points} unidades={units} />
+          </span>
           <p className="army-bar-sub small muted">
             {form.faction || "Sin faccion"}
             {getGameSystem(form.gameSystem) ? ` · ${getGameSystem(form.gameSystem)?.name}` : ""}
@@ -578,18 +665,17 @@ export default function ArmyEditor() {
               Borrador
             </button>
           ) : null}
-          {ignorandoBorrador ? null : (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => void onPublish()}
-              disabled={busy || !draft}
-              title={draft ? undefined : "No hay cambios pendientes que guardar"}
-            >
+          {army && !draft ? (
+            <button type="button" className="primary" disabled={busy} onClick={() => void onEditar()}>
+              {busy ? "Abriendo…" : "Editar"}
+            </button>
+          ) : null}
+          {editable ? (
+            <button type="button" className="primary" onClick={() => void onPublish()} disabled={busy}>
               {busy ? "Guardando…" : "Guardar"}
             </button>
-          )}
-          {army && !ignorandoBorrador ? (
+          ) : null}
+          {army && editable ? (
             <div className="menu-wrap">
               <button
                 type="button"
@@ -775,11 +861,23 @@ export default function ArmyEditor() {
                   rules: v.rules,
                   loadout: v.loadout,
                 });
-                const botonConfig = (indice: number) =>
-                  bookKey && entradasGuardadas[indice] ? (
-                    <button type="button" onClick={() => setEditandoIndice(indice)}>
-                      Configurar
-                    </button>
+                // Solo en el borrador: sobre el ejercito publicado la vista es
+                // de consulta y no ensena nada que se pueda tocar.
+                const acciones = (indice: number, nombre: string) =>
+                  editable && bookKey && entradasGuardadas[indice] ? (
+                    <>
+                      <button type="button" onClick={() => setEditandoIndice(indice)}>
+                        Configurar
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={busy}
+                        onClick={() => void onRemoveUnit(indice, nombre)}
+                      >
+                        Quitar
+                      </button>
+                    </>
                   ) : null;
                 return (
                   <div key={fila.key} className="army-slide">
@@ -796,8 +894,12 @@ export default function ArmyEditor() {
                           ? { ...perfil(fila.adjunta), combinada: fila.adjunta.combined, upgrades: fila.adjunta.upgrades ?? [] }
                           : undefined
                       }
-                      accion={botonConfig(fila.indice)}
-                      accionAdjunta={fila.indiceAdjunta !== undefined ? botonConfig(fila.indiceAdjunta) : null}
+                      accion={acciones(fila.indice, u.name)}
+                      accionAdjunta={
+                        fila.indiceAdjunta !== undefined && fila.adjunta
+                          ? acciones(fila.indiceAdjunta, fila.adjunta.name)
+                          : null
+                      }
                     />
                   </div>
                 );
@@ -934,7 +1036,7 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && bookKey && !ignorandoBorrador ? (
+      {armyId && bookKey && editable ? (
         <button
           type="button"
           className="fab"
@@ -969,8 +1071,14 @@ export default function ArmyEditor() {
       {/* La vista es de consulta: los datos y las imagenes se pliegan para que
           las cartas lleven el peso, y se abren cuando hay algo que cambiar. */}
       <details className="army-details" open={!army}>
-        <summary>Datos e imagenes</summary>
+        <summary>
+          Datos e imagenes
+          {editable ? null : <span className="small muted"> · solo lectura</span>}
+        </summary>
         <form id="army-form" onSubmit={onSubmit} className="stack">
+        {/* Un `fieldset` y no campo por campo: asi lo que se anada manana queda
+            bloqueado tambien sin que haya que acordarse. */}
+        <fieldset className="desnudo stack" disabled={!editable}>
         <section className="card">
           {/* Nombre, modo, faccion, puntos y miniaturas no viven aqui: o estan en
               la barra, o los calcula el constructor a partir de las unidades y
@@ -1027,12 +1135,13 @@ export default function ArmyEditor() {
           <button
             type="submit"
             className="primary"
-            disabled={busy || ignorandoBorrador}
-            title={ignorandoBorrador ? "Decide antes que hacer con el borrador pendiente" : undefined}
+            disabled={busy || !editable}
+            title={editable ? undefined : "Pulsa Editar para cambiar el ejercito"}
           >
             {busy ? "Guardando…" : "Guardar en el borrador"}
           </button>
         </div>
+        </fieldset>
       </form>
       </details>
     </>

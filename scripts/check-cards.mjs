@@ -82,7 +82,12 @@ await build({
             // Con el boton de configurar, que es como sale en el ejercito: sin
             // el se estaria midiendo una carta que nadie ve.
             <UnitCard variant="ejercito" glosario={GLOSARIO}
-              accion={<button type="button">Configurar</button>}
+              accion={
+                <>
+                  <button type="button">Configurar</button>
+                  <button type="button" className="danger">Quitar</button>
+                </>
+              }
               unit={{
               name: u.name, size: u.size, quality: u.quality, defense: u.defense,
               cost: u.cost, maxWounds: u.size, rules: u.rules,

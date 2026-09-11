@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { imageUrl, listArmies } from "../../api/armies";
+import { parseStoredList } from "../../api/armyForge";
 import type { Army } from "../../lib/types";
 import { errorMessage, formatDate } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
+import AvisoComposicion from "../../components/AvisoComposicion";
 
 export default function ArmyList() {
   const { user } = useAuth();
@@ -77,7 +79,10 @@ export default function ArmyList() {
               ) : null}
               <div className="spread">
                 <strong>{army.name}</strong>
-                <span className="tag">{army.gameSystem.toUpperCase()}</span>
+                <span className="row" style={{ gap: 6 }}>
+                  <AvisoComposicion puntos={army.points} unidades={parseStoredList(army.listJson)} />
+                  <span className="tag">{army.gameSystem.toUpperCase()}</span>
+                </span>
               </div>
               <p className="muted small" style={{ margin: "6px 0 0" }}>
                 {army.faction ?? "Sin faccion"} · {army.points} pts · {army.modelCount} miniaturas

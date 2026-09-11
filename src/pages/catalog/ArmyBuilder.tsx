@@ -23,6 +23,7 @@ import {
 } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
+import { limitesComposicion } from "../../lib/composicion";
 import { composeArmyPayload } from "../../lib/armyPayload";
 import { errorMessage } from "../../lib/format";
 import { getGameSystem } from "../../lib/gameSystems";
@@ -179,6 +180,25 @@ export default function ArmyBuilder() {
     [entries, heroKeys],
   );
 
+  // Limites de composicion, los mismos cuatro que ensena Army Forge para los
+  // puntos del ejercito: heroes, unidades, modelos contando el Tough, y copias
+  // de la misma unidad.
+  const limites = useMemo(() => limitesComposicion(pointsLimit), [pointsLimit]);
+  const modelosActuales = built.units.reduce((suma, unidad) => suma + unidad.maxWounds, 0);
+  const copiasPorUnidad = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const entry of entries) mapa.set(entry.unit.unitId, (mapa.get(entry.unit.unitId) ?? 0) + 1);
+    return mapa;
+  }, [entries]);
+  const nombresConDemasiadasCopias = useMemo(
+    () =>
+      [...copiasPorUnidad.entries()]
+        .filter(([, copias]) => copias > limites.maxCopiasPorUnidad)
+        .map(([unitId]) => entries.find((entry) => entry.unit.unitId === unitId)?.unit.name)
+        .filter((nombre): nombre is string => Boolean(nombre)),
+    [copiasPorUnidad, limites, entries],
+  );
+
   const visibleUnits = useMemo(() => {
     const needle = unitSearch.trim().toLowerCase();
     if (!needle) return units;
@@ -310,9 +330,23 @@ export default function ArmyBuilder() {
             <span className="army-stat-key">Miniaturas</span>
             <span className="army-stat-value mono">{built.modelCount}</span>
           </div>
-          <div className="army-stat">
+          <div className={entries.length - heroKeys.size > limites.maxUnidades ? "army-stat over" : "army-stat"}>
             <span className="army-stat-key">Unidades</span>
-            <span className="army-stat-value mono">{entries.length}</span>
+            <span className="army-stat-value mono">
+              {entries.length - heroKeys.size}/{limites.maxUnidades}
+            </span>
+          </div>
+          <div className={heroKeys.size > limites.maxHeroes ? "army-stat over" : "army-stat"}>
+            <span className="army-stat-key">Heroes</span>
+            <span className="army-stat-value mono">
+              {heroKeys.size}/{limites.maxHeroes}
+            </span>
+          </div>
+          <div className={modelosActuales > limites.maxModelos ? "army-stat over" : "army-stat"}>
+            <span className="army-stat-key">Modelos/Tough</span>
+            <span className="army-stat-value mono">
+              {modelosActuales}/{limites.maxModelos}
+            </span>
           </div>
         </div>
 
@@ -346,6 +380,12 @@ export default function ArmyBuilder() {
       ) : null}
       {warning ? <div className="banner">{warning}</div> : null}
       {over ? <div className="banner error">Te has pasado del limite de puntos.</div> : null}
+      {nombresConDemasiadasCopias.length > 0 ? (
+        <div className="banner error">
+          Como mucho {limites.maxCopiasPorUnidad} copia{limites.maxCopiasPorUnidad === 1 ? "" : "s"} de la misma unidad
+          con este limite de puntos: te has pasado con {nombresConDemasiadasCopias.join(", ")}.
+        </div>
+      ) : null}
 
       {entries.length === 0 ? (
         <EmptyState title="Este ejercito no tiene unidades todavia">

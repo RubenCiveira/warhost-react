@@ -240,6 +240,35 @@ code {
 .tag.ok { border-color: var(--ok); color: var(--ok); }
 .tag.danger { border-color: var(--danger); color: var(--danger); }
 
+/* El aviso de composicion: no bloquea nada, solo avisa. El detalle se
+   despliega al pulsarlo, no en un tooltip nativo. */
+.aviso-composicion-wrap { position: relative; display: inline-flex; }
+.aviso-composicion {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex: 0 0 auto; padding: 0;
+  border: none; border-radius: 50%; background: var(--danger); color: #fff;
+  font-size: 0.75rem; line-height: 1; cursor: pointer;
+}
+.aviso-composicion:hover { filter: brightness(1.1); }
+.aviso-composicion.ok { background: var(--ok); }
+.aviso-composicion-pop {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 220px; max-width: 280px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--plate-radius);
+  box-shadow: var(--raise);
+  text-align: left; cursor: auto;
+}
+.aviso-composicion-titulo {
+  margin: 0 0 6px; font-family: "Saira Condensed", sans-serif;
+  font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--danger);
+}
+.aviso-composicion-titulo.ok { color: var(--ok); }
+.aviso-composicion-pop ul { margin: 0; padding-left: 18px; }
+.aviso-composicion-pop li { font-size: 0.82rem; line-height: 1.4; }
+.aviso-composicion-pop li + li { margin-top: 4px; }
+
 /* Statbox: el atomo del juego. Clave condensada arriba, valor tabular abajo. */
 .statbox {
   display: inline-flex; flex-direction: column; align-items: center;
@@ -700,7 +729,11 @@ label.check.tiny input { margin: 0; }
 /* La esquina inferior derecha de la carta: se apoya en el hueco que casi
    siempre queda al pie, y no empuja nada porque el cuerpo es flex y esta pieza
    se lleva el espacio sobrante. */
-.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; }
+/* Un fieldset que solo sirve para poder deshabilitar un bloque entero: no debe
+   verse como una caja. */
+fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; gap: 1.2mm; }
 .ucard-accion button {
   font-family: "Saira Condensed", sans-serif;
   font-size: 2.6mm; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -709,6 +742,10 @@ label.check.tiny input { margin: 0; }
   border: 0; border-radius: 0.9mm;
 }
 .ucard-accion button:hover { background: var(--ucard-trim); }
+/* Quitar es destructivo y va al lado de Configurar: se distingue por el color,
+   no por el tamano, para que no se pulse una por otra. */
+.ucard-accion button.danger { background: transparent; color: var(--ucard-banda); box-shadow: inset 0 0 0 0.3mm currentColor; }
+.ucard-accion button.danger:hover { background: var(--danger, #8c2f2f); color: var(--ucard-banda-texto); box-shadow: none; }
 .ucard-accion button:focus-visible { outline: 0.5mm solid var(--ucard-realce); outline-offset: 0.4mm; }
 /* En las cartas cargadas encoge con el resto: la mas apretada del catalogo se
    pasaba siete pixeles con el boton a tamano normal. */
@@ -740,7 +777,11 @@ label.check.tiny input { margin: 0; }
 /* La esquina inferior derecha de la carta: se apoya en el hueco que casi
    siempre queda al pie, y no empuja nada porque el cuerpo es flex y esta pieza
    se lleva el espacio sobrante. */
-.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; }
+/* Un fieldset que solo sirve para poder deshabilitar un bloque entero: no debe
+   verse como una caja. */
+fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+.ucard-accion { margin-top: auto; padding: 1.5mm 2.5mm 0; display: flex; justify-content: flex-end; gap: 1.2mm; }
 .ucard-accion button {
   font-family: "Saira Condensed", sans-serif;
   font-size: 2.6mm; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -749,6 +790,10 @@ label.check.tiny input { margin: 0; }
   border: 0; border-radius: 0.9mm;
 }
 .ucard-accion button:hover { background: var(--ucard-trim); }
+/* Quitar es destructivo y va al lado de Configurar: se distingue por el color,
+   no por el tamano, para que no se pulse una por otra. */
+.ucard-accion button.danger { background: transparent; color: var(--ucard-banda); box-shadow: inset 0 0 0 0.3mm currentColor; }
+.ucard-accion button.danger:hover { background: var(--danger, #8c2f2f); color: var(--ucard-banda-texto); box-shadow: none; }
 .ucard-accion button:focus-visible { outline: 0.5mm solid var(--ucard-realce); outline-offset: 0.4mm; }
 /* En las cartas cargadas encoge con el resto: la mas apretada del catalogo se
    pasaba siete pixeles con el boton a tamano normal. */

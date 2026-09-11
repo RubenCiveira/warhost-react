@@ -90,6 +90,55 @@ comprobar(
   `habria borrado ${tres.name} y dejado ${dos.name} sin tocar`,
 );
 
+// --- Quitar una unidad: los indices de `attachedTo` se mueven con ella.
+{
+  // Cuatro unidades; la segunda lleva un heroe unido (la cuarta apunta a ella).
+  const base = [uno, dos, tres, uno].map((u) => ({ unitId: u.unitId, choices: {} }));
+  base[3] = { ...base[3], attachedTo: 1 };
+
+  const quitar = (lista, indice) =>
+    lista
+      .filter((_, i) => i !== indice)
+      .map((e) => {
+        if (e.attachedTo === undefined) return e;
+        if (e.attachedTo === indice) {
+          const { attachedTo, ...suelta } = e;
+          return suelta;
+        }
+        return e.attachedTo > indice ? { ...e, attachedTo: e.attachedTo - 1 } : e;
+      });
+
+  // Quitando la primera, la union de la cuarta tiene que seguir apuntando a la
+  // misma unidad, ahora en la posicion 0.
+  const sinPrimera = quitar(base, 0);
+  comprobar(sinPrimera.length === 3, "quedan tres", `${sinPrimera.length}`);
+  comprobar(
+    sinPrimera[2].attachedTo === 0 && sinPrimera[0].unitId === dos.unitId,
+    "la union se corre con los indices y sigue apuntando a la misma unidad",
+    `apunta a ${sinPrimera[2].attachedTo}`,
+  );
+  // Una sola rehidratacion: las claves llevan sufijo aleatorio, asi que dos
+  // llamadas nunca coinciden y compararlas entre si no probaria nada.
+  const rehidratada = B.rehydrateEntries(sinPrimera, catalogo);
+  comprobar(
+    rehidratada[2].attachedTo === rehidratada[0].key,
+    "y al rehidratar la union sigue en pie",
+    `${rehidratada[2].attachedTo} vs ${rehidratada[0].key}`,
+  );
+
+  // Quitando aquella a la que estaba unida, la unidad se queda suelta.
+  const sinDestino = quitar(base, 1);
+  comprobar(
+    sinDestino[2].attachedTo === undefined,
+    "quitando la unidad a la que iba unida, la otra se queda suelta",
+    `${JSON.stringify(sinDestino[2].attachedTo)}`,
+  );
+  comprobar(
+    B.rehydrateEntries(sinDestino, catalogo).every((e) => e.attachedTo === undefined),
+    "y no queda ninguna union apuntando al vacio",
+  );
+}
+
 await rm(dir, { recursive: true, force: true });
 console.log(fallos === 0 ? "\nTodo correcto." : `\n${fallos} comprobaciones fallidas.`);
 process.exit(fallos === 0 ? 0 : 1);

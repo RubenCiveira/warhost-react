@@ -338,6 +338,32 @@ primera, y comprarlo dos veces solo cobra dos veces. La excepcion es el
 reemplazo, donde si es por seccion: "Replace all Bio-Spiners" se lleva los
 Bio-Spiners enteros y un segundo reemplazo no tendria nada que quitar.
 
+## Solo se edita el borrador
+
+Viendo un ejercito sin borrador, la vista es de **consulta**: no hay botones de
+configurar, ni de quitar, ni el flotante de anadir, y el formulario de datos va
+bloqueado. En su sitio, donde estaria "Guardar", hay un boton **Editar** que
+abre el borrador; a partir de ahi vuelven "Guardar", "Mas" y todas las acciones
+sobre las unidades.
+
+El paso a edicion es explicito a proposito. Antes, escribir en el nombre abria
+un borrador por detras: se salia de la vista de consulta sin querer y sin
+enterarse.
+
+Los tres estados son: **sin borrador** (consulta, con "Editar"), **con borrador
+pero mirando lo publicado** (consulta, con "Borrador" para decidir que hacer con
+el) y **en el borrador** (edicion, con "Guardar"). Un solo `editable` los
+resuelve, y el formulario de datos va dentro de un `fieldset` para que lo que se
+anada manana quede bloqueado tambien sin acordarse.
+
+## Quitar una unidad
+
+Junto a "Configurar" en cada carta. Tiene el mismo cuidado con los indices que
+reconfigurar, mas uno propio: `attachedTo` es un **indice**, asi que quitar una
+unidad corre los de las que van detras, y la que estuviera unida a la que se va
+se queda suelta en vez de apuntar a quien no es. `pnpm test:reconfigurar` lo
+comprueba en las dos direcciones.
+
 ## Reconfigurar una unidad puesta
 
 Cada carta del ejercito lleva en su esquina inferior derecha un boton que abre
