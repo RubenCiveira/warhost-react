@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { ID, OAuthProvider, account } from "../lib/appwrite";
 import type { Models } from "../lib/appwrite";
-import { accessStateFor, isAdmin } from "../api/access";
+import { accessStateFor, isAdmin, isEditor } from "../api/access";
 import type { AccessState } from "../api/access";
 
 type User = Models.User<Models.Preferences>;
@@ -11,6 +11,8 @@ interface AuthValue {
   user: User | null;
   access: AccessState;
   admin: boolean;
+  /** Corrige el contenido transcrito a mano: las cartas de mision. */
+  editor: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       access: accessStateFor(user),
       admin: isAdmin(user),
+      editor: isEditor(user),
       loading,
       refresh,
       login,

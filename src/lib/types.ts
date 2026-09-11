@@ -125,16 +125,23 @@ export interface Rule extends Row {
   sortOrder: number;
 }
 
+/**
+ * Una carta de mision. Sale de un OCR sobre el PDF oficial —las cartas ahi son
+ * imagenes, no texto—, asi que `verified` dice si alguien la ha repasado ya.
+ */
 export interface Mission extends Row {
+  gameSystem: GameSystemId;
   setting: Setting;
-  gameSystems: GameSystemId[];
   deck: string | null;
+  /** El numero del rombo, 11-66: se tiran 2D6 y sale la carta. */
+  code: number | null;
   name: string;
-  objectives: string | null;
-  deployment: string | null;
-  scoring: string | null;
-  specialRules: string | null;
+  description: string | null;
+  /** Puntos de victoria. Null cuando el OCR no pudo leerlos. */
+  vp: number | null;
+  verified: boolean;
   sourceUrl: string | null;
+  sourceVersion: string | null;
   sortOrder: number;
 }
 

@@ -14,14 +14,31 @@ export async function listRules(setting: Setting): Promise<Rule[]> {
   return result.rows;
 }
 
+/** Las cartas de un modo de juego, en el orden del mazo (11-66). */
 export async function listMissions(setting: Setting, gameSystem?: GameSystemId): Promise<Mission[]> {
   const result = await tables.listRows<Mission>({
     databaseId: env.databaseId,
     tableId: TABLES.missions,
-    queries: [Query.equal("setting", setting), Query.orderAsc("sortOrder"), Query.limit(200)],
+    queries: [
+      gameSystem ? Query.equal("gameSystem", gameSystem) : Query.equal("setting", setting),
+      Query.orderAsc("sortOrder"),
+      Query.limit(200),
+    ],
   });
-  if (!gameSystem) return result.rows;
-  return result.rows.filter((mission) => !mission.gameSystems?.length || mission.gameSystems.includes(gameSystem));
+  return result.rows;
+}
+
+/** Corrige una carta. Solo lo permite la tabla a quien lleve la etiqueta `editor`. */
+export async function saveMission(
+  id: string,
+  cambios: Partial<Pick<Mission, "name" | "description" | "vp" | "verified">>,
+): Promise<Mission> {
+  return tables.updateRow<Mission>({
+    databaseId: env.databaseId,
+    tableId: TABLES.missions,
+    rowId: id,
+    data: cambios,
+  });
 }
 
 /** Filtra en memoria por titulo, cuerpo y etiquetas. */

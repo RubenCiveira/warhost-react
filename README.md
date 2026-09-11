@@ -302,6 +302,21 @@ que otra opcion de la misma unidad te dio antes —"Replace Energy Sword" despue
 de comprar la Energy Sword—, y eso es correcto. Sin ese filtro el informe se
 llena de falsos positivos.
 
+## Cartas de mision
+
+Se transcriben del PDF oficial con OCR, porque alli las cartas son imagenes y no
+texto (el porque, en el README de warhost-appwrite). Eso significa que entran
+**sin repasar**, con erratas y, en casi la mitad, sin los puntos de victoria.
+
+La pagina lo dice en vez de disimularlo: aviso arriba con cuantas faltan, filtro
+para ver solo esas, borde punteado en las que no se han repasado y `?VP` cuando
+el numero no se pudo leer. Quien lleve la etiqueta **`editor`** corrige nombre,
+texto y puntos desde la propia carta, y al guardar puede marcarla repasada.
+
+`isEditor` incluye a los admin, y como el resto de comprobaciones de etiqueta en
+el front solo decide que controles se ensenan: quien manda es el permiso de la
+tabla.
+
 ## Auras
 
 Una regla de aura no dice que hace: dice que regla concede. "Bane in Melee Aura"

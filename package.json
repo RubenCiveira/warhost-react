@@ -32,7 +32,8 @@
     "test:adjuntar": "node scripts/test-adjuntar.mjs",
     "test:mando": "node scripts/test-mando.mjs",
     "test:composicion": "node scripts/test-composicion.mjs",
-    "test:aviso": "node scripts/test-aviso-composicion.mjs"
+    "test:aviso": "node scripts/test-aviso-composicion.mjs",
+    "test:misiones": "node scripts/test-misiones.mjs"
   },
   "dependencies": {
     "appwrite": "^27.0.0",

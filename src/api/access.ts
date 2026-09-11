@@ -1,6 +1,6 @@
 import { ExecutionMethod } from "appwrite";
 import { account, functions } from "../lib/appwrite";
-import { ACCEPTED_LABEL, ADMIN_LABEL, env } from "../lib/env";
+import { ACCEPTED_LABEL, ADMIN_LABEL, EDITOR_LABEL, env } from "../lib/env";
 import type { Models } from "../lib/appwrite";
 
 export type AccessState = "anonymous" | "unverified" | "pending" | "accepted";
@@ -17,6 +17,15 @@ export function accessStateFor(user: Models.User<Models.Preferences> | null): Ac
  */
 export function isAdmin(user: Models.User<Models.Preferences> | null): boolean {
   return Boolean(user?.labels.includes(ADMIN_LABEL));
+}
+
+/**
+ * Los editores corrigen las cartas de mision, que entran por OCR y salen con
+ * erratas. Mismo criterio que `isAdmin`: esto solo decide que controles se
+ * ensenan; quien manda es el permiso de la tabla.
+ */
+export function isEditor(user: Models.User<Models.Preferences> | null): boolean {
+  return Boolean(user?.labels.includes(EDITOR_LABEL) || user?.labels.includes(ADMIN_LABEL));
 }
 
 export interface AccessRequestResult {

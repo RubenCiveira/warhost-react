@@ -34,3 +34,5 @@ export const ACCEPTED_LABEL = "aceptado";
 
 /** Label que permite mantener el catalogo: imagenes de facciones y unidades. */
 export const ADMIN_LABEL = "admin";
+/** Mantiene el contenido que se transcribe a mano: de momento, las misiones. */
+export const EDITOR_LABEL = "editor";

@@ -1396,3 +1396,40 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   /* Las galerias y los formularios de subida no pintan nada en papel. */
   .gallery, .uploader { display: none !important; }
 }
+
+
+/* ── Cartas de mision ───────────────────────────────────────────────────────
+   Se leen de un vistazo en mitad de una partida: numero, nombre y puntos en
+   una linea, y debajo lo que hay que hacer. Las que no se han repasado van
+   marcadas, porque entran por OCR y pueden tener erratas. */
+.mcard-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.mcard {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.mcard.sin-repasar { border-style: dashed; }
+.mcard-head { display: flex; align-items: baseline; gap: 10px; }
+.mcard-code {
+  flex: 0 0 auto; padding: 1px 7px;
+  background: var(--surface-2); border-radius: 5px;
+  font-size: 0.82rem; color: var(--muted);
+}
+.mcard-name { margin: 0; flex: 1 1 auto; font-size: 1rem; }
+.mcard-vp { flex: 0 0 auto; font-weight: 700; color: var(--accent); }
+.mcard-vp.falta { color: var(--muted); font-weight: 400; }
+.mcard-text { margin: 0; font-size: 0.9rem; line-height: 1.4; }
+.mcard-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
+.mcard-aviso { color: var(--accent); }
+
+.mcard-name-input, .mcard-vp-input, .mcard-text-input {
+  padding: 4px 8px; font: inherit;
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.mcard-name-input { flex: 1 1 auto; min-width: 0; }
+.mcard-vp-input { flex: 0 0 4.5ch; text-align: center; }
+.mcard-text-input { width: 100%; resize: vertical; font-size: 0.9rem; line-height: 1.4; }

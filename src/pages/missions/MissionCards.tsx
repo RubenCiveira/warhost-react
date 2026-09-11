@@ -1,21 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { listMissions } from "../../api/content";
+import { useAuth } from "../../context/AuthContext";
+import { listMissions, saveMission } from "../../api/content";
 import type { Mission } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import MissionCard from "../../components/MissionCard";
 
+/**
+ * El mazo de cartas de mision del modo de juego elegido.
+ *
+ * Las cartas se transcriben del PDF oficial con OCR, porque ahi son imagenes y
+ * no texto, asi que entran sin repasar y con erratas. La pagina lo dice, deja
+ * filtrar por las que faltan por repasar, y quien lleve la etiqueta `editor`
+ * las corrige sin salir de aqui.
+ */
 export default function MissionCards() {
   const { system } = useGameSystem();
+  const { editor } = useAuth();
   const [missions, setMissions] = useState<Mission[]>([]);
-  const [deck, setDeck] = useState("");
+  const [soloPendientes, setSoloPendientes] = useState(false);
   const [drawn, setDrawn] = useState<Mission | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!system) return;
+    if (!system) return undefined;
     let cancelled = false;
     setLoading(true);
     listMissions(system.setting, system.id)
@@ -27,11 +37,20 @@ export default function MissionCards() {
     };
   }, [system]);
 
-  const decks = useMemo(
-    () => [...new Set(missions.map((mission) => mission.deck).filter((value): value is string => Boolean(value)))],
-    [missions],
-  );
-  const visible = deck ? missions.filter((mission) => mission.deck === deck) : missions;
+  const guardar = useCallback(async (id: string, cambios: Partial<Mission>) => {
+    try {
+      const fila = await saveMission(id, cambios);
+      setMissions((previas) => previas.map((m) => (m.$id === fila.$id ? fila : m)));
+      setDrawn((robada) => (robada && robada.$id === fila.$id ? fila : robada));
+      setError(null);
+    } catch (err) {
+      setError(errorMessage(err));
+      throw err;
+    }
+  }, []);
+
+  const sinRepasar = useMemo(() => missions.filter((m) => !m.verified).length, [missions]);
+  const visible = soloPendientes ? missions.filter((m) => !m.verified) : missions;
 
   if (!system) return <p className="muted">Elige primero un modo de juego en el inicio.</p>;
 
@@ -39,13 +58,13 @@ export default function MissionCards() {
     <>
       <PageHead
         title="Cartas de mision"
-        sub={`Misiones de ${system.name}`}
+        sub={`${missions.length} cartas de ${system.name}`}
         actions={
-          visible.length > 0 ? (
+          missions.length > 0 ? (
             <button
               type="button"
               className="primary"
-              onClick={() => setDrawn(visible[Math.floor(Math.random() * visible.length)])}
+              onClick={() => setDrawn(missions[Math.floor(Math.random() * missions.length)])}
             >
               Robar carta
             </button>
@@ -54,16 +73,19 @@ export default function MissionCards() {
       />
       <ErrorBanner error={error} />
 
-      {decks.length > 1 ? (
-        <div className="row" style={{ marginBottom: 16 }}>
-          <button type="button" className={deck ? "ghost" : "primary"} onClick={() => setDeck("")}>
-            Todas
+      {sinRepasar > 0 ? (
+        <div className="banner">
+          {sinRepasar} de {missions.length} cartas estan <strong>sin repasar</strong>: se transcriben del PDF oficial
+          con OCR, porque alli son imagenes y no texto, y salen con erratas.{" "}
+          {editor ? "Puedes corregirlas desde cada carta." : "Un usuario con permiso de edicion puede corregirlas."}
+          <button
+            type="button"
+            className="ghost tiny"
+            style={{ marginLeft: 8 }}
+            onClick={() => setSoloPendientes((valor) => !valor)}
+          >
+            {soloPendientes ? "Ver todas" : "Ver solo las que faltan"}
           </button>
-          {decks.map((name) => (
-            <button key={name} type="button" className={deck === name ? "primary" : "ghost"} onClick={() => setDeck(name)}>
-              {name}
-            </button>
-          ))}
         </div>
       ) : null}
 
@@ -75,22 +97,33 @@ export default function MissionCards() {
               Descartar
             </button>
           </div>
-          <MissionCard mission={drawn} />
+          <MissionCard
+            mission={drawn}
+            puedeEditar={editor}
+            onGuardar={(cambios) => guardar(drawn.$id, cambios)}
+          />
         </section>
       ) : null}
 
       {loading ? (
         <Spinner />
       ) : visible.length === 0 ? (
-        <EmptyState title="No hay misiones cargadas">
-          <p>
-            Las misiones viven en la tabla <code>missions</code> del backend. Cargalas con <code>npm run seed</code>.
+        <EmptyState title={soloPendientes ? "No queda ninguna sin repasar" : "No hay misiones cargadas"}>
+          <p className="muted">
+            {soloPendientes
+              ? "Todas las cartas de este modo estan repasadas."
+              : "Se cargan con ./scripts/import-missions.sh, en warhost-appwrite."}
           </p>
         </EmptyState>
       ) : (
-        <div className="grid">
+        <div className="mcard-grid">
           {visible.map((mission) => (
-            <MissionCard key={mission.$id} mission={mission} />
+            <MissionCard
+              key={mission.$id}
+              mission={mission}
+              puedeEditar={editor}
+              onGuardar={(cambios) => guardar(mission.$id, cambios)}
+            />
           ))}
         </div>
       )}
