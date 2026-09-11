@@ -23,6 +23,8 @@ import {
   listUrl,
   parseStoredList,
 } from "../../api/armyForge";
+import { requiredBookUids } from "../../lib/armyForgeResolve";
+import type { ArmyForgeList } from "../../lib/armyForgeResolve";
 import type { Army } from "../../lib/types";
 import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
@@ -32,7 +34,7 @@ import AddUnitWizard from "../../components/AddUnitWizard";
 import { esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { getBook, listRuleGlossary } from "../../api/catalog";
+import { getBook, getBookByUid, listRuleGlossary } from "../../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
 import SpellCard from "../../components/SpellCard";
 import RuleCardModal from "../../components/RuleCardModal";
@@ -327,28 +329,51 @@ export default function ArmyEditor() {
     }
   }, [listJson]);
 
+  /**
+   * Como encontrar el libro propio para ensenar sus habilidades, hechizos y
+   * equipo. Si el ejercito se hizo con el constructor, `bookKey` ya lo dice.
+   * Si vino importado de Army Forge, no hay clave propia guardada, pero cada
+   * unidad de la lista si trae el uid del libro de Army Forge del que salio:
+   * con ese uid y el sistema de juego se puede encontrar el mismo libro en el
+   * catalogo propio, sin tener que reimportar nada.
+   */
+  const origenLibro = useMemo(() => {
+    if (bookKey) return { kind: "bookKey" as const, bookKey };
+    if (!listJson) return null;
+    try {
+      const parsed = JSON.parse(listJson) as { raw?: ArmyForgeList; gameSystem?: string | null };
+      const uid = parsed.raw ? requiredBookUids(parsed.raw)[0] : undefined;
+      const gameSystem = getGameSystem(parsed.gameSystem)?.id;
+      return uid && gameSystem ? { kind: "uid" as const, uid, gameSystem } : null;
+    } catch {
+      return null;
+    }
+  }, [bookKey, listJson]);
+
   useEffect(() => {
-    if (!bookKey) {
+    if (!origenLibro) {
       setLibro(null);
       return undefined;
     }
     let cancelado = false;
     // Un fallo aqui solo deja la pestana de hechizos vacia: no es motivo para
     // teñir de rojo la vista del ejercito.
-    getBook(bookKey)
+    const encontrado =
+      origenLibro.kind === "bookKey" ? getBook(origenLibro.bookKey) : getBookByUid(origenLibro.uid, origenLibro.gameSystem);
+    encontrado
       .then((row) => {
-        if (cancelado) return;
+        if (cancelado || !row) return;
         setLibro(row);
         return Promise.all([
           listRuleGlossary(row.gameSystem).then((g) => !cancelado && setGlosario(g)),
-          listCatalogUnits(bookKey).then((u) => !cancelado && setUnidadesLibro(u)),
+          listCatalogUnits(row.$id).then((u) => !cancelado && setUnidadesLibro(u)),
         ]);
       })
       .catch(() => !cancelado && setLibro(null));
     return () => {
       cancelado = true;
     };
-  }, [bookKey]);
+  }, [origenLibro]);
 
 
   async function importFromArmyForge() {

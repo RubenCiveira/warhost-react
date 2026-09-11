@@ -93,6 +93,21 @@ export async function getBook(bookKey: string): Promise<ArmyBook> {
   });
 }
 
+/**
+ * Busca el libro propio por el uid que usa Army Forge, no por nuestra clave.
+ * Hace falta para los ejercitos importados: no guardan la clave propia del
+ * libro (eso solo lo hace el constructor), pero cada unidad de la lista
+ * importada si trae el uid del libro de Army Forge del que salio.
+ */
+export async function getBookByUid(uid: string, gameSystem: GameSystemId): Promise<ArmyBook | null> {
+  const result = await tables.listRows<ArmyBook>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armyBooks,
+    queries: [Query.equal("uid", uid), Query.equal("gameSystem", gameSystem), Query.limit(1)],
+  });
+  return result.rows[0] ?? null;
+}
+
 export async function listUnits(bookKey: string): Promise<ArmyUnit[]> {
   const result = await tables.listRows<ArmyUnit>({
     databaseId: env.databaseId,
