@@ -1,25 +1,36 @@
 import { useEffect, useState } from "react";
 import { verificacionesComposicion } from "../lib/composicion";
 import type { UnidadComposicion } from "../lib/composicion";
+import type { GameSystemId } from "../lib/gameSystems";
 
 /**
  * El estado de composicion, repetido en la lista de ejercitos y en su ficha:
- * no bloquea nada, solo lo dice. En rojo con lo que no cumple si se pasa de
- * algun limite, en verde con las cuatro reglas si las cumple todas — un icono
- * que solo saliera cuando algo va mal dejaria sin decir si se ha comprobado
- * la composicion o si nunca se ha mirado.
+ * no bloquea nada, solo lo dice. En rojo si se pasa de algun limite, en verde
+ * si los cumple todos — un icono que solo saliera cuando algo va mal dejaria
+ * sin decir si se ha comprobado la composicion o si nunca se ha mirado.
+ *
+ * El detalle siempre ensena las reglas completas (heroes, unidades,
+ * modelos/Tough si el sistema los limita, y copias), cada una con su propio
+ * check o warn: aunque el conjunto no cumpla, el usuario tiene que poder ver
+ * de un vistazo cuales de las reglas si pasa y cual es la que falla, no solo
+ * la lista de lo que va mal.
  *
  * El detalle se despliega al pulsarlo, no con el `title` nativo del
  * navegador: ese no responde al tacto, y en la lista el icono vive dentro del
  * enlace a la ficha, donde un simple tooltip se pierde entre el hover del
  * propio enlace.
  */
-export default function AvisoComposicion({ puntos, unidades }: { puntos: number; unidades: UnidadComposicion[] }) {
-  const verificaciones = verificacionesComposicion(puntos, unidades);
+export default function AvisoComposicion({
+  puntos,
+  unidades,
+  gameSystem,
+}: {
+  puntos: number;
+  unidades: UnidadComposicion[];
+  gameSystem: GameSystemId;
+}) {
+  const verificaciones = verificacionesComposicion(puntos, unidades, gameSystem);
   const cumple = verificaciones.every((verificacion) => verificacion.ok);
-  // Si cumple, se ensenan las cuatro reglas que ha pasado; si no, solo las que
-  // ha incumplido, que es lo que hace falta mirar.
-  const enElPanel = cumple ? verificaciones : verificaciones.filter((verificacion) => !verificacion.ok);
   const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
@@ -58,8 +69,10 @@ export default function AvisoComposicion({ puntos, unidades }: { puntos: number;
             {cumple ? "Cumple la composicion" : "No cumple la composicion"}
           </p>
           <ul>
-            {enElPanel.map((verificacion) => (
-              <li key={verificacion.clave}>{verificacion.mensaje}</li>
+            {verificaciones.map((verificacion) => (
+              <li key={verificacion.clave} className={verificacion.ok ? "ok" : "warn"}>
+                <span aria-hidden="true">{verificacion.ok ? "✓" : "⚠"}</span> {verificacion.mensaje}
+              </li>
             ))}
           </ul>
         </div>

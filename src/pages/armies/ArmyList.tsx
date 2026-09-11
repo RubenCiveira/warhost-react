@@ -80,7 +80,7 @@ export default function ArmyList() {
               <div className="spread">
                 <strong>{army.name}</strong>
                 <span className="row" style={{ gap: 6 }}>
-                  <AvisoComposicion puntos={army.points} unidades={parseStoredList(army.listJson)} />
+                  <AvisoComposicion puntos={army.points} unidades={parseStoredList(army.listJson)} gameSystem={army.gameSystem} />
                   <span className="tag">{army.gameSystem.toUpperCase()}</span>
                 </span>
               </div>

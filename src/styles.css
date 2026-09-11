@@ -265,9 +265,11 @@ code {
   color: var(--danger);
 }
 .aviso-composicion-titulo.ok { color: var(--ok); }
-.aviso-composicion-pop ul { margin: 0; padding-left: 18px; }
+.aviso-composicion-pop ul { margin: 0; padding-left: 18px; list-style: none; }
 .aviso-composicion-pop li { font-size: 0.82rem; line-height: 1.4; }
 .aviso-composicion-pop li + li { margin-top: 4px; }
+.aviso-composicion-pop li.ok { color: var(--ok); }
+.aviso-composicion-pop li.warn { color: var(--danger); }
 
 /* Statbox: el atomo del juego. Clave condensada arriba, valor tabular abajo. */
 .statbox {

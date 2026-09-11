@@ -636,7 +636,7 @@ export default function ArmyEditor() {
               }
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <AvisoComposicion puntos={form.points} unidades={units} />
+            <AvisoComposicion puntos={form.points} unidades={units} gameSystem={form.gameSystem} />
           </span>
           <p className="army-bar-sub small muted">
             {form.faction || "Sin faccion"}

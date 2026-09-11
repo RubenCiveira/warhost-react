@@ -183,7 +183,10 @@ export default function ArmyBuilder() {
   // Limites de composicion, los mismos cuatro que ensena Army Forge para los
   // puntos del ejercito: heroes, unidades, modelos contando el Tough, y copias
   // de la misma unidad.
-  const limites = useMemo(() => limitesComposicion(pointsLimit), [pointsLimit]);
+  const limites = useMemo(
+    () => limitesComposicion(pointsLimit, book?.gameSystem ?? "gf"),
+    [pointsLimit, book?.gameSystem],
+  );
   const modelosActuales = built.units.reduce((suma, unidad) => suma + unidad.maxWounds, 0);
   const copiasPorUnidad = useMemo(() => {
     const mapa = new Map<string, number>();
@@ -342,12 +345,14 @@ export default function ArmyBuilder() {
               {heroKeys.size}/{limites.maxHeroes}
             </span>
           </div>
-          <div className={modelosActuales > limites.maxModelos ? "army-stat over" : "army-stat"}>
-            <span className="army-stat-key">Modelos/Tough</span>
-            <span className="army-stat-value mono">
-              {modelosActuales}/{limites.maxModelos}
-            </span>
-          </div>
+          {limites.maxModelos !== null ? (
+            <div className={modelosActuales > limites.maxModelos ? "army-stat over" : "army-stat"}>
+              <span className="army-stat-key">Modelos/Tough</span>
+              <span className="army-stat-value mono">
+                {modelosActuales}/{limites.maxModelos}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div className="army-bar-actions">

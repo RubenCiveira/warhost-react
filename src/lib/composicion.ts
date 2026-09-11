@@ -1,42 +1,65 @@
 /**
- * Limites de composicion de un ejercito, segun los puntos que admite.
+ * Limites de composicion de un ejercito ("Force Organisation" opcional del
+ * reglamento), segun los puntos que admite y el sistema de juego de la
+ * lista. Cada sistema tiene su propia formula, tal cual la da el reglamento:
  *
- * Army Forge los deriva de los puntos de la partida y no del catalogo: para
- * 1000 puntos ensena "Heroes 0/2", "Units 1/5", "Models/Tough 10/50" y "Max 2
- * unit copies". La unica cifra confirmada palabra por palabra en la wiki de la
- * comunidad es la de unidades —"1 unidad por cada 200 puntos"—; las otras tres
- * se han deducido cruzando esos cuatro numeros contra formulas lineales
- * sencillas, y las cuatro encajan a la vez en 1000 puntos. Si para otro total
- * de puntos alguna no coincide con lo que ensena Army Forge, son estas
- * constantes las que hay que ajustar.
+ *              1 heroe cada   1 unidad cada   1 modelo/Tough cada   1 copia extra cada
+ *   GF (std)        500 pts         200 pts   sin limite                  1000 pts
+ *   GFF (skirm)      150 pts          30 pts        20 pts                 150 pts
+ *   AoF (std)        375 pts         150 pts   sin limite                   750 pts
+ *   AoFS (skirm)     125 pts          25 pts        15 pts                 125 pts
  *
- * La version anterior tambien limitaba una unidad sola al 30% de los puntos;
- * esa restriccion ya no aparece en Army Forge y aqui no se aplica.
+ * AoFR (Regiments) no tiene formula propia publicada; se usa la de AoF
+ * estandar por ser tambien de escala de batalla, no de escaramuza.
+ *
+ * Los denominadores dan el numero de heroes/unidades permitidos redondeando
+ * hacia arriba (asi el primer heroe/unidad cabe ya con 1 punto), y el de
+ * modelos y copias redondeando hacia abajo (solo cuenta el tramo completo).
+ * Cuando el sistema no fija limite de modelos (GF y AoF estandar no lo
+ * mencionan en el reglamento), esa regla no se comprueba.
  *
  * Nada de esto bloquea: un ejercito puede saltarselas sin problema. Lo que
  * hace esta comprobacion es decirlo, para que se vea en la lista de
  * ejercitos y en su ficha sin tener que abrir el constructor.
  */
 import { esHeroe } from "./builder";
+import type { GameSystemId } from "./gameSystems";
+
+interface FormulaComposicion {
+  heroeCada: number;
+  unidadCada: number;
+  /** `undefined` cuando el sistema no fija limite de modelos/Tough. */
+  modeloCada?: number;
+  copiaExtraCada: number;
+}
+
+const FORMULAS: Record<GameSystemId, FormulaComposicion> = {
+  gf: { heroeCada: 500, unidadCada: 200, copiaExtraCada: 1000 },
+  gff: { heroeCada: 150, unidadCada: 30, modeloCada: 20, copiaExtraCada: 150 },
+  aof: { heroeCada: 375, unidadCada: 150, copiaExtraCada: 750 },
+  aofs: { heroeCada: 125, unidadCada: 25, modeloCada: 15, copiaExtraCada: 125 },
+  aofr: { heroeCada: 375, unidadCada: 150, copiaExtraCada: 750 },
+};
 
 export interface LimitesComposicion {
-  /** 1 heroe por cada 500 puntos o fraccion. */
+  /** 1 heroe por cada X puntos o fraccion, segun el sistema de juego. */
   maxHeroes: number;
-  /** 1 unidad por cada 200 puntos o fraccion —la unica cifra confirmada tal cual. */
+  /** 1 unidad por cada X puntos o fraccion, segun el sistema de juego. */
   maxUnidades: number;
-  /** Miniaturas contando cada modelo con Tough como tantas como su valor: 1 cada 20 puntos. */
-  maxModelos: number;
-  /** Copias de la misma unidad: una mas por cada 1000 puntos completos. */
+  /** Miniaturas contando cada modelo con Tough como tantas como su valor, o `null` si el sistema no limita modelos. */
+  maxModelos: number | null;
+  /** Copias de la misma unidad: una mas por cada tramo de puntos completo. */
   maxCopiasPorUnidad: number;
 }
 
-export function limitesComposicion(puntos: number): LimitesComposicion {
+export function limitesComposicion(puntos: number, gameSystem: GameSystemId): LimitesComposicion {
   if (puntos <= 0) return { maxHeroes: 0, maxUnidades: 0, maxModelos: 0, maxCopiasPorUnidad: 1 };
+  const formula = FORMULAS[gameSystem];
   return {
-    maxHeroes: Math.ceil(puntos / 500),
-    maxUnidades: Math.ceil(puntos / 200),
-    maxModelos: Math.floor(puntos / 20),
-    maxCopiasPorUnidad: 1 + Math.floor(puntos / 1000),
+    maxHeroes: Math.ceil(puntos / formula.heroeCada),
+    maxUnidades: Math.ceil(puntos / formula.unidadCada),
+    maxModelos: formula.modeloCada ? Math.floor(puntos / formula.modeloCada) : null,
+    maxCopiasPorUnidad: 1 + Math.floor(puntos / formula.copiaExtraCada),
   };
 }
 
@@ -61,8 +84,12 @@ export interface VerificacionComposicion {
  * montarlo, pero no se guarda en el ejercito ya hecho, asi que fuera del
  * constructor lo unico que hay para comparar es lo que cuesta la lista.
  */
-export function verificacionesComposicion(puntos: number, unidades: UnidadComposicion[]): VerificacionComposicion[] {
-  const limites = limitesComposicion(puntos);
+export function verificacionesComposicion(
+  puntos: number,
+  unidades: UnidadComposicion[],
+  gameSystem: GameSystemId,
+): VerificacionComposicion[] {
+  const limites = limitesComposicion(puntos, gameSystem);
 
   // Heroes y unidades son cupos separados, no uno dentro del otro —Army
   // Forge los ensena en dos contadores distintos, "Heroes 0/2" y "Units
@@ -79,18 +106,30 @@ export function verificacionesComposicion(puntos: number, unidades: UnidadCompos
   const conDemasiadas = [...copiasPorNombre.entries()].filter(([, copias]) => copias > limites.maxCopiasPorUnidad);
   const masRepetida = [...copiasPorNombre.entries()].sort(([, a], [, b]) => b - a)[0];
 
-  return [
+  const verificaciones: VerificacionComposicion[] = [
     { clave: "heroes", ok: heroes <= limites.maxHeroes, mensaje: `Heroes: ${heroes}/${limites.maxHeroes}.` },
     { clave: "unidades", ok: soloUnidades <= limites.maxUnidades, mensaje: `Unidades: ${soloUnidades}/${limites.maxUnidades}.` },
-    { clave: "modelos", ok: modelos <= limites.maxModelos, mensaje: `Modelos/Tough: ${modelos}/${limites.maxModelos}.` },
-    {
-      clave: "copias",
-      ok: conDemasiadas.length === 0,
-      mensaje:
-        conDemasiadas.length > 0
-          ? `Mas de ${limites.maxCopiasPorUnidad} copia${limites.maxCopiasPorUnidad === 1 ? "" : "s"} de: ` +
-            conDemasiadas.map(([nombre, copias]) => `${nombre} (${copias})`).join(", ")
-          : `Copias por unidad: como mucho ${limites.maxCopiasPorUnidad}${masRepetida ? ` (la que mas se repite, ${masRepetida[0]}, lleva ${masRepetida[1]})` : ""}.`,
-    },
   ];
+
+  // El sistema puede no fijar limite de modelos/Tough (GF y AoF estandar no
+  // lo hacen): entonces esta regla no aplica y no se ensena.
+  if (limites.maxModelos !== null) {
+    verificaciones.push({
+      clave: "modelos",
+      ok: modelos <= limites.maxModelos,
+      mensaje: `Modelos/Tough: ${modelos}/${limites.maxModelos}.`,
+    });
+  }
+
+  verificaciones.push({
+    clave: "copias",
+    ok: conDemasiadas.length === 0,
+    mensaje:
+      conDemasiadas.length > 0
+        ? `Mas de ${limites.maxCopiasPorUnidad} copia${limites.maxCopiasPorUnidad === 1 ? "" : "s"} de: ` +
+          conDemasiadas.map(([nombre, copias]) => `${nombre} (${copias})`).join(", ")
+        : `Copias por unidad: como mucho ${limites.maxCopiasPorUnidad}${masRepetida ? ` (la que mas se repite, ${masRepetida[0]}, lleva ${masRepetida[1]})` : ""}.`,
+  });
+
+  return verificaciones;
 }
