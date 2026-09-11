@@ -1100,6 +1100,11 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .menu button:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
 .menu button.danger:hover:not(:disabled) { background: var(--accent-soft); color: var(--danger); }
+.menu button.active { color: var(--accent); font-weight: 600; }
+.menu-label {
+  display: block; padding: 8px 10px 2px; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim, rgba(255, 255, 255, 0.45));
+}
 
 .modal .stack button { width: 100%; }
 
