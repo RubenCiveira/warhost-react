@@ -1,9 +1,10 @@
 import type { CatalogRule } from "../api/catalog";
 import { conValor } from "../lib/reglas";
 import type { Habilidad } from "../lib/reglas";
+import { densidadScard } from "../lib/cardDensity";
 
 /**
- * Habilidad o equipo en carta de tarot vertical, la misma que el hechizo.
+ * Habilidad o equipo en carta Mini Euro vertical, la misma que el hechizo.
  *
  * Una regla sin descripcion sigue teniendo carta: dice que es del reglamento
  * basico, que es informacion util, en vez de fingir que no existe.
@@ -19,10 +20,11 @@ export default function RuleCard({
   lleva?: string[];
 }) {
   const texto = regla ? conValor(regla.description, habilidad.valor) : null;
+  const concedeTexto = habilidad.concede?.length ? `Concede ${habilidad.concede.join(", ")}` : null;
 
   return (
     <div className="scard-frame">
-      <article className="scard">
+      <article className={`scard${densidadScard(texto, concedeTexto)}`}>
         <header className="scard-head">
           <h3 className="scard-title">{habilidad.nombre}</h3>
           {habilidad.valor ? (
@@ -37,13 +39,11 @@ export default function RuleCard({
           {texto ? (
             <div>
               <p className="scard-efecto">{texto}</p>
-              {habilidad.concede?.length ? (
-                <p className="scard-concede">Concede {habilidad.concede.join(", ")}</p>
-              ) : null}
+              {concedeTexto ? <p className="scard-concede">{concedeTexto}</p> : null}
             </div>
-          ) : habilidad.concede?.length ? (
+          ) : concedeTexto ? (
             <div>
-              <p className="scard-efecto">Concede {habilidad.concede.join(", ")}.</p>
+              <p className="scard-efecto">{concedeTexto}.</p>
             </div>
           ) : (
             <p className="scard-efecto scard-sin-texto">

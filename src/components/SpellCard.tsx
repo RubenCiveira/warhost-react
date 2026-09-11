@@ -1,7 +1,8 @@
 import type { Spell } from "../lib/spells";
+import { densidadScard } from "../lib/cardDensity";
 
 /**
- * Hechizo como carta de tarot vertical, 70 x 120 mm.
+ * Hechizo como carta Mini Euro vertical, 44 x 68 mm.
  *
  * Es la misma piel que la ficha de unidad pero de pie, porque lo que lleva es
  * distinto: no hay perfil ni tabla, solo un valor y un efecto. En vertical el
@@ -11,7 +12,7 @@ import type { Spell } from "../lib/spells";
 export default function SpellCard({ spell, faction }: { spell: Spell; faction?: string | null }) {
   return (
     <div className="scard-frame">
-      <article className="scard">
+      <article className={`scard${densidadScard(spell.effect)}`}>
         <header className="scard-head">
           <h3 className="scard-title">{spell.name}</h3>
           <div className="scard-valor">

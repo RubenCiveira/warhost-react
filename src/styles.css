@@ -539,10 +539,10 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    120 x 70 mm de una tarot de verdad. En pantalla se mira de lejos y con el
    raton, asi que se agranda; los chips se pulsan mejor y las reglas de arma se
    leen sin acercarse. */
-:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.45; --scard-esc: 1.15; }
+:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.45; --scard-esc: 1.725; }
 @media (max-width: 900px) { :root { --ucard-esc: 1.15; } }
-@media (max-width: 620px) { :root { --ucard-esc: 0.76; --scard-esc: 0.76; } }
-@media (max-width: 400px) { :root { --ucard-esc: 0.63; --scard-esc: 0.63; } }
+@media (max-width: 620px) { :root { --ucard-esc: 0.76; --scard-esc: 1.14; } }
+@media (max-width: 400px) { :root { --ucard-esc: 0.63; --scard-esc: 0.945; } }
 @media print { :root { --ucard-esc: 1; --scard-esc: 1; } }
 
 .ucard-wrap { width: calc(var(--ucard-w) * var(--ucard-esc)); }
@@ -1149,11 +1149,11 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 
 /* Carta de hechizo ---------------------------------------------------------- */
-/* De pie, 70 x 120 mm: la misma carta de tarot que la unidad, girada. Comparte
-   material y medidas con .ucard, pero no su reparto: aqui no hay perfil ni
-   tabla, solo un valor y un efecto, asi que el texto se lleva la carta. */
+/* De pie, en formato Mini Euro (44 x 68 mm): mas pequena que la carta de
+   tarot de la unidad, porque aqui no hay perfil ni tabla, solo un valor y un
+   efecto. Comparte material con .ucard pero no su reparto. */
 
-:root { --scard-w: 70mm; --scard-h: 120mm; }
+:root { --scard-w: 44mm; --scard-h: 68mm; }
 
 .scard-frame {
   width: calc(var(--scard-w) * var(--scard-esc));
@@ -1191,47 +1191,50 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   --ucard-realce: var(--accent-2);
 }
 
-.scard-head { display: flex; align-items: stretch; gap: 0.8mm; padding: 1.6mm 2mm 1mm; flex: 0 0 auto; }
+.scard-head { display: flex; align-items: stretch; gap: 0.5mm; padding: 1.1mm 1.3mm 0.7mm; flex: 0 0 auto; }
 .scard-title {
   flex: 1; margin: 0; min-width: 0;
   display: flex; align-items: center;
-  padding: 1.2mm 2mm; border-radius: 0.8mm 0 0 0.8mm;
+  padding: 0.8mm 1.3mm; border-radius: 0.6mm 0 0 0.6mm;
   background: var(--ucard-banda); color: var(--ucard-banda-texto);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 3.4mm; line-height: 1.12;
+  font-weight: 700; font-size: 2.625mm; line-height: 1.12;
   letter-spacing: var(--band-letter);
   text-transform: var(--band-transform);
   font-variant: var(--band-variant);
 }
 .scard-valor {
-  flex: 0 0 auto; width: 12mm; padding: 1mm 0 0.8mm; text-align: center;
+  flex: 0 0 auto; width: 11.25mm; padding: 0.7mm 0 0.55mm; text-align: center;
   background: var(--ucard-banda); color: var(--ucard-banda-texto);
-  border-radius: 0 0.8mm 0.8mm 0;
+  border-radius: 0 0.6mm 0.6mm 0;
   display: flex; flex-direction: column; justify-content: center;
 }
 .scard-valor-key {
   color: var(--ucard-realce);
   font-family: "Saira Condensed", sans-serif;
-  font-weight: 700; font-size: 2mm; line-height: 1.2; letter-spacing: 0.06em;
+  font-weight: 700; font-size: 1.47mm; line-height: 1.2; letter-spacing: 0.06em;
   text-transform: var(--band-transform); font-variant: var(--band-variant);
 }
-.scard-valor-num { font-weight: 600; font-size: 5mm; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.scard-valor-num { font-weight: 600; font-size: 3.675mm; line-height: 1.05; font-variant-numeric: tabular-nums; }
 
-/* El efecto se lleva la carta: centrado en el hueco, no pegado arriba. */
+/* El efecto se lee de arriba abajo, pegado a la cabecera: en Mini Euro el
+   cuerpo ya no sobra tanto como para centrarlo. */
 .scard-body {
   flex: 1; min-height: 0; overflow: hidden;
-  display: flex; align-items: center;
-  padding: 2mm 3mm;
+  display: flex; align-items: flex-start;
+  padding: 1.2mm 1.8mm;
 }
-/* Generoso: la carta se consulta en mesa, con el hechizo en la mano, y sobra
-   sitio. El efecto mas largo del catalogo son 209 caracteres. */
-.scard-efecto { margin: 0; font-size: 3.9mm; line-height: 1.45; }
+/* En 44x68mm ya no sobra sitio como en la tarot: el hechizo mas largo del
+   catalogo son 209 caracteres y cabe holgado, pero algunas reglas y equipo
+   pasan de 500 y necesitan los escalones de abajo. */
+.scard-efecto { margin: 0; font-size: 2.73mm; line-height: 1.32; }
+.scard.denso .scard-efecto { font-size: 2.31mm; line-height: 1.24; }
 
 .scard-foot {
-  flex: 0 0 auto; padding: 1.6mm 3mm 2.4mm;
+  flex: 0 0 auto; padding: 1mm 1.8mm 1.3mm;
   border-top: 0.3mm solid var(--ucard-filete);
-  display: flex; flex-direction: column; gap: 0.6mm;
-  font-size: 2.3mm; color: var(--ucard-tenue);
+  display: flex; flex-direction: column; gap: 0.4mm;
+  font-size: 2.7mm; color: var(--ucard-tenue);
 }
 .scard-faccion {
   font-family: "Saira Condensed", sans-serif;
@@ -1290,7 +1293,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
    mira, no un dialogo con una carta dentro. */
 .regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
-.scard-concede { margin: 2.4mm 0 0; font-size: 3mm; color: var(--ucard-tenue); }
+.scard-concede { margin: 1.4mm 0 0; font-size: 2.1mm; color: var(--ucard-tenue); }
+.scard.denso .scard-concede { font-size: 1.84mm; }
 
 
 /* Una carta de habilidad abierta desde dentro de un dialogo: tiene que quedar
