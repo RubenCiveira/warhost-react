@@ -197,7 +197,7 @@ export default function AddUnitWizard({
           Combinar
         </label>
       ) : null}
-      {puedeAdjuntarse(actual, sections) && unidadesDelEjercito.length > 0 ? (
+      {book && puedeAdjuntarse(actual, sections, book.gameSystem) && unidadesDelEjercito.length > 0 ? (
         <label className="check tiny">
           Unir a
           <select value={unirA ?? ""} onChange={(event) => setUnirA(event.target.value === "" ? null : Number(event.target.value))}>
@@ -395,7 +395,9 @@ export default function AddUnitWizard({
                 type="button"
                 className="primary"
                 disabled={busy || !book}
-                onClick={() => book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sections) ? unirA : null)}
+                onClick={() =>
+                  book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sections, book.gameSystem) ? unirA : null)
+                }
               >
                 {busy ? "Guardando…" : "Confirmar"}
               </button>

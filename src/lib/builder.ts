@@ -9,6 +9,8 @@ import { applyOptions, baseLoadout, llevaObjetivo } from "./loadout";
 import type { AppliedOption, LoadoutEntry } from "./loadout";
 import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
+import { getGameSystem } from "./gameSystems";
+import type { GameSystemId } from "./gameSystems";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
 export interface Quantifier {
@@ -301,8 +303,14 @@ export function esHeroe(rules: string[]): boolean {
  * Un heroe de `Tough(6)` o menos puede unirse a otra unidad en el despliegue.
  * Se mira sobre las reglas ya resueltas: una mejora podria darle o quitarle
  * `Hero`, o subirle el `Tough`.
+ *
+ * Solo aplica en sistemas de batalla (GF, AoF, AoFR): en escaramuza (GFF,
+ * AoFS) cada miniatura combate suelta y la carta de `Hero` de esos sistemas
+ * no ofrece la opcion de unirse, porque no hay unidades de varios modelos a
+ * las que hacerlo.
  */
-export function puedeAdjuntarse(entry: BuilderEntry, sections: UpgradeSection[]): boolean {
+export function puedeAdjuntarse(entry: BuilderEntry, sections: UpgradeSection[], gameSystem: GameSystemId): boolean {
+  if (getGameSystem(gameSystem)?.escaramuza) return false;
   const rules = entryRules(entry, sections);
   return esHeroe(rules) && toughOf(rules) <= 6;
 }

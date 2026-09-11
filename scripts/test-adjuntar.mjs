@@ -29,11 +29,18 @@ const entrada = (unit) => ({ key: `${unit.unitId}-k`, unit, choices: {} });
 
 // --- Quien puede unirse.
 comprobar(B.esHeroe(["Hero", "Tough(3)"]) && !B.esHeroe(["Fearless"]), "esHeroe reconoce la regla Hero");
-comprobar(B.puedeAdjuntarse(entrada(unidad("h3", ["Hero", "Tough(3)"])), []), "heroe Tough(3): si");
-comprobar(B.puedeAdjuntarse(entrada(unidad("h6", ["Hero", "Tough(6)"])), []), "heroe Tough(6): si (6 o menos)");
-comprobar(!B.puedeAdjuntarse(entrada(unidad("h12", ["Hero", "Tough(12)"])), []), "heroe Tough(12): no");
-comprobar(B.puedeAdjuntarse(entrada(unidad("h0", ["Hero"])), []), "heroe sin Tough (1 herida): si");
-comprobar(!B.puedeAdjuntarse(entrada(unidad("tropa", ["Strider"], { size: 5 })), []), "una unidad normal: no");
+comprobar(B.puedeAdjuntarse(entrada(unidad("h3", ["Hero", "Tough(3)"])), [], "gf"), "heroe Tough(3) en GF: si");
+comprobar(B.puedeAdjuntarse(entrada(unidad("h6", ["Hero", "Tough(6)"])), [], "gf"), "heroe Tough(6) en GF: si (6 o menos)");
+comprobar(!B.puedeAdjuntarse(entrada(unidad("h12", ["Hero", "Tough(12)"])), [], "gf"), "heroe Tough(12) en GF: no");
+comprobar(B.puedeAdjuntarse(entrada(unidad("h0", ["Hero"])), [], "gf"), "heroe sin Tough (1 herida) en GF: si");
+comprobar(!B.puedeAdjuntarse(entrada(unidad("tropa", ["Strider"], { size: 5 })), [], "gf"), "una unidad normal en GF: no");
+
+// --- En escaramuza (GFF, AoFS) no hay unidades a las que unirse: la carta de
+//     Hero de esos sistemas no ofrece esa opcion, asi que nunca se permite,
+//     por muy poco Tough que tenga el heroe.
+comprobar(!B.puedeAdjuntarse(entrada(unidad("h3gff", ["Hero", "Tough(3)"])), [], "gff"), "heroe Tough(3) en GFF (escaramuza): no");
+comprobar(!B.puedeAdjuntarse(entrada(unidad("h3aofs", ["Hero", "Tough(3)"])), [], "aofs"), "heroe Tough(3) en AoFS (escaramuza): no");
+comprobar(B.puedeAdjuntarse(entrada(unidad("h3aof", ["Hero", "Tough(3)"])), [], "aof"), "heroe Tough(3) en AoF: si");
 
 // --- Ida y vuelta de la union.
 const heroe = { ...entrada(unidad("hero", ["Hero", "Tough(3)"])), key: "hero-k" };

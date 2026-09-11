@@ -467,7 +467,7 @@ export default function ArmyBuilder() {
                           Combinar
                         </label>
                       ) : null}
-                      {puedeAdjuntarse(entry, sections) && unidadesParaUnir(entry.key).length > 0 ? (
+                      {puedeAdjuntarse(entry, sections, book?.gameSystem ?? "gf") && unidadesParaUnir(entry.key).length > 0 ? (
                         <label className="check tiny">
                           Unir a
                           <select
