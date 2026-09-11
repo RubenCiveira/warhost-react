@@ -227,8 +227,12 @@ export default function ArmyEditor() {
    * tocar: ni configurar, ni quitar, ni anadir, ni los formularios. El paso a
    * edicion es explicito —el boton "Editar", que abre el borrador— en vez de
    * que cualquier cambio suelto lo abra por detras.
+   *
+   * Un ejercito que todavia no existe no tiene nada que consultar: se edita
+   * desde el primer momento, sin borrador de por medio, porque `onSubmit` lo
+   * crea directamente cuando `army` sigue siendo nulo.
    */
-  const editable = Boolean(draft) && viendoBorrador;
+  const editable = !army || (Boolean(draft) && viendoBorrador);
 
   /**
    * El nombre se edita en la barra y se guarda solo, con un respiro para no
@@ -729,6 +733,14 @@ export default function ArmyEditor() {
         </div>
 
         <div className="army-bar-actions">
+          {/* Crear desde cero y no encontrar la importacion es lo primero que
+              se prueba: sin ejercito todavia no hay menu "Mas opciones" donde
+              esconderla, asi que aqui va directa y a la vista. */}
+          {!army ? (
+            <button type="button" onClick={() => setImportOpen(true)}>
+              Importar desde Army Forge
+            </button>
+          ) : null}
           {draft && !viendoBorrador ? (
             <button type="button" className="primary" onClick={() => setDecidirBorrador("peticion")}>
               Borrador
@@ -739,7 +751,7 @@ export default function ArmyEditor() {
               {busy ? "Abriendo…" : "Editar"}
             </button>
           ) : null}
-          {editable ? (
+          {draft && editable ? (
             <button type="button" className="primary" onClick={() => void onPublish()} disabled={busy}>
               {busy ? "Guardando…" : "Guardar"}
             </button>
