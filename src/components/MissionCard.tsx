@@ -1,13 +1,16 @@
 import { useState } from "react";
 import type { Mission } from "../lib/types";
+import { densidadScard } from "../lib/cardDensity";
 
 /**
- * Una carta de mision, con la misma forma que la impresa: el numero del rombo,
- * el nombre, lo que hay que hacer y los puntos que da.
+ * Una mision en carta Mini Euro, la misma piel que un hechizo o una regla:
+ * un valor en la cabecera —aqui los puntos de victoria— y el texto debajo.
  *
  * Sale de un OCR sobre el PDF oficial, donde las cartas son imagenes y no
  * texto, asi que la carta dice cuando no esta repasada en vez de presentarse
- * como si fuera fiable. Quien lleve la etiqueta `editor` la corrige aqui mismo.
+ * como si fuera fiable. Quien lleve la etiqueta `editor` la corrige sin salir
+ * de la carta: el modo edicion crece lo que haga falta, porque ahi ya no
+ * importa el tamano de impresion.
  */
 export default function MissionCard({
   mission,
@@ -42,66 +45,62 @@ export default function MissionCard({
     }
   }
 
+  const texto = mission.description?.trim() || null;
+  const claseArticulo =
+    `scard${mission.verified ? "" : " sin-repasar"}${editando ? " editando" : densidadScard(texto)}`;
+
   return (
-    <article className={mission.verified ? "mcard" : "mcard sin-repasar"}>
-      <header className="mcard-head">
-        {mission.code !== null ? <span className="mcard-code mono">{mission.code}</span> : null}
-        {editando ? (
-          <input
-            className="mcard-name-input"
-            value={borrador.name}
-            aria-label="Nombre de la carta"
-            onChange={(event) => setBorrador({ ...borrador, name: event.target.value })}
-          />
-        ) : (
-          <h3 className="mcard-name">{mission.name}</h3>
-        )}
-        {editando ? (
-          <input
-            className="mcard-vp-input mono"
-            value={borrador.vp}
-            inputMode="numeric"
-            placeholder="PV"
-            aria-label="Puntos de victoria"
-            onChange={(event) => setBorrador({ ...borrador, vp: event.target.value })}
-          />
-        ) : mission.vp !== null ? (
-          <span className="mcard-vp mono">{mission.vp}VP</span>
-        ) : (
-          <span className="mcard-vp falta" title="El OCR no pudo leer los puntos">
-            ?VP
-          </span>
-        )}
-      </header>
+    <div className={`scard-frame${editando ? " editando" : ""}`}>
+      <article className={claseArticulo}>
+        <header className="scard-head">
+          {editando ? (
+            <input
+              className="scard-title-input"
+              value={borrador.name}
+              aria-label="Nombre de la carta"
+              onChange={(event) => setBorrador({ ...borrador, name: event.target.value })}
+            />
+          ) : (
+            <h3 className="scard-title">
+              {mission.code !== null ? `${mission.code} · ` : ""}
+              {mission.name}
+            </h3>
+          )}
+          {editando ? (
+            <input
+              className="scard-valor-input mono"
+              value={borrador.vp}
+              inputMode="numeric"
+              placeholder="PV"
+              aria-label="Puntos de victoria"
+              onChange={(event) => setBorrador({ ...borrador, vp: event.target.value })}
+            />
+          ) : (
+            <div className="scard-valor">
+              <span className="scard-valor-key">PV</span>
+              <span className="scard-valor-num">{mission.vp ?? "?"}</span>
+            </div>
+          )}
+        </header>
 
-      {editando ? (
-        <textarea
-          className="mcard-text-input"
-          value={borrador.description}
-          aria-label="Texto de la carta"
-          rows={3}
-          onChange={(event) => setBorrador({ ...borrador, description: event.target.value })}
-        />
-      ) : (
-        <p className="mcard-text">{mission.description || <span className="muted">Sin texto</span>}</p>
-      )}
+        <div className="scard-body">
+          {editando ? (
+            <textarea
+              className="scard-efecto-input"
+              value={borrador.description}
+              aria-label="Texto de la carta"
+              onChange={(event) => setBorrador({ ...borrador, description: event.target.value })}
+            />
+          ) : texto ? (
+            <p className="scard-efecto">{texto}</p>
+          ) : (
+            <p className="scard-efecto scard-sin-texto">Sin texto transcrito para esta mision.</p>
+          )}
+        </div>
 
-      <footer className="mcard-foot small">
-        {mission.verified ? (
-          <span className="muted">Repasada</span>
-        ) : (
-          <span className="mcard-aviso" title="Transcrita automaticamente del PDF; puede tener erratas">
-            Sin repasar
-          </span>
-        )}
-        {mission.sourceUrl ? (
-          <a href={mission.sourceUrl} target="_blank" rel="noreferrer" className="muted">
-            PDF {mission.sourceVersion ?? ""}
-          </a>
-        ) : null}
-        {puedeEditar && onGuardar ? (
-          editando ? (
-            <span className="row">
+        <footer className="scard-foot">
+          {editando ? (
+            <span className="scard-mision-acciones">
               <button type="button" className="tiny" disabled={guardando} onClick={() => setEditando(false)}>
                 Cancelar
               </button>
@@ -109,16 +108,28 @@ export default function MissionCard({
                 Guardar
               </button>
               <button type="button" className="tiny primary" disabled={guardando} onClick={() => void guardar(true)}>
-                {guardando ? "Guardando…" : "Guardar y marcar repasada"}
+                {guardando ? "Guardando…" : "Guardar y repasar"}
               </button>
             </span>
           ) : (
-            <button type="button" className="tiny" onClick={() => setEditando(true)}>
-              Corregir
-            </button>
-          )
-        ) : null}
-      </footer>
-    </article>
+            <span className="scard-mision-pie">
+              <span className="scard-faccion">{mission.verified ? "Repasada" : "Sin repasar"}</span>
+              <span className="scard-mision-links">
+                {mission.sourceUrl ? (
+                  <a href={mission.sourceUrl} target="_blank" rel="noreferrer" className="scard-mision-link">
+                    PDF {mission.sourceVersion ?? ""}
+                  </a>
+                ) : null}
+                {puedeEditar && onGuardar ? (
+                  <button type="button" className="scard-mision-link" onClick={() => setEditando(true)}>
+                    Corregir
+                  </button>
+                ) : null}
+              </span>
+            </span>
+          )}
+        </footer>
+      </article>
+    </div>
   );
 }

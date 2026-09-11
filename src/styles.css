@@ -1403,37 +1403,54 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 
 
 /* ── Cartas de mision ───────────────────────────────────────────────────────
-   Se leen de un vistazo en mitad de una partida: numero, nombre y puntos en
-   una linea, y debajo lo que hay que hacer. Las que no se han repasado van
-   marcadas, porque entran por OCR y pueden tener erratas. */
+   La misma piel Mini Euro que un hechizo o una regla: numero y nombre en la
+   banda, puntos de victoria en el valor, texto debajo. Las que no se han
+   repasado van marcadas, porque entran por OCR y pueden tener erratas. Quien
+   corrige lo hace sin salir de la carta: el modo edicion crece lo que haga
+   falta, porque ahi ya no importa el tamano de impresion. */
 .mcard-grid {
-  display: grid; gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: grid; gap: 18px;
+  grid-template-columns: repeat(auto-fill, calc(var(--scard-w) * var(--scard-esc)));
+  justify-content: start;
 }
-.mcard {
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 12px 14px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-}
-.mcard.sin-repasar { border-style: dashed; }
-.mcard-head { display: flex; align-items: baseline; gap: 10px; }
-.mcard-code {
-  flex: 0 0 auto; padding: 1px 7px;
-  background: var(--surface-2); border-radius: 5px;
-  font-size: 0.82rem; color: var(--muted);
-}
-.mcard-name { margin: 0; flex: 1 1 auto; font-size: 1rem; }
-.mcard-vp { flex: 0 0 auto; font-weight: 700; color: var(--accent); }
-.mcard-vp.falta { color: var(--muted); font-weight: 400; }
-.mcard-text { margin: 0; font-size: 0.9rem; line-height: 1.4; }
-.mcard-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: auto; }
-.mcard-aviso { color: var(--accent); }
+.scard.sin-repasar { border-style: dashed; }
 
-.mcard-name-input, .mcard-vp-input, .mcard-text-input {
-  padding: 4px 8px; font: inherit;
-  background: var(--surface-2); color: var(--text);
-  border: 1px solid var(--line); border-radius: 6px;
+/* En edicion la carta no imprime, asi que crece: mismo ancho, mas alto para
+   que quepan los campos y los botones sin que el texto se apelmace. */
+:root { --scard-h-editando: 100mm; }
+.scard-frame.editando { height: calc(var(--scard-h-editando) * var(--scard-esc)); }
+.scard.editando { height: var(--scard-h-editando); }
+
+.scard-title-input, .scard-valor-input, .scard-efecto-input {
+  font-family: inherit; color: inherit;
+  background: transparent; border: 0.3mm solid var(--ucard-filete); border-radius: 0.5mm;
 }
-.mcard-name-input { flex: 1 1 auto; min-width: 0; }
-.mcard-vp-input { flex: 0 0 4.5ch; text-align: center; }
-.mcard-text-input { width: 100%; resize: vertical; font-size: 0.9rem; line-height: 1.4; }
+.scard-title-input {
+  flex: 1; min-width: 0; padding: 0.8mm 1.3mm;
+  font-family: "Saira Condensed", sans-serif;
+  font-weight: 700; font-size: 2.625mm;
+  background: var(--ucard-papel); color: var(--ucard-tinta);
+}
+.scard-valor-input {
+  flex: 0 0 auto; width: 11.25mm; padding: 0.7mm 0.5mm;
+  font-size: 3mm; text-align: center;
+  background: var(--ucard-papel); color: var(--ucard-tinta);
+}
+.scard-efecto-input {
+  width: 100%; min-height: calc(var(--scard-h) * 0.4); padding: 0.8mm 1.1mm;
+  font-size: 2.73mm; line-height: 1.32; resize: vertical;
+}
+
+.scard-mision-acciones { display: flex; align-items: center; gap: 1.2mm; flex-wrap: wrap; }
+
+/* El pie de lectura es una sola linea de tipografia de carta, no botones de
+   interfaz: el estado a la izquierda, los enlaces a la derecha, todo con la
+   misma voz apagada que ya usa la tirada del hechizo. */
+.scard-mision-pie { display: flex; align-items: baseline; justify-content: space-between; gap: 1.2mm; width: 100%; }
+.scard-mision-links { display: flex; align-items: baseline; gap: 1.2mm; flex-wrap: wrap; }
+.scard-mision-link {
+  font: inherit; font-style: italic; color: var(--ucard-tenue);
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 0.3mm;
+}
+.scard-mision-link:hover { color: var(--ucard-tinta); }
