@@ -68,7 +68,10 @@ export default function ArmyBuilder() {
   const [picking, setPicking] = useState(false);
   const [unitSearch, setUnitSearch] = useState("");
   const [name, setName] = useState("");
-  const [pointsLimit, setPointsLimit] = useState(2000);
+  /** Objetivo de puntos, opcional: 0 significa que no se ha fijado ninguno. */
+  const [pointsLimit, setPointsLimit] = useState(0);
+  /** Tolerancia sobre `pointsLimit`, en tanto por ciento. */
+  const [pointsMargin, setPointsMargin] = useState(5);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +119,10 @@ export default function ArmyBuilder() {
           .then((g) => { if (!cancelled) setGlosario(g); })
           .catch(() => undefined);
         setName((current) => current || loadedArmy?.name || loadedBook.name);
-        if (loadedArmy?.points) setPointsLimit((current) => Math.max(current, loadedArmy.points));
+        // El objetivo es opcional: se recupera el que traiga el ejercito, y si
+        // no tenia ninguno fijado se deja sin fijar, no se inventa uno.
+        if (loadedArmy?.pointsLimit) setPointsLimit(loadedArmy.pointsLimit);
+        if (loadedArmy?.pointsMargin !== undefined) setPointsMargin(loadedArmy.pointsMargin);
 
         if (stored) {
           // Las elecciones guardadas son la via buena; si el ejercito se
@@ -182,10 +188,12 @@ export default function ArmyBuilder() {
 
   // Limites de composicion, los mismos cuatro que ensena Army Forge para los
   // puntos del ejercito: heroes, unidades, modelos contando el Tough, y copias
-  // de la misma unidad.
+  // de la misma unidad. Se calculan sobre el objetivo si se ha fijado uno; si
+  // no, caen de vuelta en lo que cuesta la lista hasta ahora, igual que en la
+  // ficha del ejercito ya guardado.
   const limites = useMemo(
-    () => limitesComposicion(pointsLimit, book?.gameSystem ?? "gf"),
-    [pointsLimit, book?.gameSystem],
+    () => limitesComposicion(pointsLimit > 0 ? pointsLimit : built.points, book?.gameSystem ?? "gf"),
+    [pointsLimit, built.points, book?.gameSystem],
   );
   const modelosActuales = built.units.reduce((suma, unidad) => suma + unidad.maxWounds, 0);
   const copiasPorUnidad = useMemo(() => {
@@ -264,7 +272,7 @@ export default function ArmyBuilder() {
       // Se guarda con la misma forma que produce la importacion, para que las
       // partidas no tengan que saber de donde salio el ejercito, y ademas las
       // elecciones, que son lo unico que permite volver a editarlo.
-      const data = composeArmyPayload(entries, packages, book, name, army?.listId ?? "");
+      const data = { ...composeArmyPayload(entries, packages, book, name, army?.listId ?? ""), pointsLimit, pointsMargin };
 
       if (!army) {
         const creado = await createArmy(user.$id, data);
@@ -294,7 +302,8 @@ export default function ArmyBuilder() {
     );
   }
 
-  const over = pointsLimit > 0 && built.points > pointsLimit;
+  const tope = Math.round(pointsLimit * (1 + pointsMargin / 100));
+  const over = pointsLimit > 0 && built.points > tope;
 
   return (
     <>
@@ -325,10 +334,26 @@ export default function ArmyBuilder() {
               type="number"
               min={0}
               step={50}
-              value={pointsLimit}
-              onChange={(event) => setPointsLimit(Number(event.target.value))}
+              value={pointsLimit || ""}
+              placeholder="sin limite"
+              title="Puntos objetivo, opcional: si se fija, los limites de composicion se calculan sobre este numero en vez de sobre lo que cuesta la lista"
+              onChange={(event) => setPointsLimit(Math.max(0, Number(event.target.value) || 0))}
             />
           </label>
+          {pointsLimit > 0 ? (
+            <label className="army-stat army-stat-input">
+              <span className="army-stat-key">Margen %</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={pointsMargin}
+                title="Cuanto puede pasarse la lista del limite sin que cuente como excedida"
+                onChange={(event) => setPointsMargin(Math.min(100, Math.max(0, Number(event.target.value))))}
+              />
+            </label>
+          ) : null}
           <div className="army-stat">
             <span className="army-stat-key">Miniaturas</span>
             <span className="army-stat-value mono">{built.modelCount}</span>
@@ -384,7 +409,11 @@ export default function ArmyBuilder() {
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
       ) : null}
       {warning ? <div className="banner">{warning}</div> : null}
-      {over ? <div className="banner error">Te has pasado del limite de puntos.</div> : null}
+      {over ? (
+        <div className="banner error">
+          Te has pasado del limite de puntos{pointsMargin > 0 ? ` (${tope} con el ${pointsMargin}% de margen)` : ""}.
+        </div>
+      ) : null}
       {nombresConDemasiadasCopias.length > 0 ? (
         <div className="banner error">
           Como mucho {limites.maxCopiasPorUnidad} copia{limites.maxCopiasPorUnidad === 1 ? "" : "s"} de la misma unidad

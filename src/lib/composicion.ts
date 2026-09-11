@@ -21,6 +21,12 @@
  * Nada de esto bloquea: un ejercito puede saltarselas sin problema. Lo que
  * hace esta comprobacion es decirlo, para que se vea en la lista de
  * ejercitos y en su ficha sin tener que abrir el constructor.
+ *
+ * Los limites se calculan sobre el objetivo de puntos elegido aparte
+ * (`Army.pointsLimit`) cuando lo hay, no sobre lo que cuesta la lista
+ * todavia: es el objetivo el que fija el escalon de la formula. La lista
+ * puede pasarse de ese objetivo sin incumplir, hasta el margen de tolerancia
+ * (`Army.pointsMargin`, en tanto por ciento).
  */
 import { esHeroe } from "./builder";
 import type { GameSystemId } from "./gameSystems";
@@ -71,25 +77,38 @@ export interface UnidadComposicion {
 }
 
 export interface VerificacionComposicion {
-  clave: "heroes" | "unidades" | "modelos" | "copias";
+  clave: "puntos" | "heroes" | "unidades" | "modelos" | "copias";
   /** Cierto si el ejercito cumple esta regla en concreto. */
   ok: boolean;
   mensaje: string;
 }
 
+/** El limite de puntos objetivo del ejercito, con su margen de tolerancia. */
+export interface ObjetivoDePuntos {
+  /** Puntos objetivo elegidos aparte; 0 o ausente si no se ha fijado ninguno. */
+  puntos: number;
+  /** Tolerancia sobre el objetivo, en tanto por ciento. */
+  margenPorcentaje: number;
+}
+
 /**
- * Como queda el ejercito contra los cuatro limites, una entrada por regla,
- * cumpla o no la cumpla. Se mide contra los puntos que cuesta el propio
- * ejercito, no contra un limite aparte: el constructor deja fijar uno al
- * montarlo, pero no se guarda en el ejercito ya hecho, asi que fuera del
- * constructor lo unico que hay para comparar es lo que cuesta la lista.
+ * Como queda el ejercito contra los limites, una entrada por regla, cumpla o
+ * no la cumpla. Los limites de composicion (heroes/unidades/modelos/copias)
+ * se calculan sobre el `objetivo` de puntos si se ha fijado uno —es el
+ * escalon que corresponde jugar, no lo que cuesta la lista todavia—, y si no
+ * se ha fijado caen de vuelta en lo que cuesta la lista, como antes.
+ *
+ * Cuando hay objetivo fijado se anade ademas una regla de "puntos": que la
+ * lista no se pase de ese objetivo mas alla de su margen de tolerancia.
  */
 export function verificacionesComposicion(
   puntos: number,
   unidades: UnidadComposicion[],
   gameSystem: GameSystemId,
+  objetivo?: ObjetivoDePuntos,
 ): VerificacionComposicion[] {
-  const limites = limitesComposicion(puntos, gameSystem);
+  const hayObjetivo = Boolean(objetivo && objetivo.puntos > 0);
+  const limites = limitesComposicion(hayObjetivo && objetivo ? objetivo.puntos : puntos, gameSystem);
 
   // Heroes y unidades son cupos separados, no uno dentro del otro —Army
   // Forge los ensena en dos contadores distintos, "Heroes 0/2" y "Units
@@ -106,10 +125,24 @@ export function verificacionesComposicion(
   const conDemasiadas = [...copiasPorNombre.entries()].filter(([, copias]) => copias > limites.maxCopiasPorUnidad);
   const masRepetida = [...copiasPorNombre.entries()].sort(([, a], [, b]) => b - a)[0];
 
-  const verificaciones: VerificacionComposicion[] = [
+  const verificaciones: VerificacionComposicion[] = [];
+
+  if (hayObjetivo && objetivo) {
+    const tope = Math.round(objetivo.puntos * (1 + objetivo.margenPorcentaje / 100));
+    verificaciones.push({
+      clave: "puntos",
+      ok: puntos <= tope,
+      mensaje:
+        `Puntos: ${puntos}/${objetivo.puntos}` +
+        (objetivo.margenPorcentaje > 0 ? ` (hasta ${tope} con el ${objetivo.margenPorcentaje}% de margen)` : "") +
+        ".",
+    });
+  }
+
+  verificaciones.push(
     { clave: "heroes", ok: heroes <= limites.maxHeroes, mensaje: `Heroes: ${heroes}/${limites.maxHeroes}.` },
     { clave: "unidades", ok: soloUnidades <= limites.maxUnidades, mensaje: `Unidades: ${soloUnidades}/${limites.maxUnidades}.` },
-  ];
+  );
 
   // El sistema puede no fijar limite de modelos/Tough (GF y AoF estandar no
   // lo hacen): entonces esta regla no aplica y no se ensena.

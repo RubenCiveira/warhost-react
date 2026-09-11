@@ -10,6 +10,10 @@ export interface Army extends Row {
   gameSystem: GameSystemId;
   faction: string | null;
   points: number;
+  /** Limite de puntos objetivo, elegido aparte del coste real de la lista. 0 = sin fijar, se usa `points`. */
+  pointsLimit: number;
+  /** Margen de tolerancia sobre `pointsLimit`, en tanto por ciento. */
+  pointsMargin: number;
   modelCount: number;
   listId: string | null;
   sourceUrl: string | null;

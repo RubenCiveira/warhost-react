@@ -9,11 +9,11 @@ import type { GameSystemId } from "../lib/gameSystems";
  * si los cumple todos — un icono que solo saliera cuando algo va mal dejaria
  * sin decir si se ha comprobado la composicion o si nunca se ha mirado.
  *
- * El detalle siempre ensena las reglas completas (heroes, unidades,
- * modelos/Tough si el sistema los limita, y copias), cada una con su propio
- * check o warn: aunque el conjunto no cumpla, el usuario tiene que poder ver
- * de un vistazo cuales de las reglas si pasa y cual es la que falla, no solo
- * la lista de lo que va mal.
+ * El detalle siempre ensena las reglas completas (puntos si hay un objetivo
+ * fijado, heroes, unidades, modelos/Tough si el sistema los limita, y
+ * copias), cada una con su propio check o warn: aunque el conjunto no
+ * cumpla, el usuario tiene que poder ver de un vistazo cuales de las reglas
+ * si pasa y cual es la que falla, no solo la lista de lo que va mal.
  *
  * El detalle se despliega al pulsarlo, no con el `title` nativo del
  * navegador: ese no responde al tacto, y en la lista el icono vive dentro del
@@ -24,12 +24,23 @@ export default function AvisoComposicion({
   puntos,
   unidades,
   gameSystem,
+  pointsLimit,
+  pointsMargin,
 }: {
   puntos: number;
   unidades: UnidadComposicion[];
   gameSystem: GameSystemId;
+  /** Objetivo de puntos elegido aparte; 0 o ausente si no se ha fijado. */
+  pointsLimit?: number;
+  /** Margen de tolerancia sobre `pointsLimit`, en tanto por ciento. */
+  pointsMargin?: number;
 }) {
-  const verificaciones = verificacionesComposicion(puntos, unidades, gameSystem);
+  const verificaciones = verificacionesComposicion(
+    puntos,
+    unidades,
+    gameSystem,
+    pointsLimit ? { puntos: pointsLimit, margenPorcentaje: pointsMargin ?? 0 } : undefined,
+  );
   const cumple = verificaciones.every((verificacion) => verificacion.ok);
   const [abierto, setAbierto] = useState(false);
 

@@ -25,8 +25,8 @@ const { limitesComposicion, verificacionesComposicion } = await import(salida);
 // Las pruebas de aqui abajo se escribieron contra la forma vieja, de "solo lo
 // que falla": se mantiene como envoltorio fino sobre la nueva, que ademas
 // dice lo que se ha cumplido.
-const incumplimientosComposicion = (puntos, unidades, gameSystem) =>
-  verificacionesComposicion(puntos, unidades, gameSystem).filter((verificacion) => !verificacion.ok);
+const incumplimientosComposicion = (puntos, unidades, gameSystem, objetivo) =>
+  verificacionesComposicion(puntos, unidades, gameSystem, objetivo).filter((verificacion) => !verificacion.ok);
 
 let fallos = 0;
 const comprobar = (ok, que, detalle) => {
@@ -174,6 +174,47 @@ comprobar(
   todasLasVerificacionesGff.length === 4 && new Set(todasLasVerificacionesGff.map((v) => v.clave)).has("modelos"),
   "un ejercito GFF conforme da sus cuatro reglas, con modelos incluido",
   `${todasLasVerificacionesGff.length}`,
+);
+
+// --- El objetivo de puntos, elegido aparte del coste real de la lista: los
+// limites de composicion se calculan sobre el objetivo, no sobre lo que
+// cuesta la lista todavia. Una lista con solo 300 pts reales pero objetivo de
+// 1000 tiene que verse con el cupo de 1000 pts (5 unidades), no con el de 300
+// (2 unidades).
+const cincoUnidadesObjetivo1000 = Array.from({ length: 5 }, (_, i) => unidad(`U${i}`));
+comprobar(
+  !incumplimientosComposicion(300, cincoUnidadesObjetivo1000, "gf", { puntos: 1000, margenPorcentaje: 0 }).some(
+    (a) => a.clave === "unidades",
+  ),
+  "5 unidades con solo 300 pts reales pero objetivo de 1000 (limite 5): no avisa, el cupo sale del objetivo",
+);
+comprobar(
+  incumplimientosComposicion(300, cincoUnidadesObjetivo1000, "gf").some((a) => a.clave === "unidades"),
+  "esas mismas 5 unidades sin objetivo fijado (solo 300 pts reales, limite 2): si avisa",
+);
+
+// --- La regla de puntos: la lista no puede pasarse del objetivo mas alla de
+// su margen de tolerancia.
+const dentroDelMargen = incumplimientosComposicion(1040, cumple, "gf", { puntos: 1000, margenPorcentaje: 5 });
+comprobar(
+  !dentroDelMargen.some((a) => a.clave === "puntos"),
+  "1040 pts con objetivo 1000 y margen 5% (tope 1050): no avisa de puntos",
+  JSON.stringify(dentroDelMargen),
+);
+const fueraDelMargen = incumplimientosComposicion(1060, cumple, "gf", { puntos: 1000, margenPorcentaje: 5 });
+comprobar(
+  fueraDelMargen.some((a) => a.clave === "puntos"),
+  "1060 pts con objetivo 1000 y margen 5% (tope 1050): si avisa de puntos",
+  JSON.stringify(fueraDelMargen),
+);
+comprobar(
+  !incumplimientosComposicion(1200, cumple, "gf").some((a) => a.clave === "puntos"),
+  "sin objetivo fijado, no hay regla de puntos que comprobar",
+);
+const sinMargen = incumplimientosComposicion(1001, cumple, "gf", { puntos: 1000, margenPorcentaje: 0 });
+comprobar(
+  sinMargen.some((a) => a.clave === "puntos"),
+  "objetivo 1000 sin margen (0%): 1001 pts ya avisa",
 );
 
 await rm(dir, { recursive: true, force: true });

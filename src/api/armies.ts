@@ -9,6 +9,8 @@ export interface ArmyDraft {
   gameSystem: GameSystemId;
   faction?: string | null;
   points?: number;
+  pointsLimit?: number;
+  pointsMargin?: number;
   modelCount?: number;
   listId?: string | null;
   sourceUrl?: string | null;
@@ -65,6 +67,8 @@ export async function createArmy(userId: string, draft: ArmyDraft): Promise<Army
       gameSystem: draft.gameSystem,
       faction: draft.faction?.trim() || null,
       points: draft.points ?? 0,
+      pointsLimit: draft.pointsLimit ?? 0,
+      pointsMargin: draft.pointsMargin ?? 5,
       modelCount: draft.modelCount ?? 0,
       listId: draft.listId ?? null,
       sourceUrl: draft.sourceUrl ?? null,

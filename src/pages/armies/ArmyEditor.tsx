@@ -52,6 +52,10 @@ interface FormState {
   gameSystem: GameSystemId;
   faction: string;
   points: number;
+  /** Objetivo de puntos elegido aparte del coste real; 0 si no se ha fijado. */
+  pointsLimit: number;
+  /** Margen de tolerancia sobre `pointsLimit`, en tanto por ciento. */
+  pointsMargin: number;
   modelCount: number;
   listId: string;
   notes: string;
@@ -70,6 +74,8 @@ export default function ArmyEditor() {
     gameSystem: system?.id ?? "gf",
     faction: "",
     points: 0,
+    pointsLimit: 0,
+    pointsMargin: 5,
     modelCount: 0,
     listId: "",
     notes: "",
@@ -141,6 +147,8 @@ export default function ArmyEditor() {
       gameSystem: version.gameSystem,
       faction: version.faction ?? "",
       points: version.points,
+      pointsLimit: version.pointsLimit ?? 0,
+      pointsMargin: version.pointsMargin ?? 5,
       modelCount: version.modelCount,
       listId: version.listId ?? "",
       notes: version.notes ?? "",
@@ -413,6 +421,8 @@ export default function ArmyEditor() {
         gameSystem: gameSystem.id,
         faction: form.faction,
         points: form.points,
+        pointsLimit: form.pointsLimit,
+        pointsMargin: form.pointsMargin,
         modelCount: form.modelCount,
         listId: form.listId || null,
         sourceUrl: form.listId ? listUrl(form.listId) : null,
@@ -636,7 +646,13 @@ export default function ArmyEditor() {
               }
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <AvisoComposicion puntos={form.points} unidades={units} gameSystem={form.gameSystem} />
+            <AvisoComposicion
+              puntos={form.points}
+              unidades={units}
+              gameSystem={form.gameSystem}
+              pointsLimit={form.pointsLimit}
+              pointsMargin={form.pointsMargin}
+            />
           </span>
           <p className="army-bar-sub small muted">
             {form.faction || "Sin faccion"}
@@ -649,6 +665,34 @@ export default function ArmyEditor() {
             <span className="army-stat-key">Puntos</span>
             <span className="army-stat-value mono">{form.points}</span>
           </div>
+          <label className="army-stat army-stat-input">
+            <span className="army-stat-key">Objetivo</span>
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={form.pointsLimit || ""}
+              placeholder="sin limite"
+              readOnly={!editable}
+              title="Puntos objetivo, opcional: si se fija, los limites de composicion se calculan sobre este numero en vez de sobre lo que cuesta la lista"
+              onChange={(e) => setForm({ ...form, pointsLimit: Math.max(0, Number(e.target.value) || 0) })}
+            />
+          </label>
+          {form.pointsLimit > 0 ? (
+            <label className="army-stat army-stat-input">
+              <span className="army-stat-key">Margen %</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={form.pointsMargin}
+                readOnly={!editable}
+                title="Cuanto puede pasarse la lista del objetivo sin que cuente como incumplimiento"
+                onChange={(e) => setForm({ ...form, pointsMargin: Math.min(100, Math.max(0, Number(e.target.value))) })}
+              />
+            </label>
+          ) : null}
           <div className="army-stat">
             <span className="army-stat-key">Miniaturas</span>
             <span className="army-stat-value mono">{form.modelCount}</span>
