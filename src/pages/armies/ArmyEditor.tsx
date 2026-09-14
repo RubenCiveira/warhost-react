@@ -240,11 +240,31 @@ export default function ArmyEditor() {
 
   /** Asigna la faccion elegida como origen y entra a editar en el mismo paso. */
   async function onAsignarFaccion() {
-    if (!faccionElegida) return;
+    if (!faccionElegida || !user) return;
     setBusy(true);
     setError(null);
     try {
       const libroElegido = await getBook(faccionElegida);
+
+      // Ejercito nuevo, todavia sin guardar: se crea ya con la faccion puesta,
+      // en vez de guardar uno vacio y obligar a un "Editar" aparte.
+      if (!army) {
+        const listJsonNuevo = JSON.stringify({
+          source: { builder: "manual", bookKey: libroElegido.$id, bookVersion: libroElegido.versionString },
+        });
+        const creado = await createArmy(user.$id, {
+          name: form.name.trim() || libroElegido.name,
+          setting: libroElegido.setting,
+          gameSystem: libroElegido.gameSystem,
+          faction: libroElegido.factionName ?? libroElegido.name,
+          listJson: listJsonNuevo,
+        });
+        setEligiendoFaccion(false);
+        setFaccionElegida("");
+        navigate(`/ejercitos/${creado.$id}`, { replace: true });
+        return;
+      }
+
       const abierto = await conBorrador();
       if (!abierto) return;
       const base = (() => {
@@ -820,9 +840,20 @@ export default function ArmyEditor() {
               se prueba: sin ejercito todavia no hay menu "Mas opciones" donde
               esconderla, asi que aqui va directa y a la vista. */}
           {!army ? (
-            <button type="button" onClick={() => setImportOpen(true)}>
-              Importar desde Army Forge
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setFaccionElegida("");
+                  setEligiendoFaccion(true);
+                }}
+              >
+                Elegir faccion
+              </button>
+              <button type="button" onClick={() => setImportOpen(true)}>
+                Importar desde Army Forge
+              </button>
+            </>
           ) : null}
           {draft && !viendoBorrador ? (
             <button type="button" className="primary" onClick={() => setDecidirBorrador("peticion")}>
@@ -1163,15 +1194,17 @@ export default function ArmyEditor() {
           className="modal-backdrop"
           role="dialog"
           aria-modal="true"
-          aria-label="Sin faccion de origen"
+          aria-label={army ? "Sin faccion de origen" : "Elegir faccion de origen"}
           onClick={() => setEligiendoFaccion(false)}
         >
           <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>Sin faccion de origen no se puede editar</h2>
+            <h2 style={{ marginTop: 0 }}>
+              {army ? "Sin faccion de origen no se puede editar" : "Elige la faccion de origen"}
+            </h2>
             <p className="muted">
-              No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular},
-              asi que no se pueden anadir ni reconfigurar unidades. Elige la faccion de la que viene para poder
-              editarl{noun.genderSuffix}.
+              {army
+                ? `No se ha podido identificar de que faccion del catalogo viene ${noun.demonstrative} ${noun.singular}, asi que no se pueden anadir ni reconfigurar unidades. Elige la faccion de la que viene para poder editarl${noun.genderSuffix}.`
+                : `Elige de que faccion del catalogo viene ${noun.demonstrative} ${noun.singular} para poder empezar a anadir unidades.`}
             </p>
             <div className="field">
               <label htmlFor="faccion-origen">Faccion</label>
@@ -1191,7 +1224,7 @@ export default function ArmyEditor() {
             </div>
             <div className="row">
               <button type="button" onClick={() => setEligiendoFaccion(false)}>
-                Cancelar edicion
+                {army ? "Cancelar edicion" : "Cancelar"}
               </button>
               <button
                 type="button"
@@ -1199,7 +1232,13 @@ export default function ArmyEditor() {
                 disabled={!faccionElegida || busy}
                 onClick={() => void onAsignarFaccion()}
               >
-                {busy ? "Asignando…" : "Asignar faccion y editar"}
+                {army
+                  ? busy
+                    ? "Asignando…"
+                    : "Asignar faccion y editar"
+                  : busy
+                    ? "Creando…"
+                    : "Elegir faccion y crear"}
               </button>
             </div>
           </div>
