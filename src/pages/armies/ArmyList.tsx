@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { imageUrl, listArmies } from "../../api/armies";
 import { parseStoredList } from "../../api/armyForge";
+import { armyNounFor } from "../../lib/gameSystems";
 import type { Army } from "../../lib/types";
 import { errorMessage, formatDate } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
@@ -30,11 +31,13 @@ export default function ArmyList() {
     };
   }, [user, system, allSystems]);
 
+  const noun = allSystems ? armyNounFor(null) : armyNounFor(system);
+
   return (
     <>
       <PageHead
-        title="Ejercitos"
-        sub={allSystems ? "Todos tus ejercitos" : `Tus ejercitos de ${system?.name ?? "este modo"}`}
+        title={noun.pluralCap}
+        sub={allSystems ? `Todas tus ${noun.plural}` : `Tus ${noun.plural} de ${system?.name ?? "este modo"}`}
         actions={
           <>
             <button type="button" className="ghost" onClick={() => setAllSystems((value) => !value)}>
@@ -55,14 +58,14 @@ export default function ArmyList() {
       {loading ? (
         <Spinner />
       ) : armies.length === 0 ? (
-        <EmptyState title="Aun no hay ejercitos">
+        <EmptyState title={`Aun no hay ${noun.plural}`}>
           <p>
-            Construye uno desde una faccion del catalogo, o pega el enlace de una lista de Army Forge para
-            importarla con todas sus unidades.
+            Construye {noun.indefArticle} {noun.singular} desde una faccion del catalogo, o pega el enlace de una
+            lista de Army Forge para importarla con todas sus unidades.
           </p>
           <Link to="/ejercitos/nuevo">
             <button type="button" className="primary">
-              Crear ejercito
+              Crear {noun.singular}
             </button>
           </Link>
         </EmptyState>

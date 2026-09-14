@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { getGameSystem } from "../../lib/gameSystems";
+import { armyNounFor, getGameSystem } from "../../lib/gameSystems";
 import {
   catalogImageUrl,
   deleteCatalogImage,
@@ -189,7 +189,7 @@ export default function CatalogBook() {
         actions={
           <>
             <Link to={`/facciones/${book.$id}/crear`} className="button-link">
-              Crear ejercito
+              Crear {armyNounFor(bookSystem).singular}
             </Link>
             <Link to="/facciones">Volver</Link>
           </>

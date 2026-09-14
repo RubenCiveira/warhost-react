@@ -26,7 +26,7 @@ import { baseLoadout } from "../../lib/loadout";
 import { limitesComposicion } from "../../lib/composicion";
 import { composeArmyPayload } from "../../lib/armyPayload";
 import { errorMessage } from "../../lib/format";
-import { getGameSystem } from "../../lib/gameSystems";
+import { armyNounFor, getGameSystem } from "../../lib/gameSystems";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 import RuleCardModal from "../../components/RuleCardModal";
@@ -95,9 +95,11 @@ export default function ArmyBuilder() {
           stored = parseStored(loadedArmy.listJson);
           key = stored?.source?.bookKey ?? "";
           if (!key) {
+            const noun = armyNounFor(getGameSystem(loadedArmy.gameSystem));
             throw new Error(
-              "Este ejercito no dice de que faccion del catalogo viene, asi que no se pueden anadir unidades. " +
-                "Se puede reimportar o crear uno nuevo desde la faccion.",
+              `${noun.demonstrativeCap} ${noun.singular} no dice de que faccion del catalogo viene, asi que no ` +
+                `se pueden anadir unidades. Se puede reimportar o crear ${noun.indefArticle} ${noun.newForm} ` +
+                "desde la faccion.",
             );
           }
         }
@@ -134,9 +136,10 @@ export default function ArmyBuilder() {
 
           const esperadas = stored.units?.length ?? 0;
           if (esperadas > rehydrated.length) {
+            const noun = armyNounFor(getGameSystem(loadedBook.gameSystem));
             setWarning(
               `Se han recuperado ${rehydrated.length} de ${esperadas} unidades. El resto no existe en la version ` +
-                `actual del libro de ejercito, asi que no se pueden seguir editando.`,
+                `actual del libro de ${noun.singular}, asi que no se pueden seguir editando.`,
             );
           }
         }
@@ -169,6 +172,7 @@ export default function ArmyBuilder() {
 
   const built = useMemo(() => buildArmy(entries, packages), [entries, packages]);
   const bookSystem = getGameSystem(book?.gameSystem);
+  const noun = armyNounFor(bookSystem);
 
   // Un heroe solo se une a una unidad de verdad, no a otro heroe. El conjunto
   // se calcula una vez y no por cada tarjeta.
@@ -201,14 +205,14 @@ export default function ArmyBuilder() {
     for (const entry of entries) mapa.set(entry.unit.unitId, (mapa.get(entry.unit.unitId) ?? 0) + 1);
     return mapa;
   }, [entries]);
-  const nombresConDemasiadasCopias = useMemo(
-    () =>
-      [...copiasPorUnidad.entries()]
-        .filter(([, copias]) => copias > limites.maxCopiasPorUnidad)
-        .map(([unitId]) => entries.find((entry) => entry.unit.unitId === unitId)?.unit.name)
-        .filter((nombre): nombre is string => Boolean(nombre)),
-    [copiasPorUnidad, limites, entries],
-  );
+  const nombresConDemasiadasCopias = useMemo(() => {
+    const maxCopias = limites.maxCopiasPorUnidad;
+    if (maxCopias === null) return [];
+    return [...copiasPorUnidad.entries()]
+      .filter(([, copias]) => copias > maxCopias)
+      .map(([unitId]) => entries.find((entry) => entry.unit.unitId === unitId)?.unit.name)
+      .filter((nombre): nombre is string => Boolean(nombre));
+  }, [copiasPorUnidad, limites, entries]);
 
   const visibleUnits = useMemo(() => {
     const needle = unitSearch.trim().toLowerCase();
@@ -295,7 +299,7 @@ export default function ArmyBuilder() {
       <>
         <ErrorBanner error={error ?? "No se ha encontrado esta faccion."} />
         <div className="row">
-          {editing ? <Link to={`/ejercitos/${armyId}`}>Volver al ejercito</Link> : null}
+          {editing ? <Link to={`/ejercitos/${armyId}`}>Volver {noun.toThe} {noun.singular}</Link> : null}
           <Link to="/facciones">Ir a facciones</Link>
         </div>
       </>
@@ -312,8 +316,8 @@ export default function ArmyBuilder() {
           <input
             className="army-bar-name"
             value={name}
-            aria-label="Nombre del ejercito"
-            placeholder="Nombre del ejercito"
+            aria-label={`Nombre ${noun.ofThe} ${noun.singular}`}
+            placeholder={`Nombre ${noun.ofThe} ${noun.singular}`}
             onChange={(event) => setName(event.target.value)}
           />
           <p className="army-bar-sub small muted">
@@ -358,18 +362,22 @@ export default function ArmyBuilder() {
             <span className="army-stat-key">Miniaturas</span>
             <span className="army-stat-value mono">{built.modelCount}</span>
           </div>
-          <div className={entries.length - heroKeys.size > limites.maxUnidades ? "army-stat over" : "army-stat"}>
-            <span className="army-stat-key">Unidades</span>
-            <span className="army-stat-value mono">
-              {entries.length - heroKeys.size}/{limites.maxUnidades}
-            </span>
-          </div>
-          <div className={heroKeys.size > limites.maxHeroes ? "army-stat over" : "army-stat"}>
-            <span className="army-stat-key">Heroes</span>
-            <span className="army-stat-value mono">
-              {heroKeys.size}/{limites.maxHeroes}
-            </span>
-          </div>
+          {limites.maxUnidades !== null ? (
+            <div className={entries.length - heroKeys.size > limites.maxUnidades ? "army-stat over" : "army-stat"}>
+              <span className="army-stat-key">Unidades</span>
+              <span className="army-stat-value mono">
+                {entries.length - heroKeys.size}/{limites.maxUnidades}
+              </span>
+            </div>
+          ) : null}
+          {limites.maxHeroes !== null ? (
+            <div className={heroKeys.size > limites.maxHeroes ? "army-stat over" : "army-stat"}>
+              <span className="army-stat-key">Heroes</span>
+              <span className="army-stat-value mono">
+                {heroKeys.size}/{limites.maxHeroes}
+              </span>
+            </div>
+          ) : null}
           {limites.maxModelos !== null ? (
             <div className={modelosActuales > limites.maxModelos ? "army-stat over" : "army-stat"}>
               <span className="army-stat-key">Modelos/Tough</span>
@@ -422,7 +430,7 @@ export default function ArmyBuilder() {
       ) : null}
 
       {entries.length === 0 ? (
-        <EmptyState title="Este ejercito no tiene unidades todavia">
+        <EmptyState title={`${noun.demonstrativeCap} ${noun.singular} no tiene unidades todavia`}>
           <button type="button" className="primary" onClick={() => setPicking(true)}>
             Anadir la primera
           </button>
@@ -590,7 +598,7 @@ export default function ArmyBuilder() {
                   }}
                   footer={
                     <button type="button" className="primary tiny" onClick={() => addUnit(unit)}>
-                      Anadir al ejercito
+                      Anadir {noun.toThe} {noun.singular}
                     </button>
                   }
                 />

@@ -2,18 +2,20 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useGameSystem } from "../context/GameSystemContext";
-import { SETTINGS, systemsFor } from "../lib/gameSystems";
-import type { GameSystemId } from "../lib/gameSystems";
+import { SETTINGS, armyNounFor, systemsFor } from "../lib/gameSystems";
+import type { GameSystem, GameSystemId } from "../lib/gameSystems";
 
-const LINKS = [
-  { to: "/", label: "Inicio", end: true },
-  { to: "/ejercitos", label: "Ejercitos" },
-  { to: "/partidas", label: "Partidas" },
-  { to: "/asociaciones", label: "Asociaciones" },
-  { to: "/facciones", label: "Facciones" },
-  { to: "/reglas", label: "Reglas" },
-  { to: "/misiones", label: "Misiones" },
-];
+function linksFor(system: GameSystem | null | undefined) {
+  return [
+    { to: "/", label: "Inicio", end: true },
+    { to: "/ejercitos", label: armyNounFor(system).pluralCap },
+    { to: "/partidas", label: "Partidas" },
+    { to: "/asociaciones", label: "Asociaciones" },
+    { to: "/facciones", label: "Facciones" },
+    { to: "/reglas", label: "Reglas" },
+    { to: "/misiones", label: "Misiones" },
+  ];
+}
 
 // Secciones cuyo contenido (ejercitos, partidas...) pertenece a un modo concreto:
 // si se cambia de modo estando en un detalle, volvemos al indice que lo contenia.
@@ -134,6 +136,7 @@ function UserMenu() {
 // Cajon lateral con las secciones: sustituye a la barra de pestanas en
 // pantallas estrechas, donde no caben todas sin desbordar.
 function MobileNav() {
+  const { system } = useGameSystem();
   const [open, setOpen] = useState(false);
 
   useDismiss(open, () => setOpen(false));
@@ -165,7 +168,7 @@ function MobileNav() {
       {open ? (
         <div className="nav-drawer-backdrop">
           <nav className="nav-drawer" aria-label="Secciones">
-            {LINKS.map((link) => (
+            {linksFor(system).map((link) => (
               <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setOpen(false)}>
                 {link.label}
               </NavLink>
@@ -193,7 +196,7 @@ export default function Layout() {
           War<span>host</span>
         </NavLink>
         <nav>
-          {LINKS.map((link) => (
+          {linksFor(system).map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end}>
               {link.label}
             </NavLink>

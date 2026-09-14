@@ -72,7 +72,7 @@ export default function PendingApproval() {
           <>
             <h1>Cuenta pendiente de aceptacion</h1>
             <p className="muted">
-              Tu email esta verificado. Un administrador debe aceptar tu cuenta antes de que puedas ver ejercitos y
+              Tu email esta verificado. Un administrador debe aceptar tu cuenta antes de que puedas ver listas y
               partidas. Si quieres, cuentale quien eres.
             </p>
             <ErrorBanner error={error} />

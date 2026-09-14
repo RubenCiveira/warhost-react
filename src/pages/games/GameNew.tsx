@@ -8,6 +8,7 @@ import { listAssociations, listMyMemberships } from "../../api/associations";
 import { listMissions } from "../../api/content";
 import { addPlayer, addUnits, createGame } from "../../api/games";
 import { parseStoredList } from "../../api/armyForge";
+import { armyNounFor } from "../../lib/gameSystems";
 import type { Army, Association, Mission } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
 import { ErrorBanner, PageHead, Spinner } from "../../components/ui";
@@ -124,6 +125,7 @@ export default function GameNew() {
   const visibleAssociations = associations.filter(
     (association) => association.visibility === "public" || myAssociationIds.includes(association.$id),
   );
+  const noun = armyNounFor(system);
 
   return (
     <>
@@ -203,9 +205,9 @@ export default function GameNew() {
                   onChange={(e) => updatePlayer(index, { armyId: e.target.value })}
                   style={{ flex: 1, minWidth: 180 }}
                   disabled={!player.isMe}
-                  title={player.isMe ? undefined : "Solo puedes asignar tus propios ejercitos"}
+                  title={player.isMe ? undefined : `Solo puedes asignar tus propios ${noun.plural}`}
                 >
-                  <option value="">Sin ejercito guardado</option>
+                  <option value="">Sin {noun.singular} guardado{noun.genderSuffix}</option>
                   {armies.map((army) => (
                     <option key={army.$id} value={army.$id}>
                       {army.name} ({army.points} pts)
@@ -225,7 +227,7 @@ export default function GameNew() {
             ))}
           </div>
           <p className="small muted" style={{ marginTop: 10, marginBottom: 0 }}>
-            Las unidades del ejercito que elijas se copian a la partida como marcadores editables.
+            Las unidades {noun.ofThe} {noun.singular} que elijas se copian a la partida como marcadores editables.
           </p>
         </section>
 

@@ -15,6 +15,7 @@ import {
 } from "../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../lib/builder";
 import { baseLoadout } from "../lib/loadout";
+import { armyNounFor, getGameSystem } from "../lib/gameSystems";
 import { errorMessage } from "../lib/format";
 import { ErrorBanner, Spinner } from "./ui";
 import UnitCard from "./UnitCard";
@@ -91,6 +92,7 @@ export default function AddUnitWizard({
   const [busqueda, setBusqueda] = useState("");
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
+  const noun = armyNounFor(getGameSystem(book?.gameSystem));
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +109,7 @@ export default function AddUnitWizard({
         if (editando) {
           const suya = u.find((unit) => unit.unitId === editando.unitId);
           if (!suya) {
-            setError("Esta unidad ya no existe en la version actual del libro de ejercito.");
+            setError(`Esta unidad ya no existe en la version actual del libro de ${armyNounFor(getGameSystem(b.gameSystem)).singular}.`);
           } else {
             setEntry({
               key: `${suya.unitId}-editar`,
@@ -309,8 +311,8 @@ export default function AddUnitWizard({
         {!loading && entry && paso === "configurar" ? (
           <>
             <p className="muted small">
-              Personaliza <strong>{entry.unit.name}</strong>. Los limites de cada seccion son los del libro de
-              ejercito.
+              Personaliza <strong>{entry.unit.name}</strong>. Los limites de cada seccion son los del libro de{" "}
+              {noun.singular}.
             </p>
             <div className="wizard-single">
               <UnitCard
@@ -373,8 +375,8 @@ export default function AddUnitWizard({
           <>
             <p className="muted small">
               {editando
-                ? "Asi queda la unidad. Al confirmar se guarda en el borrador del ejercito."
-                : "Asi queda la unidad. Al confirmar se anade al borrador del ejercito."}
+                ? `Asi queda la unidad. Al confirmar se guarda en el borrador ${noun.ofThe} ${noun.singular}.`
+                : `Asi queda la unidad. Al confirmar se anade al borrador ${noun.ofThe} ${noun.singular}.`}
             </p>
             <div className="wizard-single">
               <UnitCard

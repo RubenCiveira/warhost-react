@@ -35,7 +35,7 @@ export default function Login() {
     <div className="center-screen">
       <div className="card">
         <h1>Entrar</h1>
-        <p className="muted">Tus ejercitos y partidas de One Page Rules.</p>
+        <p className="muted">Tus listas y partidas de One Page Rules.</p>
         <ErrorBanner error={error} />
         <form onSubmit={onSubmit}>
           <div className="field">

@@ -15,6 +15,7 @@ import {
   updateUnit,
 } from "../../api/games";
 import { listMissions } from "../../api/content";
+import { armyNounFor, getGameSystem } from "../../lib/gameSystems";
 import type { Game, GamePlayer, GameResult, GameUnit, Mission } from "../../lib/types";
 import { parseTokens } from "../../lib/types";
 import { errorMessage } from "../../lib/format";
@@ -129,6 +130,7 @@ export default function GameLive() {
   if (!game) return <ErrorBanner error={error ?? "Partida no encontrada."} />;
 
   const isOwner = game.createdBy === user?.$id;
+  const noun = armyNounFor(getGameSystem(game.gameSystem));
 
   return (
     <>
@@ -187,6 +189,7 @@ export default function GameLive() {
             <PlayerCard
               key={player.$id}
               player={player}
+              armyNoun={noun.singular}
               readOnly={game.status === "finished"}
               onChange={(patch) => void run(() => updatePlayer(player.$id, patch))}
             />
@@ -206,8 +209,8 @@ export default function GameLive() {
                 </h2>
                 {roster.length === 0 ? (
                   <p className="muted small">
-                    Este jugador no tiene unidades cargadas. Se copian al crear la partida desde un ejercito importado
-                    de Army Forge.
+                    Este jugador no tiene unidades cargadas. Se copian al crear la partida desde {noun.indefArticle}{" "}
+                    {noun.singular} importad{noun.genderSuffix} de Army Forge.
                   </p>
                 ) : (
                   <div className="grid">
@@ -259,10 +262,12 @@ export default function GameLive() {
 
 function PlayerCard({
   player,
+  armyNoun,
   readOnly,
   onChange,
 }: {
   player: GamePlayer;
+  armyNoun: string;
   readOnly: boolean;
   onChange: (patch: Partial<GamePlayer>) => void;
 }) {
@@ -277,7 +282,7 @@ function PlayerCard({
         ) : null}
       </div>
       <p className="muted small" style={{ margin: "4px 0 12px" }}>
-        {player.armyName ?? "Sin ejercito"}
+        {player.armyName ?? `Sin ${armyNoun}`}
         {player.faction ? ` · ${player.faction}` : ""}
         {player.points ? ` · ${player.points} pts` : ""}
       </p>

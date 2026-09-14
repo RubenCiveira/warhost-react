@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useGameSystem } from "../context/GameSystemContext";
-import { GAME_SYSTEMS, SETTINGS, systemsFor } from "../lib/gameSystems";
+import { GAME_SYSTEMS, SETTINGS, armyNounFor, systemsFor } from "../lib/gameSystems";
 import type { Setting } from "../lib/gameSystems";
 import { listArmies } from "../api/armies";
 import { listGames } from "../api/games";
@@ -24,7 +24,7 @@ function SystemPicker({ onPick }: { onPick: (id: (typeof GAME_SYSTEMS)[number]["
   if (!setting) {
     return (
       <>
-        <PageHead title="Elige ambientacion" sub="Tus ejercitos, partidas y reglas se filtran por lo que elijas aqui." />
+        <PageHead title="Elige ambientacion" sub="Tus listas, partidas y reglas se filtran por lo que elijas aqui." />
         <div className="setting-split">
           {Object.values(SETTINGS).map((option) => (
             <button
@@ -100,6 +100,7 @@ function Dashboard({ userId }: { userId: string }) {
   }, [userId, system]);
 
   const active = games.filter((game) => game.status === "active");
+  const noun = armyNounFor(system);
 
   return (
     <>
@@ -136,13 +137,14 @@ function Dashboard({ userId }: { userId: string }) {
 
           <section>
             <div className="spread">
-              <h2>Tus ejercitos</h2>
+              <h2>Tus {noun.plural}</h2>
               <Link to="/ejercitos">Ver todos</Link>
             </div>
             {armies.length === 0 ? (
               <div className="card muted">
-                Todavia no tienes ejercitos en {system!.short}. <Link to="/ejercitos/nuevo">Crea el primero</Link> o
-                importalo desde Army Forge.
+                Todavia no tienes {noun.plural} en {system!.short}.{" "}
+                <Link to="/ejercitos/nuevo">Crea {noun.article} {noun.first}</Link> o importa{noun.pronoun} desde
+                Army Forge.
               </div>
             ) : (
               <div className="grid">

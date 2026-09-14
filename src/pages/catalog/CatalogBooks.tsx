@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { catalogImageUrl, groupImages, listBooks, listFactionImages, pickCover, targetKeyFor } from "../../api/catalog";
 import type { ArmyBook, CatalogImage } from "../../api/catalog";
+import { armyNounFor } from "../../lib/gameSystems";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 
@@ -98,7 +99,7 @@ export default function CatalogBooks() {
                 </div>
                 <div className="row" style={{ marginTop: 10 }}>
                   <Link to={`/facciones/${book.$id}/crear`} className="button-link">
-                    Crear ejercito
+                    Crear {armyNounFor(system).singular}
                   </Link>
                   <Link to={`/facciones/${book.$id}`} className="small muted">
                     Ver unidades
