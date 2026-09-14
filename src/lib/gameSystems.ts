@@ -112,3 +112,25 @@ export function armyNounFor(system: GameSystem | null | undefined): ArmyNoun {
       return ARMY_NOUNS.ejercito;
   }
 }
+
+/**
+ * Texto de facciones para una tarjeta o cabecera: en quest no hay principal
+ * —la mezcla es narrativa, no jerarquica por puntos— asi que se listan todas
+ * igual; en el resto de sistemas la principal va primero y las demas como
+ * aliadas, recortando a dos nombres para no desbordar una linea.
+ */
+export function resumenFaccion(
+  faction: string | null,
+  alliedFactions: string[],
+  gameSystem: GameSystemId | null | undefined,
+): string {
+  const id = getGameSystem(gameSystem ?? undefined)?.id;
+  const quest = id === "gfsq" || id === "aofq";
+  if (quest) return alliedFactions.length > 0 ? alliedFactions.join(", ") : "Sin faccion";
+
+  const base = faction ?? "Sin faccion";
+  if (alliedFactions.length === 0) return base;
+  const listados = alliedFactions.slice(0, 2).join(", ");
+  const resto = alliedFactions.length - 2;
+  return `${base} · Aliados: ${listados}${resto > 0 ? ` y ${resto} mas` : ""}`;
+}

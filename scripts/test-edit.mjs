@@ -22,7 +22,7 @@ const B = await import(outfile);
 const units = rows("army_units", [{ method: "equal", attribute: "bookKey", values: [BOOK] }, { method: "orderAsc", attribute: "sortOrder" }]);
 const packages = new Map(
   rows("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [BOOK] }])
-    .map((r) => [r.packageUid, B.parseSections(r.sections)]),
+    .map((r) => [`${BOOK}:${r.packageUid}`, B.parseSections(r.sections)]),
 );
 
 let fallos = 0;
@@ -68,8 +68,15 @@ if (recuperado[0] && Object.keys(recuperado[0].choices).length > 0 && conMenos.p
 console.log(`anadiendo una unidad: ${conMas.points} pts · quitando una mejora: ${conMenos.points} pts`);
 
 // Un ejercito importado se reconstruye desde el JSON de Army Forge.
-const forge = { list: { units: [{ id: units[0].unitId, selectedUpgrades: [] }, { id: "no-existe", selectedUpgrades: [] }] } };
-const desdeForge = B.entriesFromForgeList(forge, units);
+const forge = {
+  list: {
+    units: [
+      { id: units[0].unitId, armyId: "test-uid", selectedUpgrades: [] },
+      { id: "no-existe", armyId: "test-uid", selectedUpgrades: [] },
+    ],
+  },
+};
+const desdeForge = B.entriesFromForgeList(forge, units, new Map([["test-uid", BOOK]]));
 if (desdeForge.length !== 1) { console.log(`✗ desde Army Forge se esperaba 1 unidad util, salieron ${desdeForge.length}`); fallos += 1; }
 console.log(`desde una lista importada: ${desdeForge.length} de 2 unidades reconocidas (la otra no existe en el libro)`);
 

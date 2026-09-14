@@ -34,11 +34,11 @@ await build({
           <>
             <a href="#" id="tarjeta" onClick={(e) => { e.preventDefault(); setNavego(true); }}>
               <span>Mi ejercito</span>
-              <AvisoComposicion puntos={1000} unidades={sePasa} />
+              <AvisoComposicion puntos={1000} unidades={sePasa} gameSystem="gf" />
             </a>
             <p id="navego">{navego ? "si" : "no"}</p>
             <div id="conforme">
-              <AvisoComposicion puntos={1000} unidades={cumple} />
+              <AvisoComposicion puntos={1000} unidades={cumple} gameSystem="gff" />
             </div>
           </>
         );

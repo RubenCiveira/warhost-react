@@ -40,17 +40,17 @@ const libro = filas("army_books", [
 const catalogo = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
 const packages = new Map(
   filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [200] }])
-    .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+    .map((p) => [`${libro.$id}:${p.packageUid}`, B.parseSections(p.sections)]),
 );
 
 const conOpciones = catalogo.filter((u) => B.sectionsForUnit(u, packages).some((s) => (s.options ?? []).length > 0));
 const [uno, dos, tres] = conOpciones;
 
 // Tres unidades guardadas; se reconfigura la de en medio.
-const guardadas = [uno, dos, tres].map((u) => ({ unitId: u.unitId, choices: {} }));
+const guardadas = [uno, dos, tres].map((u) => ({ bookKey: libro.$id, unitId: u.unitId, choices: {} }));
 const seccion = B.sectionsForUnit(dos, packages).find((s) => (s.options ?? []).length > 0);
 const opcion = seccion.options[0];
-const cambiada = { unitId: dos.unitId, choices: { [B.optionId(opcion)]: 1 }, notes: "reconfigurada" };
+const cambiada = { bookKey: libro.$id, unitId: dos.unitId, choices: { [B.optionId(opcion)]: 1 }, notes: "reconfigurada" };
 
 const reemplaza = (lista, indice, nueva) => lista.map((x, i) => (i === indice ? nueva : x));
 
@@ -67,7 +67,7 @@ comprobar(
 
 // El caso que motiva aplicar el indice sobre lo guardado: una unidad retirada
 // del libro desaparece al rehidratar y corre los indices.
-const conRetirada = [{ unitId: "no-existe-ya", choices: {} }, ...guardadas];
+const conRetirada = [{ bookKey: libro.$id, unitId: "no-existe-ya", choices: {} }, ...guardadas];
 comprobar(
   B.rehydrateEntries(conRetirada, catalogo).length === 3,
   "una unidad retirada del libro se cae al rehidratar",
@@ -93,7 +93,7 @@ comprobar(
 // --- Quitar una unidad: los indices de `attachedTo` se mueven con ella.
 {
   // Cuatro unidades; la segunda lleva un heroe unido (la cuarta apunta a ella).
-  const base = [uno, dos, tres, uno].map((u) => ({ unitId: u.unitId, choices: {} }));
+  const base = [uno, dos, tres, uno].map((u) => ({ bookKey: libro.$id, unitId: u.unitId, choices: {} }));
   base[3] = { ...base[3], attachedTo: 1 };
 
   const quitar = (lista, indice) =>

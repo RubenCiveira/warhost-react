@@ -58,7 +58,7 @@ const paquetes = libros.flatMap((libro) =>
     "tables-db", "list-rows", "--database-id", "warhost", "--table-id", "army_upgrade_packages",
     "--queries", JSON.stringify({ method: "equal", attribute: "bookKey", values: [libro.$id] }),
     "--queries", JSON.stringify({ method: "limit", values: [100] }),
-  ]).rows.map((p) => [p.packageUid, p.sections]),
+  ]).rows.map((p) => [`${libro.$id}:${p.packageUid}`, p.sections]),
 );
 
 const dir = await mkdtemp(join(tmpdir(), "warhost-check-"));

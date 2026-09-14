@@ -105,6 +105,8 @@ export interface ArmyBookSummary {
 export interface ResolvedUnit {
   name: string;
   unitKey: string | null;
+  /** Libro propio de origen, cuando se conoce: permite agrupar puntos por faccion. */
+  bookKey?: string;
   size: number;
   quality: number;
   defense: number;

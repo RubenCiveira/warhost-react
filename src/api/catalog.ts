@@ -117,7 +117,11 @@ export async function listUnits(bookKey: string): Promise<ArmyUnit[]> {
   return result.rows;
 }
 
-/** Paquetes de mejora del libro, indexados por su uid para cruzarlos con las unidades. */
+/**
+ * Paquetes de mejora del libro, indexados por `${bookKey}:${packageUid}` para
+ * cruzarlos con las unidades: el uid de un paquete solo es unico dentro de su
+ * libro, y con varias facciones a la vez sus mapas se acaban juntando.
+ */
 export async function listUpgradePackages(bookKey: string): Promise<Map<string, UpgradeSection[]>> {
   const map = new Map<string, UpgradeSection[]>();
   let cursor: string | null = null;
@@ -129,7 +133,7 @@ export async function listUpgradePackages(bookKey: string): Promise<Map<string, 
       tableId: TABLES.armyUpgradePackages,
       queries,
     });
-    for (const row of page.rows) map.set(row.packageUid, parseSections(row.sections));
+    for (const row of page.rows) map.set(`${bookKey}:${row.packageUid}`, parseSections(row.sections));
     if (page.rows.length < 100) return map;
     cursor = page.rows[page.rows.length - 1].$id;
   }

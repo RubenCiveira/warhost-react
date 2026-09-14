@@ -86,14 +86,14 @@ for (const libro of libros) {
     filas("army_upgrade_packages", [
       { method: "equal", attribute: "bookKey", values: [libro.$id] },
       { method: "limit", values: [200] },
-    ]).map((p) => [p.packageUid, parseSections(p.sections)]),
+    ]).map((p) => [`${libro.$id}:${p.packageUid}`, parseSections(p.sections)]),
   );
 
   alcance.libros += 1;
   for (const unidad of unidades) {
     alcance.unidades += 1;
     for (const uid of unidad.upgradePackageUids ?? []) {
-      if (!paquetes.has(uid)) apunta(libro, unidad, "package-missing", { paquete: uid });
+      if (!paquetes.has(`${libro.$id}:${uid}`)) apunta(libro, unidad, "package-missing", { paquete: uid });
     }
 
     const secciones = sectionsForUnit(unidad, paquetes);

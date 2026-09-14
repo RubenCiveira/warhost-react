@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
 import { imageUrl, listArmies } from "../../api/armies";
 import { parseStoredList } from "../../api/armyForge";
-import { armyNounFor } from "../../lib/gameSystems";
+import { armyNounFor, resumenFaccion } from "../../lib/gameSystems";
 import type { Army } from "../../lib/types";
 import { errorMessage, formatDate } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
@@ -94,7 +94,8 @@ export default function ArmyList() {
                 </span>
               </div>
               <p className="muted small" style={{ margin: "6px 0 0" }}>
-                {army.faction ?? "Sin faccion"} · {army.points} pts · {army.modelCount} miniaturas
+                {resumenFaccion(army.faction, army.alliedFactions, army.gameSystem)} · {army.points} pts ·{" "}
+                {army.modelCount} miniaturas
               </p>
               <p className="muted small" style={{ margin: 0 }}>
                 Actualizado {formatDate(army.updatedAt)}

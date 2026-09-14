@@ -33,7 +33,7 @@ await build({
       import { baseLoadout } from "./src/lib/loadout";
       import { parseSections, sectionsForUnit } from "./src/lib/builder";
       const UNITS = ${JSON.stringify(unidades)};
-      const PK = new Map(${JSON.stringify(paquetes.map((p) => [p.packageUid, p.sections]))}.map(([k, v]) => [k, parseSections(v)]));
+      const PK = new Map(${JSON.stringify(paquetes.map((p) => [`${BOOK}:${p.packageUid}`, p.sections]))}.map(([k, v]) => [k, parseSections(v)]));
       globalThis.__HTML__ = UNITS.map((u) =>
         '<div class="army-slide">' + renderToStaticMarkup(
           <UnitCard variant="catalogo" formato="hoja" unitId={u.unitId} sections={sectionsForUnit(u, PK)}

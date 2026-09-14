@@ -8,7 +8,10 @@ export interface Army extends Row {
   name: string;
   setting: Setting;
   gameSystem: GameSystemId;
+  /** Faccion con mas peso en puntos; vacia en quest, donde no hay principal. */
   faction: string | null;
+  /** Las demas facciones presentes, con menos peso en puntos (o todas, en quest). */
+  alliedFactions: string[];
   points: number;
   /** Limite de puntos objetivo, elegido aparte del coste real de la lista. 0 = sin fijar, se usa `points`. */
   pointsLimit: number;

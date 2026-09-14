@@ -44,6 +44,10 @@ export default function AvisoComposicion({
   const cumple = verificaciones.every((verificacion) => verificacion.ok);
   const [abierto, setAbierto] = useState(false);
 
+  // El sistema no fija ninguna formula de composicion (Quest): no hay nada
+  // que mostrar, ni siquiera un check vacio.
+  const sinFormula = verificaciones.length === 0;
+
   useEffect(() => {
     if (!abierto) return undefined;
     const cerrar = () => setAbierto(false);
@@ -55,6 +59,8 @@ export default function AvisoComposicion({
       document.removeEventListener("keydown", conEscape);
     };
   }, [abierto]);
+
+  if (sinFormula) return null;
 
   return (
     <span className="aviso-composicion-wrap">

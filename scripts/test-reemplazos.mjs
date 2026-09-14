@@ -45,7 +45,7 @@ const LIBRO = "w7qor7b2kuifcyvk_gf";
 const unidades = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [LIBRO] }, { method: "limit", values: [100] }]);
 const paquetes = new Map(
   filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [LIBRO] }, { method: "limit", values: [100] }])
-    .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+    .map((p) => [`${LIBRO}:${p.packageUid}`, B.parseSections(p.sections)]),
 );
 
 const bestia = unidades.find((u) => u.name === "Ravenous Beasts");
@@ -80,7 +80,7 @@ comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se pue
   const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [bb.$id] }, { method: "limit", values: [100] }]);
   const pk = new Map(
     filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [bb.$id] }, { method: "limit", values: [200] }])
-      .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+      .map((p) => [`${bb.$id}:${p.packageUid}`, B.parseSections(p.sections)]),
   );
   const pf = us.find((u) => u.name === "Elite Pathfinder");
   const secs = B.sectionsForUnit(pf, pk);
@@ -123,7 +123,7 @@ comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se pue
     const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
     const pk = new Map(
       filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [200] }])
-        .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+        .map((p) => [`${libro.$id}:${p.packageUid}`, B.parseSections(p.sections)]),
     );
     for (const u of us) {
       for (const sec of B.sectionsForUnit(u, pk)) {
@@ -164,7 +164,7 @@ comprobar(B.maxPicks(seccion, bestia.size) === 1, "una seccion 'all' solo se pue
     const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
     const pk = new Map(
       filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [200] }])
-        .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+        .map((p) => [`${libro.$id}:${p.packageUid}`, B.parseSections(p.sections)]),
     );
     for (const u of us) {
       const secs = B.sectionsForUnit(u, pk);
@@ -199,7 +199,7 @@ for (const libro of libros) {
   const us = filas("army_units", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }]);
   const pk = new Map(
     filas("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [libro.$id] }, { method: "limit", values: [100] }])
-      .map((p) => [p.packageUid, B.parseSections(p.sections)]),
+      .map((p) => [`${libro.$id}:${p.packageUid}`, B.parseSections(p.sections)]),
   );
   for (const u of us) {
     const secs = B.sectionsForUnit(u, pk);

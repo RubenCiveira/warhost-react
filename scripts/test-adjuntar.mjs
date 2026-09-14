@@ -22,7 +22,7 @@ const comprobar = (ok, que, detalle) => {
 };
 
 const unidad = (unitId, rules, extra = {}) => ({
-  unitId, name: unitId, size: 1, quality: 3, defense: 3, cost: 80, rules,
+  bookKey: "libro", unitId, name: unitId, size: 1, quality: 3, defense: 3, cost: 80, rules,
   upgradePackageUids: [], weapons: null, items: null, ...extra,
 });
 const entrada = (unit) => ({ key: `${unit.unitId}-k`, unit, choices: {} });
@@ -59,9 +59,9 @@ comprobar(
 
 // --- Si una unidad anterior ya no existe en el libro, el indice se recoloca.
 const guardadoConHueco = [
-  { unitId: "fantasma", choices: {} },
-  { unitId: "hero", choices: {}, attachedTo: 2 },
-  { unitId: "squad", choices: {} },
+  { bookKey: "libro", unitId: "fantasma", choices: {} },
+  { bookKey: "libro", unitId: "hero", choices: {}, attachedTo: 2 },
+  { bookKey: "libro", unitId: "squad", choices: {} },
 ];
 const vueltoConHueco = B.rehydrateEntries(guardadoConHueco, cat);
 comprobar(vueltoConHueco.length === 2, "la unidad que ya no existe se descarta");
@@ -78,8 +78,8 @@ comprobar(B.serializeEntries([suelto, tropa])[0].attachedTo === undefined, "una 
 //     vuelve a serializar (que es lo que hace composeArmyPayload). El indice
 //     tiene que salir igual.
 const comoArmyEditor = [
-  { unitId: "hero", choices: {}, attachedTo: 1 },
-  { unitId: "squad", choices: {} },
+  { bookKey: "libro", unitId: "hero", choices: {}, attachedTo: 1 },
+  { bookKey: "libro", unitId: "squad", choices: {} },
 ];
 const ida = B.rehydrateEntries(comoArmyEditor, cat);
 const vuelta = B.serializeEntries(ida);

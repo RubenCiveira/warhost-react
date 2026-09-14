@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { armyNounFor, getGameSystem } from "../../lib/gameSystems";
+import { armyNounFor, getGameSystem, resumenFaccion } from "../../lib/gameSystems";
 import type { GameSystemId } from "../../lib/gameSystems";
 import {
   createArmy,
@@ -47,12 +47,13 @@ import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
 import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/catalog";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
-import { composeArmyPayload } from "../../lib/armyPayload";
+import { composeArmyPayload, sourceBooks } from "../../lib/armyPayload";
 
 interface FormState {
   name: string;
   gameSystem: GameSystemId;
   faction: string;
+  alliedFactions: string[];
   points: number;
   /** Objetivo de puntos elegido aparte del coste real; 0 si no se ha fijado. */
   pointsLimit: number;
@@ -75,6 +76,7 @@ export default function ArmyEditor() {
     name: "",
     gameSystem: system?.id ?? "gf",
     faction: "",
+    alliedFactions: [],
     points: 0,
     pointsLimit: 0,
     pointsMargin: 5,
@@ -101,11 +103,20 @@ export default function ArmyEditor() {
   const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
   const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
   const [verGenerales, setVerGenerales] = useState(false);
-  /** Unidades del libro de origen, solo para saber que equipo publica la faccion. */
-  const [unidadesLibro, setUnidadesLibro] = useState<ArmyUnit[]>([]);
-  /** El libro de origen, solo para sus hechizos: el ejercito no los guarda. */
-  const [libro, setLibro] = useState<ArmyBook | null>(null);
+  /**
+   * Las facciones conocidas de este ejercito (puede haber varias) y las
+   * unidades de su catalogo, solo para saber que hechizos/habilidades/equipo
+   * publica cada una: el ejercito en si no las guarda.
+   */
+  const [librosPorClave, setLibrosPorClave] = useState<Map<string, ArmyBook>>(new Map());
+  const [unidadesPorLibro, setUnidadesPorLibro] = useState<Map<string, ArmyUnit[]>>(new Map());
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  /** `bookKey` elegido en el buscador: con esa faccion se anade la siguiente unidad. */
+  const [facSeleccionada, setFacSeleccionada] = useState("");
+  const [textoFaccion, setTextoFaccion] = useState("");
+  /** El desplegable de facciones, junto al boton de anadir: abierto o no, y el filtro mientras esta abierto. */
+  const [facAbierta, setFacAbierta] = useState(false);
+  const [filtroFaccion, setFiltroFaccion] = useState("");
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
@@ -130,6 +141,11 @@ export default function ArmyEditor() {
   useEffect(() => {
     if (!armyId) return;
     let cancelled = false;
+    // Las facciones conocidas son de este ejercito en concreto: si se
+    // navega a otro no deberian arrastrarse las del anterior.
+    setLibrosPorClave(new Map());
+    setUnidadesPorLibro(new Map());
+    setFacSeleccionada("");
     resolveArmy(armyId)
       .then(({ active: row, draft: pendiente }) => {
         if (cancelled) return;
@@ -153,6 +169,7 @@ export default function ArmyEditor() {
       name: version.name,
       gameSystem: version.gameSystem,
       faction: version.faction ?? "",
+      alliedFactions: version.alliedFactions ?? [],
       points: version.points,
       pointsLimit: version.pointsLimit ?? 0,
       pointsMargin: version.pointsMargin ?? 5,
@@ -196,9 +213,9 @@ export default function ArmyEditor() {
 
   /** Pasar a edicion: abre el borrador y se planta en el. */
   async function onEditar() {
-    // Sin faccion de origen no hay como anadir ni reconfigurar unidades: se
-    // pide elegir una antes de abrir el borrador.
-    if (!editableBookKey) {
+    // Sin ninguna faccion de origen no hay como anadir ni reconfigurar
+    // unidades: se pide elegir una antes de abrir el borrador.
+    if (librosConocidos.length === 0) {
       setFaccionElegida("");
       setEligiendoFaccion(true);
       return;
@@ -218,8 +235,10 @@ export default function ArmyEditor() {
     }
   }
 
+  // Sirve tanto al dialogo de "elegir faccion" como al autocompletar de la
+  // cabecera, asi que se carga en cuanto se sabe el sistema de juego, no solo
+  // al abrir el dialogo.
   useEffect(() => {
-    if (!eligiendoFaccion) return undefined;
     let cancelado = false;
     setCargandoFacciones(true);
     listBooks(army?.gameSystem ?? form.gameSystem)
@@ -229,7 +248,7 @@ export default function ArmyEditor() {
     return () => {
       cancelado = true;
     };
-  }, [eligiendoFaccion, army, form.gameSystem]);
+  }, [army?.gameSystem, form.gameSystem]);
 
   useEffect(() => {
     if (!eligiendoFaccion) return undefined;
@@ -245,18 +264,29 @@ export default function ArmyEditor() {
     setError(null);
     try {
       const libroElegido = await getBook(faccionElegida);
+      void registrarLibro(libroElegido);
 
       // Ejercito nuevo, todavia sin guardar: se crea ya con la faccion puesta,
       // en vez de guardar uno vacio y obligar a un "Editar" aparte.
       if (!army) {
         const listJsonNuevo = JSON.stringify({
-          source: { builder: "manual", bookKey: libroElegido.$id, bookVersion: libroElegido.versionString },
+          source: {
+            builder: "manual",
+            books: [
+              {
+                bookKey: libroElegido.$id,
+                bookVersion: libroElegido.versionString,
+                factionName: libroElegido.factionName ?? libroElegido.name,
+              },
+            ],
+          },
         });
         const creado = await createArmy(user.$id, {
           name: form.name.trim() || libroElegido.name,
           setting: libroElegido.setting,
           gameSystem: libroElegido.gameSystem,
-          faction: libroElegido.factionName ?? libroElegido.name,
+          faction: quest ? null : (libroElegido.factionName ?? libroElegido.name),
+          alliedFactions: quest ? [libroElegido.factionName ?? libroElegido.name] : [],
           listJson: listJsonNuevo,
         });
         setEligiendoFaccion(false);
@@ -276,7 +306,16 @@ export default function ArmyEditor() {
       })();
       const actualizado = {
         ...base,
-        source: { builder: "manual", bookKey: libroElegido.$id, bookVersion: libroElegido.versionString },
+        source: {
+          builder: "manual",
+          books: [
+            {
+              bookKey: libroElegido.$id,
+              bookVersion: libroElegido.versionString,
+              factionName: libroElegido.factionName ?? libroElegido.name,
+            },
+          ],
+        },
       };
       const guardado = await saveDraft(abierto.$id, { listJson: JSON.stringify(actualizado) });
       setDraft(guardado);
@@ -359,28 +398,101 @@ export default function ArmyEditor() {
 
 
   const noun = useMemo(() => armyNounFor(getGameSystem(form.gameSystem)), [form.gameSystem]);
+  const quest = getGameSystem(form.gameSystem)?.id === "gfsq" || getGameSystem(form.gameSystem)?.id === "aofq";
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
+  const librosConocidos = useMemo(() => [...librosPorClave.values()], [librosPorClave]);
+  const unidadesTodas = useMemo(() => [...unidadesPorLibro.values()].flat(), [unidadesPorLibro]);
+  /** uid de Army Forge -> `bookKey` propio, para leer listas importadas multi-faccion. */
+  const uidABookKey = useMemo(() => new Map(librosConocidos.map((libro) => [libro.uid, libro.$id])), [librosConocidos]);
+  /**
+   * Registra un libro ya resuelto (y su catalogo) entre los conocidos de este
+   * ejercito, si no lo estaba ya.
+   */
+  const registrarLibro = useCallback(
+    async (libro: ArmyBook) => {
+      setLibrosPorClave((prev) => (prev.has(libro.$id) ? prev : new Map(prev).set(libro.$id, libro)));
+      if (unidadesPorLibro.has(libro.$id)) return;
+      const unidades = await listCatalogUnits(libro.$id);
+      setUnidadesPorLibro((prev) => (prev.has(libro.$id) ? prev : new Map(prev).set(libro.$id, unidades)));
+    },
+    [unidadesPorLibro],
+  );
+  /** Como `registrarLibro`, pero partiendo solo de la clave propia. */
+  const asegurarLibro = useCallback(
+    async (bookKey: string) => {
+      if (librosPorClave.has(bookKey)) return;
+      const libro = await getBook(bookKey);
+      await registrarLibro(libro);
+    },
+    [librosPorClave, registrarLibro],
+  );
+
+  /**
+   * Las facciones con las que arranca el ejercito: las guardadas en
+   * `source.books` (o el `bookKey` unico de antes de poder mezclar varias),
+   * o si vino importado sin ninguna propia, las que resuelven por cada uid de
+   * Army Forge que usa la lista.
+   */
+  useEffect(() => {
+    if (!listJson) return undefined;
+    let cancelado = false;
+    void (async () => {
+      try {
+        const guardados = sourceBooks(listJson).map((libro) => libro.bookKey);
+        if (guardados.length > 0) {
+          await Promise.all(guardados.map((clave) => asegurarLibro(clave)));
+          return;
+        }
+        const parsed = JSON.parse(listJson) as { raw?: ArmyForgeList; gameSystem?: string | null };
+        const uids = parsed.raw ? requiredBookUids(parsed.raw) : [];
+        const gameSystemId = getGameSystem(parsed.gameSystem)?.id;
+        if (uids.length === 0 || !gameSystemId) return;
+        const resueltos = await Promise.all(uids.map((uid) => getBookByUid(uid, gameSystemId)));
+        if (cancelado) return;
+        await Promise.all(resueltos.filter((libro): libro is ArmyBook => Boolean(libro)).map(registrarLibro));
+      } catch {
+        // Un fallo aqui solo deja sin resolver la faccion: no es motivo para
+        // teñir de rojo la vista del ejercito.
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listJson]);
+
+  /** El glosario es del sistema de juego, no de cada libro: basta con cargarlo una vez. */
+  useEffect(() => {
+    let cancelado = false;
+    listRuleGlossary(form.gameSystem)
+      .then((g) => !cancelado && setGlosario(g))
+      .catch(() => undefined);
+    return () => {
+      cancelado = true;
+    };
+  }, [form.gameSystem]);
+
   /**
    * Las elecciones guardadas. Van en el mismo orden que las unidades —las
    * escribe `composeArmyPayload` del mismo array—, asi que el `sortOrder` de
    * una carta es su indice aqui. Un ejercito importado de Army Forge no las
-   * trae de fabrica, pero en cuanto se resuelve su libro por uid (`libro`,
-   * mas abajo) se reconstruyen igual que en el constructor, a partir del
-   * JSON original de Army Forge.
+   * trae de fabrica, pero en cuanto se resuelven sus libros por uid se
+   * reconstruyen igual que en el constructor, a partir del JSON original de
+   * Army Forge.
    */
   const entradasGuardadas = useMemo<StoredEntry[]>(() => {
     if (!listJson) return [];
     try {
       const parsed = JSON.parse(listJson) as { entries?: unknown; raw?: unknown };
       if (Array.isArray(parsed.entries)) return parsed.entries as StoredEntry[];
-      if (parsed.raw && unidadesLibro.length > 0) {
-        return serializeEntries(entriesFromForgeList(parsed.raw, unidadesLibro));
+      if (parsed.raw && unidadesTodas.length > 0) {
+        return serializeEntries(entriesFromForgeList(parsed.raw, unidadesTodas, uidABookKey));
       }
       return [];
     } catch {
       return [];
     }
-  }, [listJson, unidadesLibro]);
+  }, [listJson, unidadesTodas, uidABookKey]);
   /**
    * Unidades a las que puede unirse el heroe que se esta editando: las del
    * ejercito que no son heroes, quitando la propia. El indice es el de la lista
@@ -403,85 +515,53 @@ export default function ArmyEditor() {
     () => emparejarHeroes(units, entradasGuardadas.map((e) => e.attachedTo)),
     [units, entradasGuardadas],
   );
-  const hechizos = useMemo(() => parseSpells(libro?.spells ?? null), [libro]);
-  const habilidades = useMemo(
-    () => habilidadesDeFaccion(libro, glosario, unidadesLibro),
-    [libro, glosario, unidadesLibro],
+  /** Un hechizo por cada uno que publique cualquiera de las facciones conocidas. */
+  const hechizos = useMemo(
+    () =>
+      librosConocidos.flatMap((libro) =>
+        parseSpells(libro.spells ?? null).map((spell) => ({ spell, faccion: libro.factionName ?? libro.name })),
+      ),
+    [librosConocidos],
   );
-  const equipo = useMemo(() => equipoDeFaccion(unidadesLibro), [unidadesLibro]);
+  /** Union de las reglas propias de cada faccion, sin repetir. */
+  const habilidades = useMemo(() => {
+    const vistas = new Map<string, CatalogRule>();
+    for (const libro of librosConocidos) {
+      for (const regla of habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? [])) {
+        vistas.set(regla.$id, regla);
+      }
+    }
+    return [...vistas.values()];
+  }, [librosConocidos, glosario, unidadesPorLibro]);
+  const equipo = useMemo(() => equipoDeFaccion(unidadesTodas), [unidadesTodas]);
   const generales = useMemo(
-    () => reglasGeneralesDeFaccion(glosario, unidadesLibro, habilidades),
-    [glosario, unidadesLibro, habilidades],
+    () => reglasGeneralesDeFaccion(glosario, unidadesTodas, habilidades),
+    [glosario, unidadesTodas, habilidades],
   );
 
+  /** La faccion con la que se anade la siguiente unidad: la elegida en el autocompletar, o la primera conocida. */
+  const facActual = facSeleccionada && librosPorClave.has(facSeleccionada) ? facSeleccionada : (librosConocidos[0]?.$id ?? "");
+  const libroActual = librosPorClave.get(facActual) ?? null;
   /**
-   * De donde sale la clave del libro propio. Los ejercitos creados con el
-   * constructor la guardan directamente; los importados de Army Forge no,
-   * pero `editableBookKey` la resuelve igualmente en cuanto `libro` encuentra
-   * la misma faccion por su uid de Army Forge.
+   * El `bookKey` con el que abrir el asistente: reconfigurar una unidad usa
+   * el suyo propio (sigue siendo de su faccion), no la que este elegida en
+   * el autocompletar; anadir una nueva usa la faccion actual.
    */
-  const bookKey = useMemo(() => {
-    if (!listJson) return null;
-    try {
-      const parsed = JSON.parse(listJson) as { source?: { bookKey?: string } };
-      return parsed.source?.bookKey ?? null;
-    } catch {
-      return null;
-    }
-  }, [listJson]);
-
-  /**
-   * Como encontrar el libro propio para ensenar sus habilidades, hechizos y
-   * equipo. Si el ejercito se hizo con el constructor, `bookKey` ya lo dice.
-   * Si vino importado de Army Forge, no hay clave propia guardada, pero cada
-   * unidad de la lista si trae el uid del libro de Army Forge del que salio:
-   * con ese uid y el sistema de juego se puede encontrar el mismo libro en el
-   * catalogo propio, sin tener que reimportar nada.
-   */
-  const origenLibro = useMemo(() => {
-    if (bookKey) return { kind: "bookKey" as const, bookKey };
-    if (!listJson) return null;
-    try {
-      const parsed = JSON.parse(listJson) as { raw?: ArmyForgeList; gameSystem?: string | null };
-      const uid = parsed.raw ? requiredBookUids(parsed.raw)[0] : undefined;
-      const gameSystem = getGameSystem(parsed.gameSystem)?.id;
-      return uid && gameSystem ? { kind: "uid" as const, uid, gameSystem } : null;
-    } catch {
-      return null;
-    }
-  }, [bookKey, listJson]);
+  const bookKeyParaWizard =
+    editandoIndice !== null ? entradasGuardadas[editandoIndice]?.bookKey || facActual : facActual;
 
   useEffect(() => {
-    if (!origenLibro) {
-      setLibro(null);
-      return undefined;
-    }
-    let cancelado = false;
-    // Un fallo aqui solo deja la pestana de hechizos vacia: no es motivo para
-    // teñir de rojo la vista del ejercito.
-    const encontrado =
-      origenLibro.kind === "bookKey" ? getBook(origenLibro.bookKey) : getBookByUid(origenLibro.uid, origenLibro.gameSystem);
-    encontrado
-      .then((row) => {
-        if (cancelado || !row) return;
-        setLibro(row);
-        return Promise.all([
-          listRuleGlossary(row.gameSystem).then((g) => !cancelado && setGlosario(g)),
-          listCatalogUnits(row.$id).then((u) => !cancelado && setUnidadesLibro(u)),
-        ]);
-      })
-      .catch(() => !cancelado && setLibro(null));
-    return () => {
-      cancelado = true;
-    };
-  }, [origenLibro]);
+    if (libroActual) setTextoFaccion(libroActual.factionName ?? libroActual.name);
+  }, [libroActual]);
 
-  /**
-   * La clave de libro con la que realmente se puede anadir, quitar o
-   * reconfigurar unidades: la propia si el ejercito se construyo aqui, o la
-   * de `libro` en cuanto resuelve la faccion de un ejercito importado.
-   */
-  const editableBookKey = bookKey ?? libro?.$id ?? null;
+  /** El texto del autocompletar coincide con una faccion del catalogo: la registra y la deja seleccionada. */
+  function elegirFaccionParaAnadir(texto: string) {
+    setTextoFaccion(texto);
+    const encontrada = faccionesDisponibles.find((libro) => (libro.factionName ?? libro.name) === texto);
+    if (!encontrada) return;
+    setFacSeleccionada(encontrada.$id);
+    void registrarLibro(encontrada);
+  }
 
   async function importFromArmyForge() {
     const id = extractListId(form.listId);
@@ -610,7 +690,7 @@ export default function ArmyEditor() {
    * queda suelta en vez de apuntar a quien no es.
    */
   async function onRemoveUnit(indice: number, nombre: string) {
-    if (!army || !editableBookKey || !libro) return;
+    if (!army || librosConocidos.length === 0) return;
     setBusy(true);
     setError(null);
     try {
@@ -625,11 +705,20 @@ export default function ArmyEditor() {
           return entrada.attachedTo > indice ? { ...entrada, attachedTo: entrada.attachedTo - 1 } : entrada;
         });
 
-      const packages = await listUpgradePackages(editableBookKey);
+      // Puede haber unidades de mas de una faccion: hacen falta el catalogo y
+      // los paquetes de todas las conocidas, no solo de una.
+      const [unidadesFrescas, paquetesFrescos] = await Promise.all([
+        Promise.all(librosConocidos.map((libro) => listCatalogUnits(libro.$id))),
+        Promise.all(librosConocidos.map((libro) => listUpgradePackages(libro.$id))),
+      ]);
+      const packages = new Map<string, UpgradeSection[]>();
+      for (const mapa of paquetesFrescos) for (const [clave, secciones] of mapa) packages.set(clave, secciones);
+      const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
+
       const payload = composeArmyPayload(
-        rehydrateEntries(restantes, unidadesLibro),
+        rehydrateEntries(restantes, unidadesFrescas.flat(), defaultBookKey),
         packages,
-        libro,
+        librosConocidos,
         form.name,
         form.listId,
       );
@@ -660,6 +749,11 @@ export default function ArmyEditor() {
     setBusy(true);
     setError(null);
     try {
+      // Es la primera vez que se usa esta faccion en el ejercito: se registra
+      // para que el autocompletar y las pestanas de hechizos/habilidades la
+      // conozcan tambien.
+      void registrarLibro(book);
+
       const guardadas = (() => {
         try {
           return (JSON.parse(listJson ?? "{}") as { entries?: unknown }).entries;
@@ -680,11 +774,24 @@ export default function ArmyEditor() {
       const actualizadas =
         indice === null ? [...anteriores, suya] : anteriores.map((previa, i) => (i === indice ? suya : previa));
 
-      // Las unidades disponibles salen del propio asistente, que ya las cargo.
+      // La faccion recien usada la trae el propio asistente, que ya la cargo;
+      // el resto de facciones ya conocidas del ejercito se traen aparte,
+      // porque `actualizadas` puede mezclar unidades de mas de una.
+      const otrosLibros = librosConocidos.filter((otro) => otro.$id !== book.$id);
+      const [otrasUnidades, otrosPaquetes] = await Promise.all([
+        Promise.all(otrosLibros.map((otro) => listCatalogUnits(otro.$id))),
+        Promise.all(otrosLibros.map((otro) => listUpgradePackages(otro.$id))),
+      ]);
+      const catalogoTotal = [...catalogo, ...otrasUnidades.flat()];
+      const paquetesTotal = new Map(packages);
+      for (const mapa of otrosPaquetes) for (const [clave, secciones] of mapa) paquetesTotal.set(clave, secciones);
+      const librosTotal = [book, ...otrosLibros];
+      const defaultBookKey = librosTotal.length === 1 ? librosTotal[0].$id : undefined;
+
       const payload = composeArmyPayload(
-        rehydrateEntries(actualizadas, catalogo),
-        packages,
-        book,
+        rehydrateEntries(actualizadas, catalogoTotal, defaultBookKey),
+        paquetesTotal,
+        librosTotal,
         form.name,
         form.listId,
       );
@@ -787,8 +894,9 @@ export default function ArmyEditor() {
             />
           </span>
           <p className="army-bar-sub small muted">
-            {form.faction || "Sin faccion"}
-            {getGameSystem(form.gameSystem) ? ` · ${getGameSystem(form.gameSystem)?.name}` : ""}
+            {[resumenFaccion(form.faction || null, form.alliedFactions, form.gameSystem), getGameSystem(form.gameSystem)?.name ?? null]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
 
@@ -836,6 +944,26 @@ export default function ArmyEditor() {
         </div>
 
         <div className="army-bar-actions">
+          {/* Un ejercito puede mezclar varias facciones: esto elige con cual
+              se anade la siguiente unidad, y de paso deja anadir una nueva
+              faccion sin pasar por el dialogo de "sin faccion de origen". */}
+          {editable && librosConocidos.length > 0 ? (
+            <span className="row" style={{ gap: 6 }}>
+              <input
+                list="army-facciones-elegibles"
+                value={textoFaccion}
+                placeholder="Buscar faccion para anadir…"
+                aria-label="Faccion con la que anadir la siguiente unidad"
+                onChange={(e) => elegirFaccionParaAnadir(e.target.value)}
+                style={{ minWidth: 180 }}
+              />
+              <datalist id="army-facciones-elegibles">
+                {faccionesDisponibles.map((libroDisponible) => (
+                  <option key={libroDisponible.$id} value={libroDisponible.factionName ?? libroDisponible.name} />
+                ))}
+              </datalist>
+            </span>
+          ) : null}
           {/* Crear desde cero y no encontrar la importacion es lo primero que
               se prueba: sin ejercito todavia no hay menu "Mas opciones" donde
               esconderla, asi que aqui va directa y a la vista. */}
@@ -932,7 +1060,7 @@ export default function ArmyEditor() {
 
       <ErrorBanner error={error} />
       {notice ? <div className="banner ok">{notice}</div> : null}
-      {armyId && !editableBookKey ? (
+      {armyId && librosConocidos.length === 0 ? (
         <p className="small muted">
           No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular}, asi
           que no se pueden anadir unidades desde aqui. Edita{noun.pronoun} en Army Forge y vuelve a
@@ -1006,16 +1134,16 @@ export default function ArmyEditor() {
         hechizos.length === 0 ? (
           <EmptyState title="Esta faccion no tiene hechizos">
             <p className="muted">
-              {libro
+              {librosConocidos.length > 0
                 ? `Su libro de ${noun.singular} no trae ninguno.`
                 : `${noun.demonstrativeCap} ${noun.singular} no guarda de que faccion viene, asi que no se pueden mostrar.`}
             </p>
           </EmptyState>
         ) : (
           <div className="army-strip">
-            {hechizos.map((hechizo) => (
-              <div key={hechizo.key} className="army-slide">
-                <SpellCard spell={hechizo} faction={form.faction || libro?.name} />
+            {hechizos.map(({ spell, faccion }) => (
+              <div key={spell.key} className="army-slide">
+                <SpellCard spell={spell} faction={faccion} />
               </div>
             ))}
           </div>
@@ -1024,7 +1152,7 @@ export default function ArmyEditor() {
         generales.length === 0 ? (
           <EmptyState title="No hay reglas del reglamento basico que mostrar">
             <p className="muted">
-              {libro
+              {librosConocidos.length > 0
                 ? "Sus unidades solo usan reglas propias, o el glosario todavia no ha cargado."
                 : `${noun.demonstrativeCap} ${noun.singular} no guarda de que faccion viene, asi que no se pueden deducir.`}
             </p>
@@ -1061,7 +1189,7 @@ export default function ArmyEditor() {
                 // Solo en el borrador: sobre el ejercito publicado la vista es
                 // de consulta y no ensena nada que se pueda tocar.
                 const acciones = (indice: number, nombre: string) =>
-                  editable && editableBookKey && entradasGuardadas[indice] ? (
+                  editable && librosConocidos.length > 0 && entradasGuardadas[indice] ? (
                     <>
                       <button type="button" onClick={() => setEditandoIndice(indice)}>
                         Configurar
@@ -1107,7 +1235,7 @@ export default function ArmyEditor() {
       ) : (
         <EmptyState title={`${noun.demonstrativeCap} ${noun.singular} no tiene unidades todavia`}>
           <p className="muted">
-            {editableBookKey
+            {librosConocidos.length > 0
               ? "Anadelas desde su faccion, o importa una lista de Army Forge."
               : `Importa una lista de Army Forge, o crea${noun.pronoun} desde una faccion del catalogo.`}
           </p>
@@ -1289,11 +1417,11 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && editableBookKey && editable ? (
+      {armyId && facActual && editable ? (
         <button
           type="button"
           className="fab"
-          title="Anadir una unidad"
+          title={`Anadir unidad de ${libroActual?.factionName ?? libroActual?.name ?? ""}`}
           aria-label="Anadir una unidad"
           onClick={() => setAnadiendo(true)}
         >
@@ -1305,9 +1433,9 @@ export default function ArmyEditor() {
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
       ) : null}
 
-      {(anadiendo || editandoIndice !== null) && editableBookKey ? (
+      {(anadiendo || editandoIndice !== null) && bookKeyParaWizard ? (
         <AddUnitWizard
-          bookKey={editableBookKey}
+          bookKey={bookKeyParaWizard}
           busy={busy}
           editando={editandoIndice === null ? null : entradasGuardadas[editandoIndice]}
           unidadesDelEjercito={unidadesParaUnir}

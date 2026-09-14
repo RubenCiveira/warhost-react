@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useGameSystem } from "../context/GameSystemContext";
-import { GAME_SYSTEMS, SETTINGS, armyNounFor, systemsFor } from "../lib/gameSystems";
+import { GAME_SYSTEMS, SETTINGS, armyNounFor, resumenFaccion, systemsFor } from "../lib/gameSystems";
 import type { Setting } from "../lib/gameSystems";
 import { listArmies } from "../api/armies";
 import { listGames } from "../api/games";
@@ -152,7 +152,8 @@ function Dashboard({ userId }: { userId: string }) {
                   <Link key={army.$id} to={`/ejercitos/${army.lineageId ?? army.$id}`} className="card card-link">
                     <strong>{army.name}</strong>
                     <p className="muted small" style={{ margin: "4px 0 0" }}>
-                      {army.faction ?? "Sin faccion"} · {army.points} pts · {formatDate(army.updatedAt)}
+                      {resumenFaccion(army.faction, army.alliedFactions, army.gameSystem)} · {army.points} pts ·{" "}
+                      {formatDate(army.updatedAt)}
                     </p>
                   </Link>
                 ))}

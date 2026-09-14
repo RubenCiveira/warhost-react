@@ -12,6 +12,11 @@
  * AoFR (Regiments) no tiene formula propia publicada; se usa la de AoF
  * estandar por ser tambien de escala de batalla, no de escaramuza.
  *
+ * Quest (GFSQ, AoFQ) no tiene formula: la banda es un puñado de personajes
+ * fijo, no un ejercito por puntos con esta relacion heroes/unidades. Para
+ * estos sistemas `limitesComposicion` devuelve `null` en cada limite y
+ * `verificacionesComposicion` no comprueba nada.
+ *
  * Los denominadores dan el numero de heroes/unidades permitidos redondeando
  * hacia arriba (asi el primer heroe/unidad cabe ya con 1 punto), y el de
  * modelos y copias redondeando hacia abajo (solo cuenta el tramo completo).
@@ -39,7 +44,7 @@ interface FormulaComposicion {
   copiaExtraCada: number;
 }
 
-const FORMULAS: Record<GameSystemId, FormulaComposicion> = {
+const FORMULAS: Partial<Record<GameSystemId, FormulaComposicion>> = {
   gf: { heroeCada: 500, unidadCada: 200, copiaExtraCada: 1000 },
   gff: { heroeCada: 150, unidadCada: 30, modeloCada: 20, copiaExtraCada: 150 },
   aof: { heroeCada: 375, unidadCada: 150, copiaExtraCada: 750 },
@@ -47,20 +52,26 @@ const FORMULAS: Record<GameSystemId, FormulaComposicion> = {
   aofr: { heroeCada: 375, unidadCada: 150, copiaExtraCada: 750 },
 };
 
-export interface LimitesComposicion {
-  /** 1 heroe por cada X puntos o fraccion, segun el sistema de juego. */
-  maxHeroes: number;
-  /** 1 unidad por cada X puntos o fraccion, segun el sistema de juego. */
-  maxUnidades: number;
-  /** Miniaturas contando cada modelo con Tough como tantas como su valor, o `null` si el sistema no limita modelos. */
-  maxModelos: number | null;
-  /** Copias de la misma unidad: una mas por cada tramo de puntos completo. */
-  maxCopiasPorUnidad: number;
-}
+/**
+ * `maxHeroes`, `maxUnidades` y `maxCopiasPorUnidad` son `null` juntos, solo
+ * para los sistemas sin formula publicada (Quest): comprobar uno de los tres
+ * contra `null` estrecha el tipo de los otros dos.
+ */
+export type LimitesComposicion =
+  | { maxHeroes: null; maxUnidades: null; maxModelos: null; maxCopiasPorUnidad: null }
+  | {
+      maxHeroes: number;
+      maxUnidades: number;
+      /** Miniaturas contando cada modelo con Tough como tantas como su valor, o `null` si el sistema no limita modelos. */
+      maxModelos: number | null;
+      /** Copias de la misma unidad: una mas por cada tramo de puntos completo. */
+      maxCopiasPorUnidad: number;
+    };
 
 export function limitesComposicion(puntos: number, gameSystem: GameSystemId): LimitesComposicion {
-  if (puntos <= 0) return { maxHeroes: 0, maxUnidades: 0, maxModelos: 0, maxCopiasPorUnidad: 1 };
   const formula = FORMULAS[gameSystem];
+  if (!formula) return { maxHeroes: null, maxUnidades: null, maxModelos: null, maxCopiasPorUnidad: null };
+  if (puntos <= 0) return { maxHeroes: 0, maxUnidades: 0, maxModelos: 0, maxCopiasPorUnidad: 1 };
   return {
     maxHeroes: Math.ceil(puntos / formula.heroeCada),
     maxUnidades: Math.ceil(puntos / formula.unidadCada),
@@ -109,6 +120,8 @@ export function verificacionesComposicion(
 ): VerificacionComposicion[] {
   const hayObjetivo = Boolean(objetivo && objetivo.puntos > 0);
   const limites = limitesComposicion(hayObjetivo && objetivo ? objetivo.puntos : puntos, gameSystem);
+  // El sistema no fija ninguna formula (Quest): no hay nada que comprobar.
+  if (limites.maxHeroes === null) return [];
 
   // Heroes y unidades son cupos separados, no uno dentro del otro —Army
   // Forge los ensena en dos contadores distintos, "Heroes 0/2" y "Units

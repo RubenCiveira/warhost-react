@@ -34,7 +34,7 @@ await build({
       import { baseLoadout } from "./src/lib/loadout";
       import { parseSections, sectionsForUnit } from "./src/lib/builder";
       const UNITS = ${JSON.stringify(unidades)};
-      const PK = new Map(${JSON.stringify(paquetes.map((p) => [p.packageUid, p.sections]))}.map(([k, v]) => [k, parseSections(v)]));
+      const PK = new Map(${JSON.stringify(paquetes.map((p) => [`${BOOK}:${p.packageUid}`, p.sections]))}.map(([k, v]) => [k, parseSections(v)]));
       const PEDIDAS = ${JSON.stringify(PEDIDAS)};
       const conOpciones = UNITS
         .filter((u) => PEDIDAS.length === 0 || PEDIDAS.includes(u.name))

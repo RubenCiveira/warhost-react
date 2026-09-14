@@ -40,6 +40,8 @@ export interface UpgradeSection {
 
 /** Unidad del catalogo, con lo que el constructor necesita de ella. */
 export interface CatalogUnitLike {
+  /** Libro al que pertenece: `unitId` solo es unico dentro de su libro. */
+  bookKey: string;
   unitId: string;
   name: string;
   size: number;
@@ -105,11 +107,16 @@ export function parseSections(json: string | null | undefined): UpgradeSection[]
   }
 }
 
+/**
+ * `packages` viene indexado por `${bookKey}:${packageUid}` (ver
+ * `listUpgradePackages`): el uid de un paquete solo es unico dentro de su
+ * libro, igual que pasa con las unidades.
+ */
 export function sectionsForUnit(
   unit: CatalogUnitLike,
   packages: Map<string, UpgradeSection[]>,
 ): UpgradeSection[] {
-  return unit.upgradePackageUids.flatMap((uid) => packages.get(uid) ?? []);
+  return unit.upgradePackageUids.flatMap((uid) => packages.get(claveEnLibro(unit.bookKey, uid)) ?? []);
 }
 
 export function optionId(option: UpgradeOption): string {
@@ -164,11 +171,26 @@ export function maxPorOpcion(section: UpgradeSection, unitSize: number): number 
   return maxPicks(section, unitSize);
 }
 
-/** Cuantas opciones distintas de la seccion se pueden tener a la vez. */
+/**
+ * Cuantas opciones distintas de la seccion se pueden tener a la vez.
+ *
+ * `select: exactly N` limita las distintas solo cuando la seccion se compra
+ * de una vez para toda la unidad (`affects` ausente, "all", o "exactly 1"):
+ * ahi si es "elige N de estas". Pero "Upgrade up to 3 models with one:
+ * Sergeant, Banner, Musician" es al reves — `affects: up to 3` son 3 ranuras
+ * independientes, cada una resuelta por su cuenta segun `select`, asi que un
+ * `select` de "exactly 1" no dice "el mismo 1 para toda la seccion": dice "1
+ * por ranura", y las ranuras pueden salir distintas (un Sergeant, un Banner y
+ * un Musician). Ahi no hay tope de distintas mas alla del que ya pone
+ * `maxPicks` con las ranuras disponibles.
+ */
 export function maxDistinctOptions(section: UpgradeSection): number {
   const select = section.select;
-  if (select?.type === "exactly") return Math.max(1, select.value ?? 1);
-  return Number.POSITIVE_INFINITY;
+  if (select?.type !== "exactly") return Number.POSITIVE_INFINITY;
+  const affects = section.affects;
+  const ranurasIndependientes = affects?.type === "up to" || (affects?.type === "exactly" && (affects.value ?? 1) > 1);
+  if (ranurasIndependientes) return Number.POSITIVE_INFINITY;
+  return Math.max(1, select.value ?? 1);
 }
 
 export function sectionChosenCount(section: UpgradeSection, choices: Record<string, number>): number {
@@ -305,9 +327,9 @@ export function esHeroe(rules: string[]): boolean {
  * `Hero`, o subirle el `Tough`.
  *
  * Solo aplica en sistemas de batalla (GF, AoF, AoFR): en escaramuza (GFF,
- * AoFS) cada miniatura combate suelta y la carta de `Hero` de esos sistemas
- * no ofrece la opcion de unirse, porque no hay unidades de varios modelos a
- * las que hacerlo.
+ * AoFS) y en Quest (GFSQ, AoFQ) cada miniatura combate suelta y la carta de
+ * `Hero` de esos sistemas no ofrece la opcion de unirse, porque no hay
+ * unidades de varios modelos a las que hacerlo.
  */
 export function puedeAdjuntarse(entry: BuilderEntry, sections: UpgradeSection[], gameSystem: GameSystemId): boolean {
   if (getGameSystem(gameSystem)?.escaramuza) return false;
@@ -370,6 +392,7 @@ export function toResolvedUnit(
   return {
     name: entry.unit.name,
     unitKey: entry.unit.unitId,
+    bookKey: entry.unit.bookKey,
     size,
     quality: entry.unit.quality,
     defense: entry.unit.defense,
@@ -414,6 +437,8 @@ export function buildArmy(
  */
 
 export interface StoredEntry {
+  /** Libro al que pertenece: `unitId` solo es unico dentro de su libro. */
+  bookKey: string;
   unitId: string;
   choices: Record<string, number>;
   /** Solo se guarda cuando es cierto, para no engordar el JSON. */
@@ -431,6 +456,7 @@ export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
   return entries.map((entry) => {
     const indiceUnion = entry.attachedTo ? indicePorKey.get(entry.attachedTo) : undefined;
     return {
+      bookKey: entry.unit.bookKey,
       unitId: entry.unit.unitId,
       choices: { ...entry.choices },
       ...(entry.combined ? { combined: true } : {}),
@@ -445,19 +471,38 @@ function newKey(unitId: string, index: number): string {
 }
 
 /**
+ * Clave compuesta para localizar algo del catalogo (unidad o paquete de
+ * mejoras): sus identificadores solo son unicos dentro de su libro, asi que
+ * con varias facciones a la vez hace falta el par completo para no confundir
+ * lo de un libro con lo de otro.
+ */
+function claveEnLibro(bookKey: string, id: string): string {
+  return `${bookKey}:${id}`;
+}
+
+/**
  * Reconstruye la composicion a partir de lo guardado. Las unidades que ya no
  * existen en el catalogo se descartan: el libro pudo cambiar de version.
+ * `units` es la union de las unidades de todos los libros implicados;
+ * `defaultBookKey` cubre las entradas guardadas antes de que cada una
+ * llevara su propio `bookKey` (ejercitos de una sola faccion, de antes de
+ * poder mezclar varias).
  */
-export function rehydrateEntries(stored: unknown, units: CatalogUnitLike[]): BuilderEntry[] {
+export function rehydrateEntries(
+  stored: unknown,
+  units: CatalogUnitLike[],
+  defaultBookKey?: string,
+): BuilderEntry[] {
   if (!Array.isArray(stored)) return [];
-  const byId = new Map(units.map((unit) => [unit.unitId, unit]));
+  const byId = new Map(units.map((unit) => [claveEnLibro(unit.bookKey, unit.unitId), unit]));
 
   // Primero se materializan las entradas, guardando de que posicion vienen: los
   // adjuntos se apuntan por indice y hay que reconvertirlos a la `key` nueva
   // saltandose las unidades que ya no existan en el libro.
   const conOrigen = stored.flatMap((raw, indice) => {
     const item = raw as Partial<StoredEntry>;
-    const unit = item.unitId ? byId.get(item.unitId) : undefined;
+    const bookKey = item.bookKey ?? defaultBookKey;
+    const unit = item.unitId && bookKey ? byId.get(claveEnLibro(bookKey, item.unitId)) : undefined;
     if (!unit) return [];
     const choices: Record<string, number> = {};
     for (const [id, count] of Object.entries(item.choices ?? {})) {
@@ -485,6 +530,8 @@ interface ForgeListShape {
   list?: {
     units?: Array<{
       id?: string;
+      /** Uid del libro de Army Forge del que viene esta unidad concreta. */
+      armyId?: string;
       selectedUpgrades?: Array<{ optionId?: string }>;
       combined?: boolean;
       notes?: string | null;
@@ -499,11 +546,20 @@ interface ForgeListShape {
  * unidad y de opcion son los mismos que usa nuestro catalogo, porque salen de
  * la misma fuente; las opciones que ya no existan se pierden, igual que se
  * pierden al importar.
+ *
+ * Una lista de Army Forge puede mezclar varias facciones: cada unidad trae su
+ * propio `armyId` (el uid del libro de Army Forge del que viene), y
+ * `uidToBookKey` lo traduce al `bookKey` de nuestro catalogo para saber en que
+ * unidades de `units` buscarla.
  */
-export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): BuilderEntry[] {
+export function entriesFromForgeList(
+  raw: unknown,
+  units: CatalogUnitLike[],
+  uidToBookKey: Map<string, string>,
+): BuilderEntry[] {
   const list = (raw as ForgeListShape)?.list?.units;
   if (!Array.isArray(list)) return [];
-  const byId = new Map(units.map((unit) => [unit.unitId, unit]));
+  const byId = new Map(units.map((unit) => [claveEnLibro(unit.bookKey, unit.unitId), unit]));
 
   return list.flatMap((forgeUnit, index) => {
     // Army Forge guarda una unidad combinada como **dos** selecciones: las dos
@@ -511,7 +567,8 @@ export function entriesFromForgeList(raw: unknown, units: CatalogUnitLike[]): Bu
     // segunda es la otra mitad, no otra unidad, y las mejoras van todas en la
     // primera: importarla aparte duplicaria la unidad en la lista.
     if (forgeUnit.joinToUnit) return [];
-    const unit = forgeUnit.id ? byId.get(forgeUnit.id) : undefined;
+    const bookKey = forgeUnit.armyId ? uidToBookKey.get(forgeUnit.armyId) : undefined;
+    const unit = forgeUnit.id && bookKey ? byId.get(claveEnLibro(bookKey, forgeUnit.id)) : undefined;
     if (!unit) return [];
     const choices: Record<string, number> = {};
     for (const selected of forgeUnit.selectedUpgrades ?? []) {

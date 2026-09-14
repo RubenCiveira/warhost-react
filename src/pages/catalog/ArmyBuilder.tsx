@@ -130,8 +130,8 @@ export default function ArmyBuilder() {
           // Las elecciones guardadas son la via buena; si el ejercito se
           // importo, se reconstruyen del JSON original de Army Forge.
           const rehydrated = stored.entries
-            ? rehydrateEntries(stored.entries, loadedUnits)
-            : entriesFromForgeList(stored.raw, loadedUnits);
+            ? rehydrateEntries(stored.entries, loadedUnits, loadedBook.$id)
+            : entriesFromForgeList(stored.raw, loadedUnits, new Map([[loadedBook.uid, loadedBook.$id]]));
           setEntries(rehydrated);
 
           const esperadas = stored.units?.length ?? 0;
@@ -276,7 +276,11 @@ export default function ArmyBuilder() {
       // Se guarda con la misma forma que produce la importacion, para que las
       // partidas no tengan que saber de donde salio el ejercito, y ademas las
       // elecciones, que son lo unico que permite volver a editarlo.
-      const data = { ...composeArmyPayload(entries, packages, book, name, army?.listId ?? ""), pointsLimit, pointsMargin };
+      const data = {
+        ...composeArmyPayload(entries, packages, [book], name, army?.listId ?? ""),
+        pointsLimit,
+        pointsMargin,
+      };
 
       if (!army) {
         const creado = await createArmy(user.$id, data);

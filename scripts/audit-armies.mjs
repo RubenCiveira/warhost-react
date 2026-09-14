@@ -35,7 +35,12 @@ let sinEntradas = 0;
 for (const ej of ejercitos) {
   let guardado;
   try { guardado = JSON.parse(ej.listJson || "{}"); } catch { guardado = {}; }
-  const bookKey = guardado.source?.bookKey;
+  // Desde que un ejercito puede mezclar facciones, `source.bookKey` (uno
+  // solo) paso a `source.books` (uno por faccion presente). Este script solo
+  // recalcula el caso de una sola faccion; con varias, se deja como "no se
+  // puede recalcular" en vez de mezclar mal sus catalogos.
+  const bookKey =
+    guardado.source?.bookKey ?? (guardado.source?.books?.length === 1 ? guardado.source.books[0].bookKey : undefined);
   const etiqueta = `${ej.name} (${ej.status} v${ej.version})`;
 
   if (!guardado.entries || !bookKey) {
@@ -51,13 +56,13 @@ for (const ej of ejercitos) {
     const paquetes = new Map(
       filas("army_upgrade_packages", [
         { method: "equal", attribute: "bookKey", values: [bookKey] }, { method: "limit", values: [100] },
-      ]).map((p) => [p.packageUid, B.parseSections(p.sections)]),
+      ]).map((p) => [`${bookKey}:${p.packageUid}`, B.parseSections(p.sections)]),
     );
     cache.set(bookKey, { unidades, paquetes });
   }
   const { unidades, paquetes } = cache.get(bookKey);
 
-  const rehecho = B.buildArmy(B.rehydrateEntries(guardado.entries, unidades), paquetes);
+  const rehecho = B.buildArmy(B.rehydrateEntries(guardado.entries, unidades, bookKey), paquetes);
   const iguales = JSON.stringify(rehecho.units) === JSON.stringify(guardado.units);
   const puntos = rehecho.points === guardado.points;
 

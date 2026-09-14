@@ -25,7 +25,7 @@ const B = await bundle("src/lib/builder.ts", "builder.mjs");
 const units = rows("army_units", [{ method: "equal", attribute: "bookKey", values: [BOOK] }, { method: "orderAsc", attribute: "sortOrder" }]);
 const packages = new Map(
   rows("army_upgrade_packages", [{ method: "equal", attribute: "bookKey", values: [BOOK] }])
-    .map((r) => [r.packageUid, B.parseSections(r.sections)]),
+    .map((r) => [`${BOOK}:${r.packageUid}`, B.parseSections(r.sections)]),
 );
 
 let fallos = 0;
