@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { getGameSystem } from "../../lib/gameSystems";
+import { armyNounFor, getGameSystem } from "../../lib/gameSystems";
 import type { GameSystemId } from "../../lib/gameSystems";
 import {
   createArmy,
@@ -31,10 +31,10 @@ import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
-import { esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
+import { entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { getBook, getBookByUid, listRuleGlossary } from "../../api/catalog";
+import { getBook, getBookByUid, listBooks, listRuleGlossary } from "../../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
 import SpellCard from "../../components/SpellCard";
 import RuleCardModal from "../../components/RuleCardModal";
@@ -121,6 +121,11 @@ export default function ArmyEditor() {
    * Reabierta desde la barra ya se sabe, y basta con poder cerrarla.
    */
   const [decidirBorrador, setDecidirBorrador] = useState<"entrada" | "peticion" | null>(null);
+  /** Sin faccion de origen resuelta: pide elegir una antes de poder editar. */
+  const [eligiendoFaccion, setEligiendoFaccion] = useState(false);
+  const [faccionesDisponibles, setFaccionesDisponibles] = useState<ArmyBook[]>([]);
+  const [cargandoFacciones, setCargandoFacciones] = useState(false);
+  const [faccionElegida, setFaccionElegida] = useState("");
 
   useEffect(() => {
     if (!armyId) return;
@@ -191,6 +196,13 @@ export default function ArmyEditor() {
 
   /** Pasar a edicion: abre el borrador y se planta en el. */
   async function onEditar() {
+    // Sin faccion de origen no hay como anadir ni reconfigurar unidades: se
+    // pide elegir una antes de abrir el borrador.
+    if (!editableBookKey) {
+      setFaccionElegida("");
+      setEligiendoFaccion(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -198,7 +210,63 @@ export default function ArmyEditor() {
       if (!abierto) return;
       setViendoBorrador(true);
       mostrar(abierto);
-      setNotice("Editando un borrador. El ejercito sigue como estaba hasta que pulses Guardar.");
+      setNotice(`Editando un borrador. ${noun.articleCap} ${noun.singular} sigue como estaba hasta que pulses Guardar.`);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!eligiendoFaccion) return undefined;
+    let cancelado = false;
+    setCargandoFacciones(true);
+    listBooks(army?.gameSystem ?? form.gameSystem)
+      .then((rows) => !cancelado && setFaccionesDisponibles(rows))
+      .catch(() => !cancelado && setFaccionesDisponibles([]))
+      .finally(() => !cancelado && setCargandoFacciones(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [eligiendoFaccion, army, form.gameSystem]);
+
+  useEffect(() => {
+    if (!eligiendoFaccion) return undefined;
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setEligiendoFaccion(false);
+    document.addEventListener("keydown", conEscape);
+    return () => document.removeEventListener("keydown", conEscape);
+  }, [eligiendoFaccion]);
+
+  /** Asigna la faccion elegida como origen y entra a editar en el mismo paso. */
+  async function onAsignarFaccion() {
+    if (!faccionElegida) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const libroElegido = await getBook(faccionElegida);
+      const abierto = await conBorrador();
+      if (!abierto) return;
+      const base = (() => {
+        try {
+          return JSON.parse(abierto.listJson ?? "{}") as Record<string, unknown>;
+        } catch {
+          return {};
+        }
+      })();
+      const actualizado = {
+        ...base,
+        source: { builder: "manual", bookKey: libroElegido.$id, bookVersion: libroElegido.versionString },
+      };
+      const guardado = await saveDraft(abierto.$id, { listJson: JSON.stringify(actualizado) });
+      setDraft(guardado);
+      setViendoBorrador(true);
+      mostrar(guardado);
+      setEligiendoFaccion(false);
+      setFaccionElegida("");
+      setNotice(
+        `Faccion asignada. Editando un borrador. ${noun.articleCap} ${noun.singular} sigue como estaba hasta que pulses Guardar.`,
+      );
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -270,21 +338,29 @@ export default function ArmyEditor() {
   const ignorandoBorrador = Boolean(draft) && !viendoBorrador;
 
 
+  const noun = useMemo(() => armyNounFor(getGameSystem(form.gameSystem)), [form.gameSystem]);
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
   /**
    * Las elecciones guardadas. Van en el mismo orden que las unidades —las
    * escribe `composeArmyPayload` del mismo array—, asi que el `sortOrder` de
    * una carta es su indice aqui. Un ejercito importado de Army Forge no las
-   * tiene, y entonces no hay nada que reconfigurar.
+   * trae de fabrica, pero en cuanto se resuelve su libro por uid (`libro`,
+   * mas abajo) se reconstruyen igual que en el constructor, a partir del
+   * JSON original de Army Forge.
    */
   const entradasGuardadas = useMemo<StoredEntry[]>(() => {
+    if (!listJson) return [];
     try {
-      const guardadas = (JSON.parse(listJson ?? "{}") as { entries?: unknown }).entries;
-      return Array.isArray(guardadas) ? (guardadas as StoredEntry[]) : [];
+      const parsed = JSON.parse(listJson) as { entries?: unknown; raw?: unknown };
+      if (Array.isArray(parsed.entries)) return parsed.entries as StoredEntry[];
+      if (parsed.raw && unidadesLibro.length > 0) {
+        return serializeEntries(entriesFromForgeList(parsed.raw, unidadesLibro));
+      }
+      return [];
     } catch {
       return [];
     }
-  }, [listJson]);
+  }, [listJson, unidadesLibro]);
   /**
    * Unidades a las que puede unirse el heroe que se esta editando: las del
    * ejercito que no son heroes, quitando la propia. El indice es el de la lista
@@ -319,9 +395,10 @@ export default function ArmyEditor() {
   );
 
   /**
-   * Solo se pueden anadir o cambiar unidades si el ejercito recuerda de que
-   * faccion del catalogo salio. Los creados con el constructor lo guardan; los
-   * importados de Army Forge, no.
+   * De donde sale la clave del libro propio. Los ejercitos creados con el
+   * constructor la guardan directamente; los importados de Army Forge no,
+   * pero `editableBookKey` la resuelve igualmente en cuanto `libro` encuentra
+   * la misma faccion por su uid de Army Forge.
    */
   const bookKey = useMemo(() => {
     if (!listJson) return null;
@@ -379,6 +456,12 @@ export default function ArmyEditor() {
     };
   }, [origenLibro]);
 
+  /**
+   * La clave de libro con la que realmente se puede anadir, quitar o
+   * reconfigurar unidades: la propia si el ejercito se construyo aqui, o la
+   * de `libro` en cuanto resuelve la faccion de un ejercito importado.
+   */
+  const editableBookKey = bookKey ?? libro?.$id ?? null;
 
   async function importFromArmyForge() {
     const id = extractListId(form.listId);
@@ -403,7 +486,7 @@ export default function ArmyEditor() {
       setImportOpen(false);
       setNotice(
         list.unresolvedUpgrades > 0
-          ? `Importadas ${list.units.length} unidades. ${list.unresolvedUpgrades} mejoras ya no existen en el libro de ejercito actual, asi que el coste por unidad es aproximado; el total del ejercito es el que guardo Army Forge.`
+          ? `Importadas ${list.units.length} unidades. ${list.unresolvedUpgrades} mejoras ya no existen en el libro de ${noun.singular} actual, asi que el coste por unidad es aproximado; el total ${noun.ofThe} ${noun.singular} es el que guardo Army Forge.`
           : `Importadas ${list.units.length} unidades desde Army Forge.`,
       );
     } catch (err) {
@@ -507,7 +590,7 @@ export default function ArmyEditor() {
    * queda suelta en vez de apuntar a quien no es.
    */
   async function onRemoveUnit(indice: number, nombre: string) {
-    if (!army || !bookKey || !libro) return;
+    if (!army || !editableBookKey || !libro) return;
     setBusy(true);
     setError(null);
     try {
@@ -522,7 +605,7 @@ export default function ArmyEditor() {
           return entrada.attachedTo > indice ? { ...entrada, attachedTo: entrada.attachedTo - 1 } : entrada;
         });
 
-      const packages = await listUpgradePackages(bookKey);
+      const packages = await listUpgradePackages(editableBookKey);
       const payload = composeArmyPayload(
         rehydrateEntries(restantes, unidadesLibro),
         packages,
@@ -663,15 +746,15 @@ export default function ArmyEditor() {
             <input
               className="army-bar-name"
               value={form.name}
-              aria-label="Nombre del ejercito"
-              placeholder="Nombre del ejercito"
+              aria-label={`Nombre ${noun.ofThe} ${noun.singular}`}
+              placeholder={`Nombre ${noun.ofThe} ${noun.singular}`}
               readOnly={!editable}
               title={
                 ignorandoBorrador
                   ? "Decide antes que hacer con el borrador pendiente"
                   : editable
                     ? undefined
-                    : "Pulsa Editar para cambiar el ejercito"
+                    : `Pulsa Editar para cambiar ${noun.article} ${noun.singular}`
               }
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
@@ -807,7 +890,7 @@ export default function ArmyEditor() {
                       setConfirmando("borrar");
                     }}
                   >
-                    Borrar ejercito
+                    Borrar {noun.singular}
                   </button>
                 </div>
               ) : null}
@@ -818,16 +901,18 @@ export default function ArmyEditor() {
 
       <ErrorBanner error={error} />
       {notice ? <div className="banner ok">{notice}</div> : null}
-      {armyId && !bookKey ? (
+      {armyId && !editableBookKey ? (
         <p className="small muted">
-          Este ejercito se importo de Army Forge y no guarda de que faccion del catalogo viene, asi que no se pueden
-          anadir unidades desde aqui. Editalo en Army Forge y vuelve a importarlo, o crea uno nuevo desde su faccion.
+          No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular}, asi
+          que no se pueden anadir unidades desde aqui. Edita{noun.pronoun} en Army Forge y vuelve a
+          importar{noun.pronoun}, o crea {noun.indefArticle} {noun.newForm} desde su faccion.
         </p>
       ) : null}
 
       {draft && viendoBorrador ? (
         <div className="banner">
-          Estas editando un <strong>borrador</strong>. El ejercito sigue como estaba hasta que pulses Guardar.
+          Estas editando un <strong>borrador</strong>. {noun.articleCap} {noun.singular} sigue como estaba hasta que
+          pulses Guardar.
         </div>
       ) : null}
 
@@ -890,9 +975,9 @@ export default function ArmyEditor() {
         hechizos.length === 0 ? (
           <EmptyState title="Esta faccion no tiene hechizos">
             <p className="muted">
-              {bookKey
-                ? "Su libro de ejercito no trae ninguno."
-                : "Este ejercito no guarda de que faccion viene, asi que no se pueden mostrar."}
+              {libro
+                ? `Su libro de ${noun.singular} no trae ninguno.`
+                : `${noun.demonstrativeCap} ${noun.singular} no guarda de que faccion viene, asi que no se pueden mostrar.`}
             </p>
           </EmptyState>
         ) : (
@@ -908,9 +993,9 @@ export default function ArmyEditor() {
         generales.length === 0 ? (
           <EmptyState title="No hay reglas del reglamento basico que mostrar">
             <p className="muted">
-              {bookKey
+              {libro
                 ? "Sus unidades solo usan reglas propias, o el glosario todavia no ha cargado."
-                : "Este ejercito no guarda de que faccion viene, asi que no se pueden deducir."}
+                : `${noun.demonstrativeCap} ${noun.singular} no guarda de que faccion viene, asi que no se pueden deducir.`}
             </p>
           </EmptyState>
         ) : (
@@ -945,7 +1030,7 @@ export default function ArmyEditor() {
                 // Solo en el borrador: sobre el ejercito publicado la vista es
                 // de consulta y no ensena nada que se pueda tocar.
                 const acciones = (indice: number, nombre: string) =>
-                  editable && bookKey && entradasGuardadas[indice] ? (
+                  editable && editableBookKey && entradasGuardadas[indice] ? (
                     <>
                       <button type="button" onClick={() => setEditandoIndice(indice)}>
                         Configurar
@@ -989,11 +1074,11 @@ export default function ArmyEditor() {
           ))}
         </div>
       ) : (
-        <EmptyState title="Este ejercito no tiene unidades todavia">
+        <EmptyState title={`${noun.demonstrativeCap} ${noun.singular} no tiene unidades todavia`}>
           <p className="muted">
-            {bookKey
+            {editableBookKey
               ? "Anadelas desde su faccion, o importa una lista de Army Forge."
-              : "Importa una lista de Army Forge, o crealo desde una faccion del catalogo."}
+              : `Importa una lista de Army Forge, o crea${noun.pronoun} desde una faccion del catalogo.`}
           </p>
         </EmptyState>
       )}
@@ -1009,7 +1094,7 @@ export default function ArmyEditor() {
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <h2 style={{ marginTop: 0 }}>Borrador sin aplicar</h2>
             <p className="muted">
-              Hay un borrador sin aplicar de este ejercito
+              Hay un borrador sin aplicar de {noun.demonstrative} {noun.singular}
               {draft.updatedAt ? `, de ${formatDateTime(draft.updatedAt)}` : ""}. Estas viendo la version publicada, y
               no se puede editar sin decidir antes que hacer con el.
             </p>
@@ -1019,7 +1104,7 @@ export default function ArmyEditor() {
               </button>
               {decidirBorrador === "entrada" ? (
                 <button type="button" onClick={ignorarBorrador}>
-                  Ignorar el borrador y ver el ejercito
+                  Ignorar el borrador y ver {noun.article} {noun.singular}
                 </button>
               ) : null}
               <button type="button" className="danger" disabled={busy} onClick={() => setConfirmando("descartar")}>
@@ -1048,15 +1133,15 @@ export default function ArmyEditor() {
           }}
         >
           <p>
-            Se perderan los cambios sin aplicar de <strong>{draft.name}</strong>. El ejercito publicado se queda como
-            esta.
+            Se perderan los cambios sin aplicar de <strong>{draft.name}</strong>. {noun.articleCap} {noun.singular}{" "}
+            publicad{noun.genderSuffix} se queda como esta.
           </p>
         </ConfirmDialog>
       ) : null}
 
       {confirmando === "borrar" && army ? (
         <ConfirmDialog
-          title="Borrar el ejercito"
+          title={`Borrar ${noun.article} ${noun.singular}`}
           confirmLabel="Borrar"
           danger
           busy={busy}
@@ -1067,10 +1152,58 @@ export default function ArmyEditor() {
           }}
         >
           <p>
-            Se borra <strong>{army.name}</strong> entero: la version publicada, su borrador si lo hay y todas las
-            versiones archivadas. No se puede deshacer.
+            Se borra <strong>{army.name}</strong> enter{noun.genderSuffix}: la version publicada, su borrador si lo
+            hay y todas las versiones archivadas. No se puede deshacer.
           </p>
         </ConfirmDialog>
+      ) : null}
+
+      {eligiendoFaccion ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sin faccion de origen"
+          onClick={() => setEligiendoFaccion(false)}
+        >
+          <div className="modal" onClick={(event) => event.stopPropagation()}>
+            <h2 style={{ marginTop: 0 }}>Sin faccion de origen no se puede editar</h2>
+            <p className="muted">
+              No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular},
+              asi que no se pueden anadir ni reconfigurar unidades. Elige la faccion de la que viene para poder
+              editarl{noun.genderSuffix}.
+            </p>
+            <div className="field">
+              <label htmlFor="faccion-origen">Faccion</label>
+              <select
+                id="faccion-origen"
+                value={faccionElegida}
+                onChange={(event) => setFaccionElegida(event.target.value)}
+                disabled={cargandoFacciones}
+              >
+                <option value="">{cargandoFacciones ? "Cargando…" : "Elige una faccion"}</option>
+                {faccionesDisponibles.map((libroDisponible) => (
+                  <option key={libroDisponible.$id} value={libroDisponible.$id}>
+                    {libroDisponible.factionName ?? libroDisponible.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="row">
+              <button type="button" onClick={() => setEligiendoFaccion(false)}>
+                Cancelar edicion
+              </button>
+              <button
+                type="button"
+                className="primary"
+                disabled={!faccionElegida || busy}
+                onClick={() => void onAsignarFaccion()}
+              >
+                {busy ? "Asignando…" : "Asignar faccion y editar"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {importOpen ? (
@@ -1117,7 +1250,7 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && bookKey && editable ? (
+      {armyId && editableBookKey && editable ? (
         <button
           type="button"
           className="fab"
@@ -1133,9 +1266,9 @@ export default function ArmyEditor() {
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
       ) : null}
 
-      {(anadiendo || editandoIndice !== null) && bookKey ? (
+      {(anadiendo || editandoIndice !== null) && editableBookKey ? (
         <AddUnitWizard
-          bookKey={bookKey}
+          bookKey={editableBookKey}
           busy={busy}
           editando={editandoIndice === null ? null : entradasGuardadas[editandoIndice]}
           unidadesDelEjercito={unidadesParaUnir}
@@ -1180,8 +1313,8 @@ export default function ArmyEditor() {
           </label>
           {army && form.shared !== army.shared ? (
             <p className="small muted">
-              El cambio de visibilidad se aplica a los ejercitos nuevos. Para uno ya creado, ajusta los permisos de la
-              fila desde la consola de Appwrite.
+              El cambio de visibilidad se aplica a {noun.pluralArticle} {noun.plural} nuevos. Para uno ya creado,
+              ajusta los permisos de la fila desde la consola de Appwrite.
             </p>
           ) : null}
         </section>
@@ -1217,7 +1350,7 @@ export default function ArmyEditor() {
             type="submit"
             className="primary"
             disabled={busy || !editable}
-            title={editable ? undefined : "Pulsa Editar para cambiar el ejercito"}
+            title={editable ? undefined : `Pulsa Editar para cambiar ${noun.article} ${noun.singular}`}
           >
             {busy ? "Guardando…" : "Guardar en el borrador"}
           </button>
