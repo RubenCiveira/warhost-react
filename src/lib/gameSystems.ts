@@ -82,20 +82,33 @@ export interface ArmyNoun {
   genderSuffix: "o" | "a";
 }
 
-const ARMY_NOUNS: Record<"ejercito" | "banda" | "escuadra" | "lista", ArmyNoun> = {
+const ARMY_NOUNS: Record<"ejercito" | "destacamento" | "escuadra" | "celula" | "comitiva" | "lista", ArmyNoun> = {
   ejercito: { singular: "ejercito", singularCap: "Ejercito", plural: "ejercitos", pluralCap: "Ejercitos", article: "el", articleCap: "El", pluralArticle: "los", indefArticle: "un", first: "primero", newForm: "nuevo", demonstrative: "este", demonstrativeCap: "Este", pronoun: "lo", toThe: "al", ofThe: "del", genderSuffix: "o" },
-  banda: { singular: "banda", singularCap: "Banda", plural: "bandas", pluralCap: "Bandas", article: "la", articleCap: "La", pluralArticle: "las", indefArticle: "una", first: "primera", newForm: "nueva", demonstrative: "esta", demonstrativeCap: "Esta", pronoun: "la", toThe: "a la", ofThe: "de la", genderSuffix: "a" },
+  destacamento: { singular: "destacamento", singularCap: "Destacamento", plural: "destacamentos", pluralCap: "Destacamentos", article: "el", articleCap: "El", pluralArticle: "los", indefArticle: "un", first: "primero", newForm: "nuevo", demonstrative: "este", demonstrativeCap: "Este", pronoun: "lo", toThe: "al", ofThe: "del", genderSuffix: "o" },
   escuadra: { singular: "escuadra", singularCap: "Escuadra", plural: "escuadras", pluralCap: "Escuadras", article: "la", articleCap: "La", pluralArticle: "las", indefArticle: "una", first: "primera", newForm: "nueva", demonstrative: "esta", demonstrativeCap: "Esta", pronoun: "la", toThe: "a la", ofThe: "de la", genderSuffix: "a" },
+  celula: { singular: "celula", singularCap: "Celula", plural: "celulas", pluralCap: "Celulas", article: "la", articleCap: "La", pluralArticle: "las", indefArticle: "una", first: "primera", newForm: "nueva", demonstrative: "esta", demonstrativeCap: "Esta", pronoun: "la", toThe: "a la", ofThe: "de la", genderSuffix: "a" },
+  comitiva: { singular: "comitiva", singularCap: "Comitiva", plural: "comitivas", pluralCap: "Comitivas", article: "la", articleCap: "La", pluralArticle: "las", indefArticle: "una", first: "primera", newForm: "nueva", demonstrative: "esta", demonstrativeCap: "Esta", pronoun: "la", toThe: "a la", ofThe: "de la", genderSuffix: "a" },
   lista: { singular: "lista", singularCap: "Lista", plural: "listas", pluralCap: "Listas", article: "la", articleCap: "La", pluralArticle: "las", indefArticle: "una", first: "primera", newForm: "nueva", demonstrative: "esta", demonstrativeCap: "Esta", pronoun: "la", toThe: "a la", ofThe: "de la", genderSuffix: "a" },
 };
 
 /**
- * Nombre a mostrar para "ejercito" segun el sistema: en escaramuza cada
- * ambientacion tiene su propio termino (banda/escuadra); fuera de escaramuza
- * o sin sistema conocido se usa el generico (ejercito/lista).
+ * Nombre a mostrar para "ejercito" segun el sistema: cada modo de escaramuza
+ * tiene su propio termino (Firefight escuadra, Star Quest celula, AoF
+ * Skirmish destacamento, AoF Quest comitiva); fuera de escaramuza o sin
+ * sistema conocido se usa el generico (ejercito/lista).
  */
 export function armyNounFor(system: GameSystem | null | undefined): ArmyNoun {
   if (!system) return ARMY_NOUNS.lista;
-  if (!system.escaramuza) return ARMY_NOUNS.ejercito;
-  return ARMY_NOUNS[system.setting === "fantasy" ? "banda" : "escuadra"];
+  switch (system.id) {
+    case "gff":
+      return ARMY_NOUNS.escuadra;
+    case "gfsq":
+      return ARMY_NOUNS.celula;
+    case "aofs":
+      return ARMY_NOUNS.destacamento;
+    case "aofq":
+      return ARMY_NOUNS.comitiva;
+    default:
+      return ARMY_NOUNS.ejercito;
+  }
 }
