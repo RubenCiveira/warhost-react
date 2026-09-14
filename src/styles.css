@@ -133,11 +133,14 @@ code {
 /* Barra de mando: nada de nav en pastillas. Marca en un recuadro, secciones con
    subrayado grueso en el borde inferior de la propia barra. */
 .topbar {
-  display: flex; align-items: stretch; gap: 18px;
-  padding: 0 20px;
+  display: flex; align-items: stretch; gap: 10px;
+  padding: 0 12px;
   background: var(--band-bg);
   border-bottom: 2px solid var(--band-rule);
   position: sticky; top: 0; z-index: 20;
+}
+@media (min-width: 641px) {
+  .topbar { gap: 18px; padding: 0 20px; }
 }
 .topbar .brand {
   display: flex; align-items: center;
@@ -151,11 +154,17 @@ code {
 .topbar .brand span { color: var(--accent); }
 .topbar .brand:hover { text-decoration: none; border-color: var(--accent); }
 
-.topbar nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
-.topbar nav::-webkit-scrollbar { display: none; }
-.topbar nav a {
+/* En movil las secciones viven en el cajon lateral, no en la barra. El hijo
+   directo evita pillar el <nav> del propio cajon, que tambien cuelga de
+   .topbar a traves de MobileNav. */
+.topbar > nav { display: none; }
+@media (min-width: 641px) {
+  .topbar > nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+  .topbar > nav::-webkit-scrollbar { display: none; }
+}
+.topbar > nav a {
   display: flex; align-items: center;
-  padding: 16px 14px 14px;
+  padding: 14px 10px 12px;
   color: rgba(255, 255, 255, 0.62);
   white-space: nowrap;
   font-family: "Saira Condensed", sans-serif;
@@ -163,15 +172,75 @@ code {
   text-transform: uppercase;
   border-bottom: 3px solid transparent; margin-bottom: -2px;
 }
-.topbar nav a:hover { color: var(--band-text); text-decoration: none; }
-.topbar nav a.active { color: var(--band-text); border-bottom-color: var(--accent); }
+@media (min-width: 641px) {
+  .topbar > nav a { padding: 16px 14px 14px; }
+}
+.topbar > nav a:hover { color: var(--band-text); text-decoration: none; }
+.topbar > nav a.active { color: var(--band-text); border-bottom-color: var(--accent); }
 
-.topbar > .row { align-self: center; gap: 10px; }
+.topbar > .row { align-self: center; gap: 10px; margin-left: auto; }
 .topbar .muted { color: rgba(255, 255, 255, 0.5); }
+
+.topbar .user-menu-button {
+  max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (min-width: 641px) {
+  .topbar .user-menu-button { max-width: none; }
+}
+
+/* Boton hamburguesa: solo en movil, abre el cajon de secciones. */
+.hamburger {
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  align-self: center; flex: 0 0 auto;
+  width: 34px; height: 34px; padding: 0;
+  background: transparent; border: none; cursor: pointer;
+}
+.hamburger span { display: block; width: 18px; height: 2px; background: var(--band-text); }
+.hamburger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (min-width: 641px) {
+  .hamburger { display: none; }
+}
+
+/* Cajon de secciones: la barra de pestanas no cabe en movil, asi que las
+   secciones se abren en un panel lateral en vez de desbordar con scroll. */
+.nav-drawer-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(6, 8, 9, 0.74);
+}
+:root[data-setting="fantasy"] .nav-drawer-backdrop { background: rgba(30, 22, 10, 0.6); }
+
+.nav-drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
+  width: min(78vw, 300px);
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 6px; overflow-y: auto;
+  background: var(--band-bg);
+  border-right: 3px solid var(--band-rule);
+  animation: drawer-in 0.18s ease-out both;
+}
+@keyframes drawer-in { from { transform: translateX(-14px); opacity: 0; } }
+
+.nav-drawer a {
+  display: block; padding: 13px 14px;
+  color: rgba(255, 255, 255, 0.68);
+  font-family: "Saira Condensed", sans-serif;
+  font-weight: 600; font-size: 0.95rem; letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-left: 3px solid transparent;
+}
+.nav-drawer a:hover { color: var(--band-text); text-decoration: none; }
+.nav-drawer a.active { color: var(--band-text); background: rgba(255, 255, 255, 0.05); border-left-color: var(--accent); }
+
+@media (min-width: 641px) {
+  .nav-drawer-backdrop, .nav-drawer { display: none; }
+}
 
 .content {
   flex: 1; width: 100%; max-width: 1080px;
-  margin: 0 auto; padding: 26px 20px 72px;
+  margin: 0 auto; padding: 18px 12px 60px;
+}
+@media (min-width: 641px) {
+  .content { padding: 26px 20px 72px; }
 }
 
 /* Banda de pagina: titulo y acciones sobre una regla gruesa del acento. En
@@ -367,8 +436,11 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
    el unico sitio donde los dos lenguajes aparecen juntos. */
 .setting-split {
   display: grid; gap: 2px;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   border: 1px solid var(--border);
+}
+@media (min-width: 561px) {
+  .setting-split { grid-template-columns: repeat(2, 1fr); }
 }
 .setting-half {
   --plate-radius: 0px;
@@ -405,10 +477,6 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
 .setting-half:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
 
 @keyframes half-in { from { opacity: 0; transform: translateY(8px); } }
-
-@media (max-width: 560px) {
-  .setting-split { grid-template-columns: 1fr; }
-}
 
 /* Vista de partida -------------------------------------------------------- */
 
@@ -462,12 +530,6 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
 .unit .bar > i.critical { background: var(--danger); }
 
 .rule-body { white-space: pre-wrap; }
-
-@media (max-width: 640px) {
-  .topbar { padding: 0 12px; gap: 10px; }
-  .topbar nav a { padding: 14px 10px 12px; }
-  .content { padding: 18px 12px 60px; }
-}
 
 /* Catalogo y galerias ------------------------------------------------------ */
 
@@ -541,10 +603,10 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
    120 x 70 mm de una tarot de verdad. En pantalla se mira de lejos y con el
    raton, asi que se agranda; los chips se pulsan mejor y las reglas de arma se
    leen sin acercarse. */
-:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 1.45; --scard-esc: 1.725; }
-@media (max-width: 900px) { :root { --ucard-esc: 1.15; } }
-@media (max-width: 620px) { :root { --ucard-esc: 0.76; --scard-esc: 1.14; } }
-@media (max-width: 400px) { :root { --ucard-esc: 0.63; --scard-esc: 0.945; } }
+:root { --ucard-w: 120mm; --ucard-h: 70mm; --ucard-esc: 0.63; --scard-esc: 0.945; }
+@media (min-width: 401px) { :root { --ucard-esc: 0.76; --scard-esc: 1.14; } }
+@media (min-width: 621px) { :root { --ucard-esc: 1.15; --scard-esc: 1.725; } }
+@media (min-width: 901px) { :root { --ucard-esc: 1.45; } }
 @media print { :root { --ucard-esc: 1; --scard-esc: 1; } }
 
 .ucard-wrap { width: calc(var(--ucard-w) * var(--ucard-esc)); }
@@ -924,13 +986,16 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 /* Editor de ejercito ------------------------------------------------------- */
 
 .army-bar {
-  position: sticky; top: 50px; z-index: 15;
+  position: sticky; top: 44px; z-index: 15;
   display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
   padding: 14px 16px; margin-bottom: 18px;
   background: var(--surface); border: 1px solid var(--border);
   border-bottom: 3px solid var(--accent);
   border-radius: var(--plate-radius);
   box-shadow: var(--plate-highlight);
+}
+@media (min-width: 641px) {
+  .army-bar { top: 50px; }
 }
 .army-bar-main { flex: 1 1 220px; min-width: 0; }
 .army-bar-name {
@@ -1051,11 +1116,9 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .modal.wide { max-width: 980px; }
 .modal > input[type="search"] { margin: 12px 0; }
-.picker-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
-
-@media (max-width: 640px) {
-  .army-bar { top: 44px; }
-  .picker-grid { grid-template-columns: 1fr; }
+.picker-grid { grid-template-columns: 1fr; }
+@media (min-width: 641px) {
+  .picker-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
 }
 
 .army-details { margin-top: 8px; }
@@ -1069,8 +1132,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 /* Boton flotante ------------------------------------------------------------ */
 
 .fab {
-  position: fixed; right: 24px; bottom: 24px; z-index: 25;
-  width: 56px; height: 56px; border-radius: 0;
+  position: fixed; right: 16px; bottom: 16px; z-index: 25;
+  width: 52px; height: 52px; border-radius: 0;
   display: grid; place-items: center;
   background: var(--accent); color: var(--accent-ink);
   border: 1px solid var(--accent);
@@ -1080,8 +1143,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .fab:hover { text-decoration: none; filter: brightness(1.08); }
 .fab:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
 
-@media (max-width: 640px) {
-  .fab { right: 16px; bottom: 16px; width: 52px; height: 52px; }
+@media (min-width: 641px) {
+  .fab { right: 24px; bottom: 24px; width: 56px; height: 56px; }
 }
 
 /* Menu ----------------------------------------------------------------- */
@@ -1313,10 +1376,10 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
  * Comparte todo con la carta de tarot —banda, tabla de armas, chips— y solo
  * cambia de caja y mete las opciones dentro. */
 
-:root { --uhoja-w: 190mm; --uhoja-h: 134mm; --uhoja-esc: 1.05; }
-@media (max-width: 1300px) { :root { --uhoja-esc: 0.86; } }
-@media (max-width: 1000px) { :root { --uhoja-esc: 0.6; } }
-@media (max-width: 700px) { :root { --uhoja-esc: 0.44; } }
+:root { --uhoja-w: 190mm; --uhoja-h: 134mm; --uhoja-esc: 0.44; }
+@media (min-width: 701px) { :root { --uhoja-esc: 0.6; } }
+@media (min-width: 1001px) { :root { --uhoja-esc: 0.86; } }
+@media (min-width: 1301px) { :root { --uhoja-esc: 1.05; } }
 
 .ucard-wrap.hoja { width: calc(var(--uhoja-w) * var(--uhoja-esc)); }
 .ucard-frame.hoja {

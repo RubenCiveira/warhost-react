@@ -27,23 +27,29 @@ function indexToLeave(pathname: string): string | null {
   return null;
 }
 
-function ModeMenu() {
-  const { system, setSystem } = useGameSystem();
-  const [open, setOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-
+// Cierra un menu desplegable al pulsar fuera o al pulsar Escape. Lo usan
+// ModeMenu, UserMenu y el cajon de navegacion movil.
+function useDismiss(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return undefined;
-    const cerrar = () => setOpen(false);
-    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    const cerrar = () => close();
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && close();
     document.addEventListener("click", cerrar);
     document.addEventListener("keydown", conEscape);
     return () => {
       document.removeEventListener("click", cerrar);
       document.removeEventListener("keydown", conEscape);
     };
-  }, [open]);
+  }, [open, close]);
+}
+
+function ModeMenu() {
+  const { system, setSystem } = useGameSystem();
+  const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useDismiss(open, () => setOpen(false));
 
   if (!system) return null;
 
@@ -94,8 +100,84 @@ function ModeMenu() {
   );
 }
 
-export default function Layout() {
+function UserMenu() {
   const { user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  useDismiss(open, () => setOpen(false));
+
+  return (
+    <div className="menu-wrap">
+      <button
+        type="button"
+        className="ghost tiny menu-button user-menu-button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((abierto) => !abierto);
+        }}
+      >
+        {user?.name || user?.email} ▾
+      </button>
+      {open ? (
+        <div className="menu" role="menu">
+          <button type="button" role="menuitem" className="danger" onClick={() => void logout()}>
+            Salir
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Cajon lateral con las secciones: sustituye a la barra de pestanas en
+// pantallas estrechas, donde no caben todas sin desbordar.
+function MobileNav() {
+  const [open, setOpen] = useState(false);
+
+  useDismiss(open, () => setOpen(false));
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previo = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previo;
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="hamburger"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Abrir menu de secciones"
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((abierto) => !abierto);
+        }}
+      >
+        <span /><span /><span />
+      </button>
+      {open ? (
+        <div className="nav-drawer-backdrop">
+          <nav className="nav-drawer" aria-label="Secciones">
+            {LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setOpen(false)}>
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export default function Layout() {
   const { system } = useGameSystem();
 
   // La ambientacion elegida tine toda la interfaz.
@@ -106,6 +188,7 @@ export default function Layout() {
   return (
     <div className="app">
       <header className="topbar">
+        <MobileNav />
         <NavLink to="/" className="brand">
           War<span>host</span>
         </NavLink>
@@ -118,10 +201,7 @@ export default function Layout() {
         </nav>
         <div className="row small">
           <ModeMenu />
-          <span className="muted">{user?.name || user?.email}</span>
-          <button type="button" className="ghost tiny" onClick={() => void logout()}>
-            Salir
-          </button>
+          <UserMenu />
         </div>
       </header>
       <main className="content">
