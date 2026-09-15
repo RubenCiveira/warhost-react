@@ -1,7 +1,7 @@
 import { Query, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
-import type { Mission, Rule } from "../lib/types";
+import type { HeroClass, Mission, Rule } from "../lib/types";
 
 export async function listRules(setting: Setting): Promise<Rule[]> {
   // El indice de reglas es pequeno, asi que se trae entero y se filtra en cliente:
@@ -36,6 +36,29 @@ export async function saveMission(
   return tables.updateRow<Mission>({
     databaseId: env.databaseId,
     tableId: TABLES.missions,
+    rowId: id,
+    data: cambios,
+  });
+}
+
+/** Las clases de heroe de Quest de un sistema, en el orden fijo del libro (default primero). */
+export async function listHeroClasses(gameSystem: GameSystemId): Promise<HeroClass[]> {
+  const result = await tables.listRows<HeroClass>({
+    databaseId: env.databaseId,
+    tableId: TABLES.heroClasses,
+    queries: [Query.equal("gameSystem", gameSystem), Query.orderAsc("sortOrder"), Query.limit(50)],
+  });
+  return result.rows;
+}
+
+/** Corrige una clase de heroe. Solo lo permite la tabla a quien lleve la etiqueta `editor`. */
+export async function saveHeroClass(
+  id: string,
+  cambios: Partial<Pick<HeroClass, "name" | "description" | "classFeatName" | "classFeatText" | "skills" | "verified">>,
+): Promise<HeroClass> {
+  return tables.updateRow<HeroClass>({
+    databaseId: env.databaseId,
+    tableId: TABLES.heroClasses,
     rowId: id,
     data: cambios,
   });

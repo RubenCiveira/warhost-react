@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useGameSystem } from "../../context/GameSystemContext";
-import { armyNounFor, getGameSystem, resumenFaccion } from "../../lib/gameSystems";
+import { armyNounFor, getGameSystem, isQuestSystem, resumenFaccion } from "../../lib/gameSystems";
 import type { GameSystemId } from "../../lib/gameSystems";
 import {
   createArmy,
@@ -124,6 +124,7 @@ export default function ArmyEditor() {
    * la misma promesa.
    */
   const abriendoBorrador = useRef<Promise<Army> | null>(null);
+  const facInputRef = useRef<HTMLInputElement>(null);
   /** Se esta trabajando sobre el borrador, o mirando la version publicada. */
   const [viendoBorrador, setViendoBorrador] = useState(false);
   /**
@@ -132,11 +133,8 @@ export default function ArmyEditor() {
    * Reabierta desde la barra ya se sabe, y basta con poder cerrarla.
    */
   const [decidirBorrador, setDecidirBorrador] = useState<"entrada" | "peticion" | null>(null);
-  /** Sin faccion de origen resuelta: pide elegir una antes de poder editar. */
-  const [eligiendoFaccion, setEligiendoFaccion] = useState(false);
   const [faccionesDisponibles, setFaccionesDisponibles] = useState<ArmyBook[]>([]);
   const [cargandoFacciones, setCargandoFacciones] = useState(false);
-  const [faccionElegida, setFaccionElegida] = useState("");
 
   useEffect(() => {
     if (!armyId) return;
@@ -213,13 +211,6 @@ export default function ArmyEditor() {
 
   /** Pasar a edicion: abre el borrador y se planta en el. */
   async function onEditar() {
-    // Sin ninguna faccion de origen no hay como anadir ni reconfigurar
-    // unidades: se pide elegir una antes de abrir el borrador.
-    if (librosConocidos.length === 0) {
-      setFaccionElegida("");
-      setEligiendoFaccion(true);
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -235,9 +226,7 @@ export default function ArmyEditor() {
     }
   }
 
-  // Sirve tanto al dialogo de "elegir faccion" como al autocompletar de la
-  // cabecera, asi que se carga en cuanto se sabe el sistema de juego, no solo
-  // al abrir el dialogo.
+  // Alimenta el buscador de faccion junto al boton de anadir.
   useEffect(() => {
     let cancelado = false;
     setCargandoFacciones(true);
@@ -251,61 +240,29 @@ export default function ArmyEditor() {
   }, [army?.gameSystem, form.gameSystem]);
 
   useEffect(() => {
-    if (!eligiendoFaccion) return undefined;
-    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setEligiendoFaccion(false);
+    if (!facAbierta) return undefined;
+    const cerrar = () => setFacAbierta(false);
+    const conEscape = (event: KeyboardEvent) => event.key === "Escape" && setFacAbierta(false);
+    document.addEventListener("click", cerrar);
     document.addEventListener("keydown", conEscape);
-    return () => document.removeEventListener("keydown", conEscape);
-  }, [eligiendoFaccion]);
+    return () => {
+      document.removeEventListener("click", cerrar);
+      document.removeEventListener("keydown", conEscape);
+    };
+  }, [facAbierta]);
 
-  /** Asigna la faccion elegida como origen y entra a editar en el mismo paso. */
-  async function onAsignarFaccion() {
-    if (!faccionElegida || !user) return;
+  /**
+   * Crea el ejercito directamente con la faccion elegida en el buscador: ya
+   * no hace falta un paso aparte de "elegir faccion" antes de poder empezar a
+   * construir uno.
+   */
+  async function crearConFaccion(bookKey: string) {
+    const libroElegido = librosPorClave.get(bookKey);
+    if (!libroElegido || !user) return;
     setBusy(true);
     setError(null);
     try {
-      const libroElegido = await getBook(faccionElegida);
-      void registrarLibro(libroElegido);
-
-      // Ejercito nuevo, todavia sin guardar: se crea ya con la faccion puesta,
-      // en vez de guardar uno vacio y obligar a un "Editar" aparte.
-      if (!army) {
-        const listJsonNuevo = JSON.stringify({
-          source: {
-            builder: "manual",
-            books: [
-              {
-                bookKey: libroElegido.$id,
-                bookVersion: libroElegido.versionString,
-                factionName: libroElegido.factionName ?? libroElegido.name,
-              },
-            ],
-          },
-        });
-        const creado = await createArmy(user.$id, {
-          name: form.name.trim() || libroElegido.name,
-          setting: libroElegido.setting,
-          gameSystem: libroElegido.gameSystem,
-          faction: quest ? null : (libroElegido.factionName ?? libroElegido.name),
-          alliedFactions: quest ? [libroElegido.factionName ?? libroElegido.name] : [],
-          listJson: listJsonNuevo,
-        });
-        setEligiendoFaccion(false);
-        setFaccionElegida("");
-        navigate(`/ejercitos/${creado.$id}`, { replace: true });
-        return;
-      }
-
-      const abierto = await conBorrador();
-      if (!abierto) return;
-      const base = (() => {
-        try {
-          return JSON.parse(abierto.listJson ?? "{}") as Record<string, unknown>;
-        } catch {
-          return {};
-        }
-      })();
-      const actualizado = {
-        ...base,
+      const listJsonNuevo = JSON.stringify({
         source: {
           builder: "manual",
           books: [
@@ -316,16 +273,16 @@ export default function ArmyEditor() {
             },
           ],
         },
-      };
-      const guardado = await saveDraft(abierto.$id, { listJson: JSON.stringify(actualizado) });
-      setDraft(guardado);
-      setViendoBorrador(true);
-      mostrar(guardado);
-      setEligiendoFaccion(false);
-      setFaccionElegida("");
-      setNotice(
-        `Faccion asignada. Editando un borrador. ${noun.articleCap} ${noun.singular} sigue como estaba hasta que pulses Guardar.`,
-      );
+      });
+      const creado = await createArmy(user.$id, {
+        name: form.name.trim() || libroElegido.name,
+        setting: libroElegido.setting,
+        gameSystem: libroElegido.gameSystem,
+        faction: quest ? null : (libroElegido.factionName ?? libroElegido.name),
+        alliedFactions: quest ? [libroElegido.factionName ?? libroElegido.name] : [],
+        listJson: listJsonNuevo,
+      });
+      navigate(`/ejercitos/${creado.$id}`, { replace: true });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -398,7 +355,7 @@ export default function ArmyEditor() {
 
 
   const noun = useMemo(() => armyNounFor(getGameSystem(form.gameSystem)), [form.gameSystem]);
-  const quest = getGameSystem(form.gameSystem)?.id === "gfsq" || getGameSystem(form.gameSystem)?.id === "aofq";
+  const quest = isQuestSystem(getGameSystem(form.gameSystem)?.id);
   const units = useMemo(() => parseStoredList(listJson), [listJson]);
   const librosConocidos = useMemo(() => [...librosPorClave.values()], [librosPorClave]);
   const unidadesTodas = useMemo(() => [...unidadesPorLibro.values()].flat(), [unidadesPorLibro]);
@@ -539,13 +496,13 @@ export default function ArmyEditor() {
     [glosario, unidadesTodas, habilidades],
   );
 
-  /** La faccion con la que se anade la siguiente unidad: la elegida en el autocompletar, o la primera conocida. */
+  /** La faccion con la que se anade la siguiente unidad: la elegida en el buscador, o la primera conocida. */
   const facActual = facSeleccionada && librosPorClave.has(facSeleccionada) ? facSeleccionada : (librosConocidos[0]?.$id ?? "");
   const libroActual = librosPorClave.get(facActual) ?? null;
   /**
    * El `bookKey` con el que abrir el asistente: reconfigurar una unidad usa
    * el suyo propio (sigue siendo de su faccion), no la que este elegida en
-   * el autocompletar; anadir una nueva usa la faccion actual.
+   * el buscador; anadir una nueva usa la faccion actual.
    */
   const bookKeyParaWizard =
     editandoIndice !== null ? entradasGuardadas[editandoIndice]?.bookKey || facActual : facActual;
@@ -554,13 +511,39 @@ export default function ArmyEditor() {
     if (libroActual) setTextoFaccion(libroActual.factionName ?? libroActual.name);
   }, [libroActual]);
 
-  /** El texto del autocompletar coincide con una faccion del catalogo: la registra y la deja seleccionada. */
-  function elegirFaccionParaAnadir(texto: string) {
-    setTextoFaccion(texto);
-    const encontrada = faccionesDisponibles.find((libro) => (libro.factionName ?? libro.name) === texto);
-    if (!encontrada) return;
-    setFacSeleccionada(encontrada.$id);
-    void registrarLibro(encontrada);
+  /** Al abrir el desplegable se ve todo; escribir lo va acotando. */
+  const opcionesFiltradas = useMemo(() => {
+    const needle = filtroFaccion.trim().toLowerCase();
+    if (!needle) return faccionesDisponibles;
+    return faccionesDisponibles.filter((libro) => (libro.factionName ?? libro.name).toLowerCase().includes(needle));
+  }, [faccionesDisponibles, filtroFaccion]);
+
+  function seleccionarFaccion(libro: ArmyBook) {
+    setFacSeleccionada(libro.$id);
+    setTextoFaccion(libro.factionName ?? libro.name);
+    setFacAbierta(false);
+    setFiltroFaccion("");
+    void registrarLibro(libro);
+  }
+
+  /**
+   * El boton de anadir: si aun no hay faccion elegida, abre el desplegable en
+   * vez de nada mas —ya no hace falta un paso previo de "elegir faccion"—; si
+   * el ejercito todavia no existe, se crea con la faccion elegida antes de
+   * poder anadir su primera unidad.
+   */
+  function onClickAnadir() {
+    if (!facActual) {
+      setFacAbierta(true);
+      setFiltroFaccion("");
+      facInputRef.current?.focus();
+      return;
+    }
+    if (!army) {
+      void crearConFaccion(facActual);
+      return;
+    }
+    setAnadiendo(true);
   }
 
   async function importFromArmyForge() {
@@ -944,44 +927,15 @@ export default function ArmyEditor() {
         </div>
 
         <div className="army-bar-actions">
-          {/* Un ejercito puede mezclar varias facciones: esto elige con cual
-              se anade la siguiente unidad, y de paso deja anadir una nueva
-              faccion sin pasar por el dialogo de "sin faccion de origen". */}
-          {editable && librosConocidos.length > 0 ? (
-            <span className="row" style={{ gap: 6 }}>
-              <input
-                list="army-facciones-elegibles"
-                value={textoFaccion}
-                placeholder="Buscar faccion para anadir…"
-                aria-label="Faccion con la que anadir la siguiente unidad"
-                onChange={(e) => elegirFaccionParaAnadir(e.target.value)}
-                style={{ minWidth: 180 }}
-              />
-              <datalist id="army-facciones-elegibles">
-                {faccionesDisponibles.map((libroDisponible) => (
-                  <option key={libroDisponible.$id} value={libroDisponible.factionName ?? libroDisponible.name} />
-                ))}
-              </datalist>
-            </span>
-          ) : null}
           {/* Crear desde cero y no encontrar la importacion es lo primero que
               se prueba: sin ejercito todavia no hay menu "Mas opciones" donde
-              esconderla, asi que aqui va directa y a la vista. */}
+              esconderla, asi que aqui va directa y a la vista. El buscador de
+              faccion para empezar a anadir unidades vive junto al boton "+",
+              no aqui. */}
           {!army ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  setFaccionElegida("");
-                  setEligiendoFaccion(true);
-                }}
-              >
-                Elegir faccion
-              </button>
-              <button type="button" onClick={() => setImportOpen(true)}>
-                Importar desde Army Forge
-              </button>
-            </>
+            <button type="button" onClick={() => setImportOpen(true)}>
+              Importar desde Army Forge
+            </button>
           ) : null}
           {draft && !viendoBorrador ? (
             <button type="button" className="primary" onClick={() => setDecidirBorrador("peticion")}>
@@ -1062,9 +1016,8 @@ export default function ArmyEditor() {
       {notice ? <div className="banner ok">{notice}</div> : null}
       {armyId && librosConocidos.length === 0 ? (
         <p className="small muted">
-          No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular}, asi
-          que no se pueden anadir unidades desde aqui. Edita{noun.pronoun} en Army Forge y vuelve a
-          importar{noun.pronoun}, o crea {noun.indefArticle} {noun.newForm} desde su faccion.
+          No se ha podido identificar de que faccion del catalogo viene {noun.demonstrative} {noun.singular}. Usa el
+          buscador de faccion junto al boton de anadir para elegir una y empezar a anadir unidades.
         </p>
       ) : null}
 
@@ -1317,62 +1270,6 @@ export default function ArmyEditor() {
         </ConfirmDialog>
       ) : null}
 
-      {eligiendoFaccion ? (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label={army ? "Sin faccion de origen" : "Elegir faccion de origen"}
-          onClick={() => setEligiendoFaccion(false)}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>
-              {army ? "Sin faccion de origen no se puede editar" : "Elige la faccion de origen"}
-            </h2>
-            <p className="muted">
-              {army
-                ? `No se ha podido identificar de que faccion del catalogo viene ${noun.demonstrative} ${noun.singular}, asi que no se pueden anadir ni reconfigurar unidades. Elige la faccion de la que viene para poder editarl${noun.genderSuffix}.`
-                : `Elige de que faccion del catalogo viene ${noun.demonstrative} ${noun.singular} para poder empezar a anadir unidades.`}
-            </p>
-            <div className="field">
-              <label htmlFor="faccion-origen">Faccion</label>
-              <select
-                id="faccion-origen"
-                value={faccionElegida}
-                onChange={(event) => setFaccionElegida(event.target.value)}
-                disabled={cargandoFacciones}
-              >
-                <option value="">{cargandoFacciones ? "Cargando…" : "Elige una faccion"}</option>
-                {faccionesDisponibles.map((libroDisponible) => (
-                  <option key={libroDisponible.$id} value={libroDisponible.$id}>
-                    {libroDisponible.factionName ?? libroDisponible.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="row">
-              <button type="button" onClick={() => setEligiendoFaccion(false)}>
-                {army ? "Cancelar edicion" : "Cancelar"}
-              </button>
-              <button
-                type="button"
-                className="primary"
-                disabled={!faccionElegida || busy}
-                onClick={() => void onAsignarFaccion()}
-              >
-                {army
-                  ? busy
-                    ? "Asignando…"
-                    : "Asignar faccion y editar"
-                  : busy
-                    ? "Creando…"
-                    : "Elegir faccion y crear"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {importOpen ? (
         <div
           className="modal-backdrop"
@@ -1417,16 +1314,67 @@ export default function ArmyEditor() {
         </div>
       ) : null}
 
-      {armyId && facActual && editable ? (
-        <button
-          type="button"
-          className="fab"
-          title={`Anadir unidad de ${libroActual?.factionName ?? libroActual?.name ?? ""}`}
-          aria-label="Anadir una unidad"
-          onClick={() => setAnadiendo(true)}
-        >
-          +
-        </button>
+      {editable ? (
+        <div className="fab-group">
+          <div className="menu-wrap">
+            <input
+              ref={facInputRef}
+              type="text"
+              className="fac-buscador"
+              value={facAbierta ? filtroFaccion : textoFaccion}
+              placeholder={librosConocidos.length > 0 ? "Cambiar faccion…" : "Buscar faccion…"}
+              aria-label="Faccion con la que anadir la siguiente unidad"
+              onClick={(event) => {
+                event.stopPropagation();
+                setFacAbierta(true);
+                setFiltroFaccion("");
+              }}
+              onChange={(event) => {
+                setFiltroFaccion(event.target.value);
+                setFacAbierta(true);
+              }}
+            />
+            {facAbierta ? (
+              <div
+                className="menu"
+                role="menu"
+                style={{ bottom: "calc(100% + 6px)", top: "auto", left: 0, right: "auto" }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {cargandoFacciones && faccionesDisponibles.length === 0 ? (
+                  <span className="menu-label">Cargando…</span>
+                ) : opcionesFiltradas.length === 0 ? (
+                  <span className="menu-label">Ninguna faccion coincide</span>
+                ) : (
+                  opcionesFiltradas.map((libroDisponible) => (
+                    <button
+                      key={libroDisponible.$id}
+                      type="button"
+                      role="menuitem"
+                      className={libroDisponible.$id === facActual ? "active" : undefined}
+                      onClick={() => seleccionarFaccion(libroDisponible)}
+                    >
+                      {libroDisponible.factionName ?? libroDisponible.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="fab"
+            title={facActual ? `Anadir unidad de ${libroActual?.factionName ?? libroActual?.name ?? ""}` : "Elegir faccion"}
+            aria-label="Anadir una unidad"
+            disabled={busy}
+            onClick={(event) => {
+              event.stopPropagation();
+              onClickAnadir();
+            }}
+          >
+            +
+          </button>
+        </div>
       ) : null}
 
       {habilidad ? (

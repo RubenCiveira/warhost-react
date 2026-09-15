@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useGameSystem } from "../context/GameSystemContext";
-import { SETTINGS, armyNounFor, systemsFor } from "../lib/gameSystems";
+import { SETTINGS, armyNounFor, isQuestSystem, systemsFor } from "../lib/gameSystems";
 import type { GameSystem, GameSystemId } from "../lib/gameSystems";
 
 function linksFor(system: GameSystem | null | undefined) {
@@ -14,6 +14,7 @@ function linksFor(system: GameSystem | null | undefined) {
     { to: "/facciones", label: "Facciones" },
     { to: "/reglas", label: "Reglas" },
     { to: "/misiones", label: "Misiones" },
+    ...(isQuestSystem(system?.id) ? [{ to: "/clases", label: "Clases" }] : []),
   ];
 }
 

@@ -56,6 +56,11 @@ export function isGameSystemId(value: string | null | undefined): value is GameS
   return Boolean(value && BY_ID.has(value as GameSystemId));
 }
 
+/** Star Quest y Fantasy Quest: banda de heroes con clase, en vez de ejercito. */
+export function isQuestSystem(id: GameSystemId | string | null | undefined): boolean {
+  return id === "gfsq" || id === "aofq";
+}
+
 export interface ArmyNoun {
   singular: string;
   singularCap: string;
@@ -124,9 +129,7 @@ export function resumenFaccion(
   alliedFactions: string[],
   gameSystem: GameSystemId | null | undefined,
 ): string {
-  const id = getGameSystem(gameSystem ?? undefined)?.id;
-  const quest = id === "gfsq" || id === "aofq";
-  if (quest) return alliedFactions.length > 0 ? alliedFactions.join(", ") : "Sin faccion";
+  if (isQuestSystem(gameSystem)) return alliedFactions.length > 0 ? alliedFactions.join(", ") : "Sin faccion";
 
   const base = faction ?? "Sin faccion";
   if (alliedFactions.length === 0) return base;

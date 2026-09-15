@@ -17,6 +17,7 @@ import ArmyBuilder from "./pages/catalog/ArmyBuilder";
 import CatalogBook from "./pages/catalog/CatalogBook";
 import RulesIndex from "./pages/rules/RulesIndex";
 import MissionCards from "./pages/missions/MissionCards";
+import HeroClasses from "./pages/heroClasses/HeroClasses";
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/facciones/:bookKey/crear" element={<ArmyBuilder />} />
         <Route path="/reglas" element={<RulesIndex />} />
         <Route path="/misiones" element={<MissionCards />} />
+        <Route path="/clases" element={<HeroClasses />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
