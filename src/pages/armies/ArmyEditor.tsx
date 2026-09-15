@@ -1211,6 +1211,8 @@ export default function ArmyEditor() {
                   dexterity: v.dexterity,
                   willpower: v.willpower,
                   power: v.power,
+                  level: v.level,
+                  gold: v.gold,
                 });
                 // "Clase · tipo de unidad" para el subtitulo de la ficha: solo
                 // en quest, donde el nombre de arriba es el propio del heroe.

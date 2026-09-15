@@ -88,15 +88,18 @@ export interface UnitCardData {
   rules: string[];
   loadout: LoadoutEntry[] | unknown;
   /**
-   * Atributos de heroe de quest (Fuerza, Destreza, Poder, Voluntad): no
-   * existen en el resto de sistemas, asi que solo se pintan cuando llegan
-   * puestos. La Experiencia no es un atributo de la ficha en Army Forge —
-   * se muestra como nivel, no como stat— y no se modela aqui todavia.
+   * Atributos de heroe de quest (Fuerza, Destreza, Poder, Voluntad, mas
+   * Nivel y Oro de campana): no existen en el resto de sistemas, asi que
+   * solo se pintan cuando llegan puestos.
    */
   strength?: number;
   dexterity?: number;
   power?: number;
   willpower?: number;
+  /** Fijo en 1 por ahora: subir de nivel jugando no esta modelado todavia. */
+  level?: number;
+  /** Fijo en 30 (`questStartingGold`) por ahora: gastarlo en tienda no esta modelado todavia. */
+  gold?: number;
 }
 
 interface Props {
@@ -777,19 +780,14 @@ export default function UnitCard({
    * pareja entera —cuantas miniaturas hay, cuanto cuesta—. El resto vive dentro
    * de cada columna.
    */
-  // En quest el heroe no tiene miniaturas ni puntos de lista: en su lugar van
-  // el Aguante y los atributos propios, los que hayan llegado puestos. Mismo
-  // orden que el creador de heroes de Army Forge: Cal, Def, Tou, Pod, luego
-  // Fue/Des/Vol.
+  // En quest el heroe no tiene miniaturas ni puntos de lista: la banda del
+  // titulo se queda solo con Cal/Def, como en el resto de sistemas. El resto
+  // de sus atributos —hay demasiados para una fila— van en una columna propia
+  // del cuerpo de la ficha (`atributosQuest`, mas abajo).
   const stats: Array<[string, string]> = quest
     ? [
         ["Cal", `${unit.quality}+`],
         ["Def", `${unit.defense}+`],
-        ...(unit.maxWounds !== undefined ? ([["Agu", String(unit.maxWounds)]] as Array<[string, string]>) : []),
-        ...(unit.power !== undefined ? ([["Pod", String(unit.power)]] as Array<[string, string]>) : []),
-        ...(unit.strength !== undefined ? ([["Fue", `${unit.strength}+`]] as Array<[string, string]>) : []),
-        ...(unit.dexterity !== undefined ? ([["Des", `${unit.dexterity}+`]] as Array<[string, string]>) : []),
-        ...(unit.willpower !== undefined ? ([["Vol", `${unit.willpower}+`]] as Array<[string, string]>) : []),
       ]
     : emparejada && adjunta
       ? [
@@ -805,6 +803,22 @@ export default function UnitCard({
           ...(unit.maxWounds !== undefined ? ([["Her", String(unit.maxWounds)]] as Array<[string, string]>) : []),
           ...(unit.cost !== undefined ? ([["Pts", String(unit.cost)]] as Array<[string, string]>) : []),
         ];
+
+  // Los atributos de heroe de quest que no caben en la banda del titulo: cada
+  // uno solo aparece si llega puesto, mismo orden que el creador de heroes de
+  // Army Forge (Tou/Pod primero, luego Fue/Des/Vol), y Nivel/Oro al final,
+  // que son de campana, no de combate.
+  const atributosQuest: Array<[string, string]> = quest
+    ? [
+        ...(unit.maxWounds !== undefined ? ([["Aguante", String(unit.maxWounds)]] as Array<[string, string]>) : []),
+        ...(unit.power !== undefined ? ([["Poder", String(unit.power)]] as Array<[string, string]>) : []),
+        ...(unit.strength !== undefined ? ([["Fuerza", `${unit.strength}+`]] as Array<[string, string]>) : []),
+        ...(unit.dexterity !== undefined ? ([["Destreza", `${unit.dexterity}+`]] as Array<[string, string]>) : []),
+        ...(unit.willpower !== undefined ? ([["Voluntad", `${unit.willpower}+`]] as Array<[string, string]>) : []),
+        ...(unit.level !== undefined ? ([["Nivel", String(unit.level)]] as Array<[string, string]>) : []),
+        ...(unit.gold !== undefined ? ([["Oro", String(unit.gold)]] as Array<[string, string]>) : []),
+      ]
+    : [];
 
   // Las auras ocupan dos chips en el bloque de reglas, asi que cuentan doble
   // para saber cuantos renglones se lleva ese bloque.
@@ -937,17 +951,45 @@ export default function UnitCard({
             <div className="ucard-body">
               <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />
 
-              {/* Reglas innatas: a todo el ancho, que es como se recorren. Las que
-                  da el equipo van con su objeto, en la tabla de abajo. */}
-              <section className="ucard-bloque">
-                <h4 className="ucard-bloque-title">Reglas</h4>
-                <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
-              </section>
+              {quest ? (
+                // En quest hay demasiados atributos para la banda del titulo:
+                // van en su propia columna, aparte de reglas y equipo, para
+                // no mezclar "lo que el heroe es" con "lo que el heroe hace".
+                <div className="ucard-quest-cols">
+                  <div className="ucard-quest-atributos">
+                    <h4 className="ucard-bloque-title">Atributos</h4>
+                    <dl className="ucard-atributos-list">
+                      {atributosQuest.map(([label, value]) => (
+                        <div key={label} className="ucard-atributo-fila">
+                          <dt>{label}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                  <div className="ucard-quest-habilidades">
+                    <section className="ucard-bloque">
+                      <h4 className="ucard-bloque-title">Reglas</h4>
+                      <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
+                    </section>
+                    <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Reglas innatas: a todo el ancho, que es como se recorren. Las
+                      que da el equipo van con su objeto, en la tabla de abajo. */}
+                  <section className="ucard-bloque">
+                    <h4 className="ucard-bloque-title">Reglas</h4>
+                    <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
+                  </section>
 
-              {/* El equipo, en tabla: cada pieza y a su derecha lo que concede.
-                  Ninguna del catalogo deja de conceder algo, asi que el nombre
-                  por si solo no informaria. */}
-              <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
+                  {/* El equipo, en tabla: cada pieza y a su derecha lo que concede.
+                      Ninguna del catalogo deja de conceder algo, asi que el nombre
+                      por si solo no informaria. */}
+                  <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
+                </>
+              )}
 
               {notas ? (
                 <p className="ucard-notas">

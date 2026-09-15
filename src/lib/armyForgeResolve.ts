@@ -115,11 +115,15 @@ export interface ResolvedUnit {
   quality: number;
   defense: number;
   maxWounds: number;
-  /** Atributos de heroe de quest: solo llegan puestos cuando `heroClassId` esta presente. */
+  /** Atributos de heroe de quest: solo llegan puestos en heroes de sistemas quest. */
   strength?: number;
   dexterity?: number;
   willpower?: number;
   power?: number;
+  /** Fijo en 1 por ahora: subir de nivel jugando no esta modelado todavia. */
+  level?: number;
+  /** Fijo en 30 (questStartingGold) por ahora: gastarlo en tienda no esta modelado todavia. */
+  gold?: number;
   /** Aproximado: no cuenta las mejoras que ya no existen en el libro. */
   cost: number;
   rules: string[];

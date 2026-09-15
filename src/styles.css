@@ -907,6 +907,20 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   color: var(--ucard-tenue);
 }
 
+/* En quest los atributos van en su propia columna, estrecha: son pocos y
+   cortos ("Fuerza 4+"), y asi reglas y equipo se quedan con el ancho que de
+   verdad necesitan (ver el comentario de mas arriba sobre por que esos dos no
+   van a columnas). */
+.ucard-quest-cols { display: flex; gap: 3mm; margin-top: 2.4mm; padding: 0 2.5mm; flex: 0 0 auto; }
+.ucard-quest-atributos { flex: 0 0 22mm; }
+.ucard-quest-habilidades { flex: 1; min-width: 0; }
+.ucard-quest-habilidades .ucard-bloque, .ucard-quest-habilidades .ucard-armas { margin-top: 0; padding: 0; }
+.ucard-quest-habilidades .ucard-bloque + * { margin-top: 1.6mm; }
+.ucard-atributos-list { margin: 0; display: flex; flex-direction: column; gap: 0.6mm; }
+.ucard-atributo-fila { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.4mm; }
+.ucard-atributo-fila dt { color: var(--ucard-tenue); }
+.ucard-atributo-fila dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
 /* La tabla de equipo es la misma pieza que la de armas, con el objeto a la
    izquierda y lo que otorga a la derecha. */
 .ucard-equipo-tabla { table-layout: fixed; }

@@ -223,6 +223,8 @@ export default function AddUnitWizard({
             dexterity: perfilQuest.dexterity,
             willpower: perfilQuest.willpower,
             power: perfilQuest.power,
+            level: perfilQuest.level,
+            gold: perfilQuest.gold,
           }
         : {}),
     };

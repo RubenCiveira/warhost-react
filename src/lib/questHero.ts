@@ -58,6 +58,10 @@ export interface PerfilQuest {
   willpower: number;
   power: number;
   tough: number;
+  /** Fijo en 1: subir de nivel jugando no esta modelado todavia. */
+  level: number;
+  /** Fijo en 30 (questStartingGold de Army Forge): gastarlo en tienda no esta modelado todavia. */
+  gold: number;
 }
 
 /** El perfil de partida, antes de que la clase le sume nada. */
@@ -68,6 +72,8 @@ const BASE: Omit<PerfilQuest, "tough"> = {
   dexterity: 6,
   willpower: 6,
   power: 3,
+  level: 1,
+  gold: 30,
 };
 
 /**

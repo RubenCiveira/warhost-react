@@ -435,7 +435,14 @@ export function toResolvedUnit(
     defense: perfilQuest?.defense ?? entry.unit.defense,
     maxWounds: perfilQuest ? perfilQuest.tough : size * toughOf(rules),
     ...(perfilQuest
-      ? { strength: perfilQuest.strength, dexterity: perfilQuest.dexterity, willpower: perfilQuest.willpower, power: perfilQuest.power }
+      ? {
+          strength: perfilQuest.strength,
+          dexterity: perfilQuest.dexterity,
+          willpower: perfilQuest.willpower,
+          power: perfilQuest.power,
+          level: perfilQuest.level,
+          gold: perfilQuest.gold,
+        }
       : {}),
     cost: entryCost(entry, sections),
     rules: rules.slice(0, 20),
