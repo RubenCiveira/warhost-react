@@ -8,6 +8,7 @@ import { parseHabilidad } from "../lib/reglas";
 import { desglosarOpcion } from "../lib/opciones";
 import { reglaDelAura, reglaParaLaUnidad } from "../lib/auras";
 import type { Habilidad } from "../lib/reglas";
+import type { HeroSkillCardData } from "./HeroSkillCard";
 
 /**
  * Lo que la carta necesita del glosario: quien tiene descripcion, y cual es,
@@ -15,6 +16,10 @@ import type { Habilidad } from "../lib/reglas";
  * nombres justo por lo segundo.
  */
 export type GlosarioCarta = Map<string, { description?: string | null }>;
+
+export interface QuestHeroSkillSummary extends HeroSkillCardData {
+  tier: number;
+}
 
 /**
  * Ficha de unidad como carta de juego: apaisada y de tamano fijo, con la
@@ -119,7 +124,7 @@ interface Props {
    * de configuracion dentro en vez de colgando debajo. Una unidad del catalogo
    * sin sus opciones esta a medias, y esas no caben en una carta de mesa.
    */
-  formato?: "tarot" | "hoja";
+  formato?: "tarot" | "hoja" | "personaje";
   footer?: ReactNode;
   /**
    * Nombres de regla que tienen descripcion. Los chips que no esten aqui se
@@ -157,6 +162,10 @@ interface Props {
   glosario?: GlosarioCarta;
   /** Abrir la carta de una habilidad o de un equipo. */
   onHabilidad?: (habilidad: Habilidad) => void;
+  /** Feat y habilidades de clase disponibles para un heroe de Quest segun su nivel. */
+  questClassSkills?: QuestHeroSkillSummary[];
+  /** Abrir la carta de una habilidad de clase de Quest. */
+  onQuestClassSkill?: (skill: HeroSkillCardData) => void;
 }
 
 /**
@@ -737,8 +746,11 @@ export default function UnitCard({
   quest = false,
   glosario,
   onHabilidad,
+  questClassSkills = [],
+  onQuestClassSkill,
 }: Props) {
   const hoja = formato === "hoja";
+  const personaje = formato === "personaje";
   // La union heroe + unidad solo tiene sentido en la carta de mesa de un
   // ejercito: la ficha de catalogo no sabe de listas.
   const emparejada = Boolean(adjunta) && variant === "ejercito" && !hoja;
@@ -881,8 +893,44 @@ export default function UnitCard({
 
   // La carta emparejada respeta el mismo tamano de tarot que el resto: nada de
   // marco mas alto, el contenido se aprieta para caber en el de siempre.
-  const wrapClase = hoja ? "ucard-wrap hoja" : "ucard-wrap";
-  const marcoClase = hoja ? "ucard-frame hoja" : "ucard-frame";
+  const bloqueCampana =
+    campanaQuest.length > 0 ? (
+      <section className="ucard-quest-atributos">
+        <h4 className="ucard-bloque-title">Campaña</h4>
+        <dl className="ucard-campana-list">
+          {campanaQuest.map(([label, value]) => (
+            <div key={label} className="ucard-campana-fila">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    ) : null;
+
+  const bloqueHabilidadesQuest =
+    questClassSkills.length > 0 ? (
+      <section className="ucard-bloque ucard-quest-skills">
+        <h4 className="ucard-bloque-title">Habilidades de clase</h4>
+        <div className="ucard-chips">
+          {questClassSkills.map((skill) => (
+            <button
+              key={`${skill.className}-${skill.levelLabel}-${skill.name}`}
+              type="button"
+              className="ucard-chip equipo"
+              disabled={!onQuestClassSkill}
+              title={`Ver ${skill.name}`}
+              onClick={() => onQuestClassSkill?.(skill)}
+            >
+              {skill.name}
+            </button>
+          ))}
+        </div>
+      </section>
+    ) : null;
+
+  const wrapClase = hoja ? "ucard-wrap hoja" : personaje ? "ucard-wrap personaje" : "ucard-wrap";
+  const marcoClase = hoja ? "ucard-frame hoja" : personaje ? "ucard-frame personaje" : "ucard-frame";
 
   return (
     <div className={wrapClase}>
@@ -891,7 +939,9 @@ export default function UnitCard({
           className={`ucard ucard-${variant}${
             hoja
               ? ` hoja${densidadOpciones}`
-              : emparejada && adjunta
+              : personaje
+                ? " personaje"
+                : emparejada && adjunta
                 ? ` emparejada${densidad(
                     [...weapons, ...adjWeapons],
                     [...unit.rules, ...adjunta.rules],
@@ -946,30 +996,43 @@ export default function UnitCard({
             </div>
           ) : (
             <div className="ucard-body">
-              <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />
+              {personaje ? null : <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />}
 
-              {quest ? (
+              {quest && personaje ? (
+                <div className="ucard-personaje">
+                  <div className="ucard-personaje-armas">
+                    <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />
+                  </div>
+                  <div className="ucard-personaje-arriba">
+                    <div className="ucard-personaje-campana">{bloqueCampana}</div>
+                    <div className="ucard-personaje-habilidades">
+                      <section className="ucard-bloque">
+                        <h4 className="ucard-bloque-title">Reglas</h4>
+                        <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
+                      </section>
+                      {bloqueHabilidadesQuest}
+                    </div>
+                  </div>
+                  <div className="ucard-personaje-equipo">
+                    <h4 className="ucard-bloque-title">Equipo adicional</h4>
+                    {gear.length > 0 ? (
+                      <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
+                    ) : (
+                      <p className="ucard-vacio">Sin equipo adicional.</p>
+                    )}
+                  </div>
+                </div>
+              ) : quest ? (
                 // En quest la columna lateral queda para seguimiento de
                 // campana; el perfil de atributos ya vive en la barra superior.
                 <div className="ucard-quest-cols">
-                  {campanaQuest.length > 0 ? (
-                    <div className="ucard-quest-atributos">
-                      <h4 className="ucard-bloque-title">Campaña</h4>
-                      <dl className="ucard-campana-list">
-                        {campanaQuest.map(([label, value]) => (
-                          <div key={label} className="ucard-campana-fila">
-                            <dt>{label}</dt>
-                            <dd>{value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  ) : null}
+                  {bloqueCampana}
                   <div className="ucard-quest-habilidades">
                     <section className="ucard-bloque">
                       <h4 className="ucard-bloque-title">Reglas</h4>
                       <ClusterReglas rules={unit.rules} glosario={glosario} onAbrir={onHabilidad} />
                     </section>
+                    {bloqueHabilidadesQuest}
                     <TablaEquipo gear={gear} glosario={glosario} onAbrir={onHabilidad} />
                   </div>
                 </div>

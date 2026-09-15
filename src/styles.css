@@ -610,6 +610,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 @media print { :root { --ucard-esc: 1; --scard-esc: 1; } }
 
 .ucard-wrap { width: calc(var(--ucard-w) * var(--ucard-esc)); }
+.ucard-wrap.personaje { width: calc(var(--ucard-w) * var(--ucard-esc)); }
 
 /* El marco recorta la carta escalada y es quien ocupa sitio en la maqueta: la
    carta de dentro sigue midiendo 120 x 70 mm pase lo que pase. */
@@ -618,6 +619,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   height: calc(var(--ucard-h) * var(--ucard-esc));
   overflow: hidden;
 }
+.ucard-frame.personaje { height: calc(var(--ucard-h) * 2 * var(--ucard-esc)); }
 
 .ucard {
   --ucard-tinta: #201a12;
@@ -687,6 +689,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;
   background: var(--ucard-banda); color: var(--ucard-banda-texto);
 }
+.ucard.personaje { height: calc(var(--ucard-h) * 2); }
 .ucard-stats.quest { gap: 0.55mm; }
 .ucard-stats.quest .ucard-stat { width: 7.9mm; }
 .ucard-stats.quest .ucard-stat-key { font-size: 1.75mm; letter-spacing: 0.02em; }
@@ -933,6 +936,22 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   border-radius: 1mm; text-align: center; font-weight: 600;
   font-variant-numeric: tabular-nums; line-height: 3.6mm;
 }
+.ucard.personaje .ucard-body { padding-bottom: 2mm; }
+.ucard-personaje { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 42mm 1fr; gap: 2.4mm; padding: 0 2.5mm; }
+.ucard-personaje-armas .ucard-armas, .ucard-personaje-equipo .ucard-armas { padding: 0; }
+.ucard-personaje-arriba { display: grid; grid-template-columns: 27mm 1fr; gap: 3mm; min-height: 0; }
+.ucard-personaje-campana, .ucard-personaje-habilidades, .ucard-personaje-equipo { min-width: 0; }
+.ucard-personaje-habilidades { display: flex; flex-direction: column; gap: 1.8mm; }
+.ucard-personaje-campana .ucard-quest-atributos, .ucard-personaje-habilidades .ucard-bloque { margin: 0; padding: 0; }
+.ucard-personaje-equipo { align-self: stretch; border-top: 0.45mm solid var(--ucard-filete); padding-top: 2mm; }
+.ucard-personaje-equipo > .ucard-bloque-title { margin-bottom: -0.3mm; }
+.ucard-personaje-equipo .ucard-bloque { margin-top: 0; padding: 0; }
+.ucard.personaje .ucard-campana-list { gap: 1mm; }
+.ucard.personaje .ucard-campana-fila { grid-template-columns: 1fr 10mm; font-size: 2.3mm; }
+.ucard.personaje .ucard-campana-fila dd { min-height: 5.6mm; line-height: 5mm; }
+.ucard.personaje .ucard-quest-skills .ucard-chips { gap: 1.1mm; }
+.ucard.personaje .ucard-quest-skills .ucard-chip { font-size: 2.45mm; padding: 0.7mm 1.4mm; }
+.ucard.personaje .ucard-table { font-size: 2.55mm; }
 
 /* La tabla de equipo es la misma pieza que la de armas, con el objeto a la
    izquierda y lo que otorga a la derecha. */

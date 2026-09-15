@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
-import { listHeroClasses } from "../api/content";
+import { listHeroClasses, listQuestShopPackages } from "../api/content";
 import {
   blockReason,
   entryCost,
@@ -19,16 +19,32 @@ import {
 } from "../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../lib/builder";
 import { baseLoadout } from "../lib/loadout";
-import { perfilInicialQuest } from "../lib/questHero";
+import { habilidadesInicialesQuest, perfilInicialQuest, reglasInicialesQuest } from "../lib/questHero";
+import { questShopSectionsForEntry } from "../lib/questShop";
 import { armyNounFor, getGameSystem, isQuestSystem } from "../lib/gameSystems";
 import { errorMessage } from "../lib/format";
-import type { HeroClass } from "../lib/types";
+import type { HeroClass, HeroSkill, QuestShopPackage } from "../lib/types";
 import { ErrorBanner, Spinner } from "./ui";
 import UnitCard from "./UnitCard";
 import RuleCardModal from "./RuleCardModal";
+import HeroSkillCard from "./HeroSkillCard";
+import type { HeroSkillCardData } from "./HeroSkillCard";
 import type { Habilidad } from "../lib/reglas";
 
 type Paso = "elegir" | "configurar" | "revisar";
+
+const HERO_SKILL_STAT_LABEL: Record<HeroSkill["stat"], string> = {
+  strength: "Str",
+  dexterity: "Dex",
+  willpower: "Wil",
+};
+
+const HERO_SKILL_LEVEL_LABEL: Record<HeroSkill["tier"], string> = {
+  0: "Ini",
+  1: "N2",
+  2: "N5",
+  3: "N9",
+};
 
 /** Una unidad que ya esta en el ejercito, para volver a configurarla. */
 export interface UnidadEnEdicion {
@@ -102,7 +118,9 @@ export default function AddUnitWizard({
   const [busqueda, setBusqueda] = useState("");
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
+  const [habilidadClase, setHabilidadClase] = useState<HeroSkillCardData | null>(null);
   const [heroClasses, setHeroClasses] = useState<HeroClass[]>([]);
+  const [questShopPackages, setQuestShopPackages] = useState<QuestShopPackage[]>([]);
   const noun = armyNounFor(getGameSystem(book?.gameSystem));
 
   useEffect(() => {
@@ -150,12 +168,20 @@ export default function AddUnitWizard({
     };
   }, [bookKey, editando]);
 
-  /** Solo hace falta el catalogo de clases en Quest, y es el mismo para toda la sesion del asistente. */
+  /** Solo hace falta el contenido extra de Quest, y es el mismo para toda la sesion del asistente. */
   useEffect(() => {
-    if (!book || !isQuestSystem(book.gameSystem)) return undefined;
+    if (!book || !isQuestSystem(book.gameSystem)) {
+      setHeroClasses([]);
+      setQuestShopPackages([]);
+      return undefined;
+    }
     let cancelled = false;
-    listHeroClasses(book.gameSystem)
-      .then((rows) => !cancelled && setHeroClasses(rows.filter((c) => c.classKey !== "default")))
+    Promise.all([listHeroClasses(book.gameSystem), listQuestShopPackages(book.gameSystem)])
+      .then(([classes, shopPackages]) => {
+        if (cancelled) return;
+        setHeroClasses(classes.filter((c) => c.classKey !== "default"));
+        setQuestShopPackages(shopPackages);
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;
@@ -167,12 +193,12 @@ export default function AddUnitWizard({
       if (event.key !== "Escape") return;
       // Con una carta de habilidad abierta encima, Escape la cierra a ella: si
       // no, se cerraria el asistente entero y se perderia lo elegido.
-      if (habilidad) return;
+      if (habilidad || habilidadClase) return;
       onCancel();
     };
     document.addEventListener("keydown", conEscape);
     return () => document.removeEventListener("keydown", conEscape);
-  }, [onCancel, habilidad]);
+  }, [onCancel, habilidad, habilidadClase]);
 
   const visibles = useMemo(() => {
     const aguja = busqueda.trim().toLowerCase();
@@ -199,25 +225,29 @@ export default function AddUnitWizard({
   }, []);
 
   const sections = entry ? sectionsForUnit(entry.unit, packages) : [];
+  const sectionsConTiendaQuest = entry
+    ? [...sections, ...questShopSectionsForEntry(entry, sections, questShopPackages, heroClasses, book?.gameSystem)]
+    : sections;
 
   // La carta ensena la unidad tal como sale a la mesa: si va combinada, con el
   // tamano, el coste y el equipo ya doblados. En quest, Calidad/Defensa/
   // Aguante no salen del catalogo: salen del perfil inicial de heroe (ver
   // questHero.ts), que solo depende de la clase elegida.
   const tarjeta = (actual: BuilderEntry) => {
-    const rules = entryRules(actual, sections);
-    const esHeroeDeQuest = book && necesitaClaseDeHeroe(actual, sections, book.gameSystem);
+    const baseRules = entryRules(actual, sectionsConTiendaQuest);
+    const esHeroeDeQuest = book && necesitaClaseDeHeroe(actual, sectionsConTiendaQuest, book.gameSystem);
     const clase = heroClasses.find((candidata) => candidata.$id === actual.heroClassId);
+    const rules = esHeroeDeQuest ? reglasInicialesQuest(clase, baseRules) : baseRules;
     const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
-    const gold = perfilQuest ? Math.max(0, perfilQuest.gold - questGoldSpent(actual, sections, book?.gameSystem)) : undefined;
+    const gold = perfilQuest ? Math.max(0, perfilQuest.gold - questGoldSpent(actual, sectionsConTiendaQuest, book?.gameSystem)) : undefined;
     return {
       name: actual.customName || actual.unit.name,
       size: actual.unit.size * (actual.combined ? 2 : 1),
       quality: perfilQuest?.quality ?? actual.unit.quality,
       defense: perfilQuest?.defense ?? actual.unit.defense,
-      cost: entryCost(actual, sections),
+      cost: entryCost(actual, sectionsConTiendaQuest),
       rules,
-      loadout: entryLoadoutFinal(actual, sections, book?.gameSystem),
+      loadout: entryLoadoutFinal(actual, sectionsConTiendaQuest, book?.gameSystem),
       ...(perfilQuest ? { maxWounds: perfilQuest.tough } : {}),
       ...(perfilQuest
         ? {
@@ -233,9 +263,39 @@ export default function AddUnitWizard({
     };
   };
 
-  const requiereClase = Boolean(entry && book && necesitaClaseDeHeroe(entry, sections, book.gameSystem));
+  const requiereClase = Boolean(entry && book && necesitaClaseDeHeroe(entry, sectionsConTiendaQuest, book.gameSystem));
   const faltaClase = requiereClase && !entry?.heroClassId;
   const quest = Boolean(book && isQuestSystem(book.gameSystem));
+
+  const habilidadesParaHeroe = useCallback(
+    (actual: BuilderEntry) => {
+      const clase = heroClasses.find((candidate) => candidate.$id === actual.heroClassId);
+      if (!clase) return [];
+      return [
+        ...(clase.classFeatName && clase.classFeatText
+          ? [
+              {
+                tier: 0,
+                name: clase.classFeatName,
+                description: clase.classFeatText,
+                className: clase.name,
+                levelLabel: "Feat",
+                statLabel: "Feat",
+              },
+            ]
+          : []),
+        ...habilidadesInicialesQuest(clase).map((skill) => ({
+            tier: skill.tier,
+            levelLabel: HERO_SKILL_LEVEL_LABEL[skill.tier],
+            description: skill.description,
+            className: clase.name,
+            statLabel: HERO_SKILL_STAT_LABEL[skill.stat],
+            name: skill.name,
+          })),
+      ];
+    },
+    [heroClasses],
+  );
 
   /** "Clase · tipo de unidad" para el subtitulo de la ficha, solo en quest. */
   const subtituloDe = (actual: BuilderEntry) => {
@@ -250,7 +310,7 @@ export default function AddUnitWizard({
    * cada cambio —el nombre en el titulo, la clase en todos los atributos—.
    */
   const controlesDeHeroeQuest = (actual: BuilderEntry) =>
-    book && necesitaClaseDeHeroe(actual, sections, book.gameSystem) ? (
+    book && necesitaClaseDeHeroe(actual, sectionsConTiendaQuest, book.gameSystem) ? (
       <div className="row" style={{ marginBottom: 8 }}>
         <input
           type="text"
@@ -294,7 +354,7 @@ export default function AddUnitWizard({
           Combinar
         </label>
       ) : null}
-      {book && puedeAdjuntarse(actual, sections, book.gameSystem) && unidadesDelEjercito.length > 0 ? (
+      {book && puedeAdjuntarse(actual, sectionsConTiendaQuest, book.gameSystem) && unidadesDelEjercito.length > 0 ? (
         <label className="check tiny">
           Unir a
           <select value={unirA ?? ""} onChange={(event) => setUnirA(event.target.value === "" ? null : Number(event.target.value))}>
@@ -334,7 +394,7 @@ export default function AddUnitWizard({
       role="dialog"
       aria-modal="true"
       aria-label={editando ? "Configurar unidad" : "Anadir unidad"}
-      onClick={() => !habilidad && onCancel()}
+      onClick={() => !habilidad && !habilidadClase && onCancel()}
     >
       <div className="modal wide wizard" onClick={(event) => event.stopPropagation()}>
         <header className="spread">
@@ -416,21 +476,24 @@ export default function AddUnitWizard({
                 variant="ejercito"
                 unitId={entry.unit.unitId}
                 quest={quest}
+                formato={quest ? "personaje" : "tarot"}
                 subtitulo={subtituloDe(entry)}
                 glosario={glosario}
                 onHabilidad={setHabilidad}
-                sections={sections}
-                upgrades={entryUpgradeLabels(entry, sections)}
+                sections={sectionsConTiendaQuest}
+                upgrades={entryUpgradeLabels(entry, sectionsConTiendaQuest)}
                 optionsOpen
                 optionsLabel="Opciones de la unidad"
                 unit={tarjeta(entry)}
+                questClassSkills={habilidadesParaHeroe(entry)}
+                onQuestClassSkill={setHabilidadClase}
                 combinada={entry.combined}
                 notas={entry.notes}
                 footer={controlesDeUnidad(entry)}
                 optionAction={(section, option) => {
                   const id = optionId(option);
                   const cuantas = entry.choices[id] ?? 0;
-                  const bloqueo = blockReason(section, option, entry, sections, book?.gameSystem);
+                  const bloqueo = blockReason(section, option, entry, sectionsConTiendaQuest, book?.gameSystem);
                   return (
                     <span className="row ucard-option-controls">
                       <span className="ucard-price">+{optionCost(option, entry.unit.unitId)}</span>
@@ -481,11 +544,14 @@ export default function AddUnitWizard({
               <UnitCard
                 variant="ejercito"
                 quest={quest}
+                formato={quest ? "personaje" : "tarot"}
                 subtitulo={subtituloDe(entry)}
                 unit={tarjeta(entry)}
+                questClassSkills={habilidadesParaHeroe(entry)}
+                onQuestClassSkill={setHabilidadClase}
                 combinada={entry.combined}
                 notas={entry.notes}
-                upgrades={entryUpgradeLabels(entry, sections)}
+                upgrades={entryUpgradeLabels(entry, sectionsConTiendaQuest)}
                 glosario={glosario}
                 onHabilidad={setHabilidad}
               />
@@ -500,7 +566,7 @@ export default function AddUnitWizard({
                 disabled={busy || !book || faltaClase}
                 title={faltaClase ? "Elige una clase para este heroe antes de confirmar." : undefined}
                 onClick={() =>
-                  book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sections, book.gameSystem) ? unirA : null)
+                  book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sectionsConTiendaQuest, book.gameSystem) ? unirA : null)
                 }
               >
                 {busy ? "Guardando…" : "Confirmar"}
@@ -513,6 +579,21 @@ export default function AddUnitWizard({
       {habilidad ? (
         <div className="sobre-modal">
           <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
+        </div>
+      ) : null}
+
+      {habilidadClase ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={habilidadClase.name} onClick={() => setHabilidadClase(null)}>
+          <div onClick={(event) => event.stopPropagation()}>
+            <HeroSkillCard
+              skill={habilidadClase}
+              glosario={glosario}
+              onAbrir={(regla) => {
+                setHabilidadClase(null);
+                setHabilidad(regla);
+              }}
+            />
+          </div>
         </div>
       ) : null}
     </div>

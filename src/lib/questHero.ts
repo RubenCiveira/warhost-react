@@ -9,7 +9,8 @@
  * Defensa no la toca nada: ni la unidad base, ni ninguna clase, ni ninguna de
  * las elecciones de combate.
  */
-import type { HeroClass } from "./types";
+import type { HeroClass, HeroSkill } from "./types";
+import { parseHeroSkills } from "./types";
 
 export const HERO_ABILITY_CHOICES = ["strength", "dexterity", "willpower"] as const;
 export type HeroAbilityChoice = (typeof HERO_ABILITY_CHOICES)[number];
@@ -117,4 +118,26 @@ export function perfilInicialQuest(clase: HeroClass | null | undefined, toughBas
     }
   }
   return perfil;
+}
+
+export function reglasInicialesQuest(clase: HeroClass | null | undefined, rules: string[]): string[] {
+  const resultado = [...rules];
+  for (const eleccion of clase?.combatStatChoices ?? []) {
+    if (eleccion !== "oneCaster") continue;
+    const index = resultado.findIndex((rule) => /^caster(?:\((\d+)\))?$/i.test(rule.trim()));
+    if (index === -1) resultado.push("Caster(1)");
+    else {
+      const match = /^caster(?:\((\d+)\))?$/i.exec(resultado[index].trim());
+      const rating = Number(match?.[1] ?? 0) + 1;
+      resultado[index] = `Caster(${rating})`;
+    }
+  }
+  return [...new Set(resultado)];
+}
+
+export function habilidadesInicialesQuest(clase: HeroClass | null | undefined): HeroSkill[] {
+  if (!clase) return [];
+  const elegidas = new Set(clase.skillChoices ?? []);
+  if (elegidas.size === 0) return [];
+  return parseHeroSkills(clase.skills).filter((skill) => elegidas.has(skill.name));
 }

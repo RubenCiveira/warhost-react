@@ -62,6 +62,7 @@ export default function HeroClassCard({
     skills: parseHeroSkills(heroClass.skills),
     abilityChoices: heroClass.abilityChoices ?? [],
     combatStatChoices: heroClass.combatStatChoices ?? [],
+    skillChoices: heroClass.skillChoices ?? [],
   }));
 
   function actualizarSkill(index: number, cambios: Partial<HeroSkill>) {
@@ -72,11 +73,11 @@ export default function HeroClassCard({
   }
 
   /**
-   * Cambia el hueco `index` de una de las dos listas de elecciones iniciales.
+   * Cambia el hueco `index` de una de las listas de elecciones iniciales.
    * Los huecos vacios ("— ninguna —") se guardan como cadena vacia y se
    * descartan al guardar, no se recolocan los demas huecos.
    */
-  function actualizarEleccion(lista: "abilityChoices" | "combatStatChoices", index: number, valor: string) {
+  function actualizarEleccion(lista: "abilityChoices" | "combatStatChoices" | "skillChoices", index: number, valor: string) {
     setBorrador((previo) => {
       const siguiente = [...previo[lista]];
       while (siguiente.length <= index) siguiente.push("");
@@ -97,6 +98,7 @@ export default function HeroClassCard({
         skills: JSON.stringify(borrador.skills),
         abilityChoices: borrador.abilityChoices.filter(Boolean),
         combatStatChoices: borrador.combatStatChoices.filter(Boolean),
+        skillChoices: borrador.skillChoices.filter(Boolean),
       });
       setEditando(false);
     } finally {
@@ -205,12 +207,30 @@ export default function HeroClassCard({
                   </select>
                 ))}
               </div>
+              <div className="row" style={{ gap: 6 }}>
+                {HUECOS_INICIALES.map((hueco) => (
+                  <select
+                    key={hueco}
+                    value={borrador.skillChoices[hueco] ?? ""}
+                    aria-label={`Habilidad inicial ${hueco + 1}`}
+                    onChange={(event) => actualizarEleccion("skillChoices", hueco, event.target.value)}
+                  >
+                    <option value="">— ninguna habilidad inicial —</option>
+                    {borrador.skills.map((skill) => (
+                      <option key={skill.name} value={skill.name}>
+                        {skill.name}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="small" style={{ margin: 0 }}>
               {[
                 ...(heroClass.abilityChoices ?? []).map((c) => HERO_ABILITY_LABEL[c as HeroAbilityChoice] ?? c),
                 ...(heroClass.combatStatChoices ?? []).map((c) => HERO_COMBAT_STAT_LABEL[c as HeroCombatStatChoice] ?? c),
+                ...(heroClass.skillChoices ?? []),
               ].join(" · ") || "Sin elecciones iniciales todavia."}
             </p>
           )}

@@ -191,6 +191,24 @@ export interface HeroClass extends Row {
    * `HeroCombatStatChoice`) trae esta clase gratis al crear el heroe.
    */
   combatStatChoices: string[];
+  /** Habilidades de clase que Army Forge concede gratis al crear el heroe. */
+  skillChoices: string[];
+  verified: boolean;
+  sourceVersion: string | null;
+  sortOrder: number;
+}
+
+export interface QuestShopPackage extends Row {
+  gameSystem: GameSystemId;
+  setting: Setting;
+  packageKey: string;
+  hint: string | null;
+  /** Lista de `UpgradeSection`, serializada en JSON. */
+  sections: string;
+  classKeys: string[];
+  requiresCaster: boolean;
+  minTough: number | null;
+  maxTough: number | null;
   verified: boolean;
   sourceVersion: string | null;
   sortOrder: number;

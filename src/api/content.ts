@@ -1,7 +1,7 @@
 import { Query, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
-import type { HeroClass, Mission, Rule } from "../lib/types";
+import type { HeroClass, Mission, QuestShopPackage, Rule } from "../lib/types";
 
 export async function listRules(setting: Setting): Promise<Rule[]> {
   // El indice de reglas es pequeno, asi que se trae entero y se filtra en cliente:
@@ -51,6 +51,16 @@ export async function listHeroClasses(gameSystem: GameSystemId): Promise<HeroCla
   return result.rows;
 }
 
+/** Equipamiento comun de tienda inicial Quest, compartido por cualquier heroe del sistema. */
+export async function listQuestShopPackages(gameSystem: GameSystemId): Promise<QuestShopPackage[]> {
+  const result = await tables.listRows<QuestShopPackage>({
+    databaseId: env.databaseId,
+    tableId: TABLES.questShopPackages,
+    queries: [Query.equal("gameSystem", gameSystem), Query.orderAsc("sortOrder"), Query.limit(100)],
+  });
+  return result.rows;
+}
+
 /** Corrige una clase de heroe. Solo lo permite la tabla a quien lleve la etiqueta `editor`. */
 export async function saveHeroClass(
   id: string,
@@ -64,6 +74,7 @@ export async function saveHeroClass(
       | "skills"
       | "abilityChoices"
       | "combatStatChoices"
+      | "skillChoices"
       | "verified"
     >
   >,

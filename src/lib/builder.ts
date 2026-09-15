@@ -11,7 +11,7 @@ import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 import { getGameSystem, isQuestSystem } from "./gameSystems";
 import type { GameSystemId } from "./gameSystems";
-import { perfilInicialQuest, QUEST_STARTING_GOLD } from "./questHero";
+import { perfilInicialQuest, QUEST_STARTING_GOLD, reglasInicialesQuest } from "./questHero";
 import type { HeroClass } from "./types";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
@@ -24,6 +24,7 @@ export interface UpgradeOption {
   id?: string;
   uid?: string;
   label?: string;
+  parentSectionUid?: string;
   costs?: Array<{ cost?: number; unitId?: string }>;
   gains?: Gain[];
 }
@@ -116,7 +117,15 @@ export function parseSections(json: string | null | undefined): UpgradeSection[]
   if (!json) return [];
   try {
     const parsed = JSON.parse(json) as unknown;
-    return Array.isArray(parsed) ? (parsed as UpgradeSection[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as UpgradeSection[])
+      .map((section) => ({
+        ...section,
+        options: (section.options ?? []).filter(
+          (option) => !option.parentSectionUid || option.parentSectionUid === section.uid,
+        ),
+      }))
+      .filter((section) => (section.options ?? []).length > 0);
   } catch {
     return [];
   }
@@ -134,6 +143,17 @@ export function sectionsForUnit(
   return unit.upgradePackageUids.flatMap((uid) => packages.get(claveEnLibro(unit.bookKey, uid)) ?? []);
 }
 
+export type ExtraSectionsForEntry = (entry: BuilderEntry, baseSections: UpgradeSection[]) => UpgradeSection[];
+
+export function sectionsForEntry(
+  entry: BuilderEntry,
+  packages: Map<string, UpgradeSection[]>,
+  extraSections?: ExtraSectionsForEntry,
+): UpgradeSection[] {
+  const baseSections = sectionsForUnit(entry.unit, packages);
+  return extraSections ? [...baseSections, ...extraSections(entry, baseSections)] : baseSections;
+}
+
 export function optionId(option: UpgradeOption): string {
   return option.id ?? option.uid ?? "";
 }
@@ -142,7 +162,8 @@ export function optionId(option: UpgradeOption): string {
 export function optionCost(option: UpgradeOption, unitId: string): number {
   const costs = option.costs ?? [];
   const exact = costs.find((entry) => entry.unitId === unitId);
-  return exact?.cost ?? costs[0]?.cost ?? 0;
+  const common = costs.find((entry) => entry.unitId === "*");
+  return exact?.cost ?? common?.cost ?? costs[0]?.cost ?? 0;
 }
 
 function isQuestSystemId(gameSystem: GameSystemId | undefined): gameSystem is GameSystemId {
@@ -163,7 +184,7 @@ function gainIsWeapon(gain: Gain): boolean {
 
 function gainHasForbiddenQuestRule(gain: Gain): boolean {
   const name = gainName(gain);
-  const forbidden = name === "Caster" || name === "Spawn" || name === "Summon" || name.endsWith("Guard");
+  const forbidden = name === "Spawn" || name === "Summon" || name.endsWith("Guard");
   return forbidden || (gain.content ?? []).some(gainHasForbiddenQuestRule);
 }
 
@@ -523,13 +544,13 @@ export function toResolvedUnit(
   heroClasses: HeroClass[] = [],
   gameSystem?: GameSystemId,
 ): ResolvedUnit {
-  const rules = entryRules(entry, sections);
   const size = entry.unit.size * factorCombinada(entry);
   // Un heroe de quest tiene perfil propio aunque todavia no haya elegido
   // clase (el asistente ya lo ensena asi, con el perfil base): el mismo
   // criterio de `necesitaClaseDeHeroe`, no si `heroClassId` esta puesto.
   const esHeroeDeQuest = gameSystem !== undefined && necesitaClaseDeHeroe(entry, sections, gameSystem);
   const clase = entry.heroClassId ? heroClasses.find((c) => c.$id === entry.heroClassId) : undefined;
+  const rules = esHeroeDeQuest ? reglasInicialesQuest(clase, entryRules(entry, sections)) : entryRules(entry, sections);
   const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
   const oroQuest = perfilQuest ? Math.max(0, QUEST_STARTING_GOLD - questGoldSpent(entry, sections, gameSystem)) : undefined;
   return {
@@ -577,9 +598,10 @@ export function buildArmy(
   packages: Map<string, UpgradeSection[]>,
   heroClasses: HeroClass[] = [],
   gameSystem?: GameSystemId,
+  extraSections?: ExtraSectionsForEntry,
 ): BuiltArmy {
   const units = entries.map((entry, index) =>
-    toResolvedUnit(entry, sectionsForUnit(entry.unit, packages), index, heroClasses, gameSystem),
+    toResolvedUnit(entry, sectionsForEntry(entry, packages, extraSections), index, heroClasses, gameSystem),
   );
   return {
     units,

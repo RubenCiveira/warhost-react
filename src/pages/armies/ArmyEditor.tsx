@@ -25,10 +25,13 @@ import {
 } from "../../api/armyForge";
 import { requiredBookUids } from "../../lib/armyForgeResolve";
 import type { ArmyForgeList } from "../../lib/armyForgeResolve";
-import type { Army, HeroClass } from "../../lib/types";
+import type { Army, HeroClass, HeroSkill, QuestShopPackage } from "../../lib/types";
+import { parseHeroSkills } from "../../lib/types";
 import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
+import HeroSkillCard from "../../components/HeroSkillCard";
+import type { HeroSkillCardData } from "../../components/HeroSkillCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
 import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
@@ -45,10 +48,12 @@ import AvisoComposicion from "../../components/AvisoComposicion";
 import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
 import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
 import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/catalog";
+import { habilidadesInicialesQuest } from "../../lib/questHero";
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload, sourceBooks } from "../../lib/armyPayload";
-import { listHeroClasses } from "../../api/content";
+import { listHeroClasses, listQuestShopPackages } from "../../api/content";
+import { questShopSectionsForEntry } from "../../lib/questShop";
 
 interface FormState {
   name: string;
@@ -65,6 +70,26 @@ interface FormState {
   notes: string;
   shared: boolean;
 }
+
+const HERO_SKILL_STAT_LABEL: Record<HeroSkill["stat"], string> = {
+  strength: "Str",
+  dexterity: "Dex",
+  willpower: "Wil",
+};
+
+const HERO_SKILL_LEVEL_LABEL: Record<HeroSkill["tier"], string> = {
+  0: "Inicial",
+  1: "Nivel 2",
+  2: "Nivel 5",
+  3: "Nivel 9",
+};
+
+const HERO_SKILL_CHIP_LEVEL_LABEL: Record<HeroSkill["tier"], string> = {
+  0: "Ini",
+  1: "N2",
+  2: "N5",
+  3: "N9",
+};
 
 export default function ArmyEditor() {
   const { armyId } = useParams();
@@ -102,7 +127,7 @@ export default function ArmyEditor() {
   const [anadiendo, setAnadiendo] = useState(false);
   /** Indice en `entries` de la unidad que se esta reconfigurando. */
   const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("unidades");
   const [verGenerales, setVerGenerales] = useState(false);
   /**
    * Las facciones conocidas de este ejercito (puede haber varias) y las
@@ -115,6 +140,7 @@ export default function ArmyEditor() {
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   /** Solo para quest: clase de cada heroe, para el subtitulo de su ficha. */
   const [heroClasses, setHeroClasses] = useState<HeroClass[]>([]);
+  const [questShopPackages, setQuestShopPackages] = useState<QuestShopPackage[]>([]);
   /** `bookKey` elegido en el buscador: con esa faccion se anade la siguiente unidad. */
   const [facSeleccionada, setFacSeleccionada] = useState("");
   const [textoFaccion, setTextoFaccion] = useState("");
@@ -122,6 +148,7 @@ export default function ArmyEditor() {
   const [facAbierta, setFacAbierta] = useState(false);
   const [filtroFaccion, setFiltroFaccion] = useState("");
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
+  const [habilidadClase, setHabilidadClase] = useState<HeroSkillCardData | null>(null);
   /**
    * Abrir borrador en curso. Escribiendo deprisa se dispararian varias aperturas
    * a la vez y la segunda chocaria con el indice unico, asi que todas esperan a
@@ -445,12 +472,20 @@ export default function ArmyEditor() {
     };
   }, [form.gameSystem]);
 
-  /** Solo hace falta en quest, para el subtitulo de la ficha de cada heroe. */
+  /** Solo hace falta en quest, para el subtitulo y tienda comun de cada heroe. */
   useEffect(() => {
-    if (!quest) return undefined;
+    if (!quest) {
+      setHeroClasses([]);
+      setQuestShopPackages([]);
+      return undefined;
+    }
     let cancelado = false;
-    listHeroClasses(form.gameSystem)
-      .then((rows) => !cancelado && setHeroClasses(rows))
+    Promise.all([listHeroClasses(form.gameSystem), listQuestShopPackages(form.gameSystem)])
+      .then(([classes, shopPackages]) => {
+        if (cancelado) return;
+        setHeroClasses(classes);
+        setQuestShopPackages(shopPackages);
+      })
       .catch(() => undefined);
     return () => {
       cancelado = true;
@@ -479,6 +514,12 @@ export default function ArmyEditor() {
     }
   }, [listJson, unidadesTodas, uidABookKey]);
 
+  const seccionesExtraQuest = useCallback(
+    (entry: BuilderEntry, baseSections: UpgradeSection[]) =>
+      questShopSectionsForEntry(entry, baseSections, questShopPackages, heroClasses, form.gameSystem),
+    [form.gameSystem, heroClasses, questShopPackages],
+  );
+
   const units = useMemo(() => {
     if (!quest || entradasGuardadas.length === 0 || unidadesTodas.length === 0 || paquetesPorClave.size === 0) {
       return unidadesGuardadas;
@@ -487,8 +528,24 @@ export default function ArmyEditor() {
     const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
     const entradas = rehydrateEntries(entradasGuardadas, unidadesTodas, defaultBookKey);
     if (entradas.length !== entradasGuardadas.length) return unidadesGuardadas;
-    return buildArmy(entradas, paquetesPorClave, heroClasses, form.gameSystem).units;
-  }, [entradasGuardadas, form.gameSystem, heroClasses, librosConocidos, paquetesPorClave, quest, unidadesGuardadas, unidadesTodas]);
+    return buildArmy(
+      entradas,
+      paquetesPorClave,
+      heroClasses,
+      form.gameSystem,
+      seccionesExtraQuest,
+    ).units;
+  }, [
+    entradasGuardadas,
+    form.gameSystem,
+    heroClasses,
+    librosConocidos,
+    paquetesPorClave,
+    quest,
+    seccionesExtraQuest,
+    unidadesGuardadas,
+    unidadesTodas,
+  ]);
   /**
    * Unidades a las que puede unirse el heroe que se esta editando: las del
    * ejercito que no son heroes, quitando la propia. El indice es el de la lista
@@ -544,6 +601,60 @@ export default function ArmyEditor() {
   const generales = useMemo(
     () => reglasGeneralesDeFaccion(glosario, unidadesTodas, habilidades),
     [glosario, unidadesTodas, habilidades],
+  );
+  const clasesDeHeroe = useMemo(() => heroClasses.filter((heroClass) => heroClass.classKey !== "default"), [heroClasses]);
+  const habilidadesDeClase = useMemo<HeroSkillCardData[]>(
+    () =>
+      clasesDeHeroe.flatMap((heroClass) => [
+        ...(heroClass.classFeatName && heroClass.classFeatText
+          ? [
+              {
+                name: heroClass.classFeatName,
+                description: heroClass.classFeatText,
+                className: heroClass.name,
+                levelLabel: "Feat inicial",
+                statLabel: "Feat",
+              },
+            ]
+          : []),
+        ...parseHeroSkills(heroClass.skills).map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+          className: heroClass.name,
+          levelLabel: HERO_SKILL_LEVEL_LABEL[skill.tier],
+          statLabel: HERO_SKILL_STAT_LABEL[skill.stat],
+        })),
+      ]),
+    [clasesDeHeroe],
+  );
+  const habilidadesParaHeroe = useCallback(
+    (heroClassId: string | undefined, _level: number | undefined) => {
+      const clase = heroClasses.find((candidate) => candidate.$id === heroClassId);
+      if (!clase) return [];
+      return [
+        ...(clase.classFeatName && clase.classFeatText
+          ? [
+              {
+                tier: 0,
+                name: clase.classFeatName,
+                description: clase.classFeatText,
+                className: clase.name,
+                levelLabel: "Feat",
+                statLabel: "Feat",
+              },
+            ]
+          : []),
+        ...habilidadesInicialesQuest(clase).map((skill) => ({
+            tier: skill.tier,
+            levelLabel: HERO_SKILL_CHIP_LEVEL_LABEL[skill.tier],
+            description: skill.description,
+            className: clase.name,
+            statLabel: HERO_SKILL_STAT_LABEL[skill.stat],
+            name: skill.name,
+          })),
+      ];
+    },
+    [heroClasses],
   );
 
   /** La faccion con la que se anade la siguiente unidad: la elegida en el buscador, o la primera conocida. */
@@ -755,6 +866,7 @@ export default function ArmyEditor() {
         form.name,
         form.listId,
         heroClasses,
+        seccionesExtraQuest,
       );
 
       const destino = await conBorrador();
@@ -829,6 +941,7 @@ export default function ArmyEditor() {
         form.name,
         form.listId,
         heroClasses,
+        seccionesExtraQuest,
       );
 
       const destino = await conBorrador();
@@ -1087,6 +1200,7 @@ export default function ArmyEditor() {
         items={[
           { id: "unidades", label: "Unidades", count: units.length },
           { id: "habilidades", label: "Habilidades", count: habilidades.length },
+          ...(quest ? [{ id: "habilidadesClase" as const, label: "Habs. clase", count: habilidadesDeClase.length }] : []),
           { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
           ...(verGenerales
@@ -1129,6 +1243,18 @@ export default function ArmyEditor() {
                   </div>
                 ))}
               </Fragment>
+            ))}
+          </div>
+        )
+      ) : pestana === "habilidadesClase" ? (
+        habilidadesDeClase.length === 0 ? (
+          <EmptyState title="No hay habilidades de clase cargadas" />
+        ) : (
+          <div className="army-strip">
+            {habilidadesDeClase.map((skill) => (
+              <div key={`${skill.className}-${skill.levelLabel}-${skill.name}`} className="army-slide">
+                <HeroSkillCard skill={skill} glosario={glosario} onAbrir={setHabilidad} />
+              </div>
             ))}
           </div>
         )
@@ -1270,11 +1396,14 @@ export default function ArmyEditor() {
                     <UnitCard
                       variant="ejercito"
                       quest={quest}
+                      formato={quest ? "personaje" : "tarot"}
                       subtitulo={subtituloDe(u)}
                       upgrades={u.upgrades ?? []}
                       glosario={glosario}
                       onHabilidad={setHabilidad}
                       unit={perfil(u)}
+                      questClassSkills={habilidadesParaHeroe(u.heroClassId, u.level)}
+                      onQuestClassSkill={setHabilidadClase}
                       combinada={u.combined}
                       notas={u.notes}
                       adjunta={
@@ -1489,6 +1618,21 @@ export default function ArmyEditor() {
 
       {habilidad ? (
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
+      ) : null}
+
+      {habilidadClase ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={habilidadClase.name} onClick={() => setHabilidadClase(null)}>
+          <div onClick={(event) => event.stopPropagation()}>
+            <HeroSkillCard
+              skill={habilidadClase}
+              glosario={glosario}
+              onAbrir={(regla) => {
+                setHabilidadClase(null);
+                setHabilidad(regla);
+              }}
+            />
+          </div>
+        </div>
       ) : null}
 
       {(anadiendo || editandoIndice !== null) && bookKeyParaWizard ? (

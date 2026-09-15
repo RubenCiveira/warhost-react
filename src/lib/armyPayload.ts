@@ -6,7 +6,7 @@
  * divergiendo en silencio.
  */
 import { buildArmy, serializeEntries } from "./builder";
-import type { BuilderEntry, UpgradeSection } from "./builder";
+import type { BuilderEntry, ExtraSectionsForEntry, UpgradeSection } from "./builder";
 import { getGameSystem } from "./gameSystems";
 import type { GameSystemId, Setting } from "./gameSystems";
 import type { HeroClass } from "./types";
@@ -75,9 +75,10 @@ export function composeArmyPayload(
   name: string,
   listId = "",
   heroClasses: HeroClass[] = [],
+  extraSections?: ExtraSectionsForEntry,
 ): ArmyPayload {
   const principal = books[0];
-  const built = buildArmy(entries, packages, heroClasses, principal?.gameSystem);
+  const built = buildArmy(entries, packages, heroClasses, principal?.gameSystem, extraSections);
   const nombre = name.trim() || principal?.name || "";
 
   // Puntos por libro, para saber cual pesa mas: los libros que se quedaron

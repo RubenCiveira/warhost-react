@@ -23,6 +23,7 @@ export const TABLES = {
   rules: "rules",
   missions: "missions",
   heroClasses: "hero_classes",
+  questShopPackages: "quest_shop_packages",
   armyBooks: "army_books",
   armyUnits: "army_units",
   armyUpgradePackages: "army_upgrade_packages",
