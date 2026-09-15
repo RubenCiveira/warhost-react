@@ -1147,6 +1147,21 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   .fab { right: 24px; bottom: 24px; width: 56px; height: 56px; }
 }
 
+/* El boton flotante y el buscador de faccion forman un tandem: el buscador
+   deja elegir con que faccion se anade la siguiente unidad, justo al lado del
+   boton que la anade. */
+.fab-group {
+  position: fixed; right: 16px; bottom: 16px; z-index: 25;
+  display: flex; align-items: center; gap: 8px;
+}
+.fab-group .fab { position: static; }
+.fab-group .fac-buscador { width: 140px; }
+
+@media (min-width: 641px) {
+  .fab-group { right: 24px; bottom: 24px; }
+  .fab-group .fac-buscador { width: 200px; }
+}
+
 /* Menu ----------------------------------------------------------------- */
 
 .menu-wrap { position: relative; }
