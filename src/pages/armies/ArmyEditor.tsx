@@ -472,25 +472,36 @@ export default function ArmyEditor() {
     () => emparejarHeroes(units, entradasGuardadas.map((e) => e.attachedTo)),
     [units, entradasGuardadas],
   );
-  /** Un hechizo por cada uno que publique cualquiera de las facciones conocidas. */
-  const hechizos = useMemo(
+  /**
+   * Habilidades, equipo y hechizos van una fila por faccion conocida —
+   * principal y aliadas por igual—, para no mezclar lo que aporta cada libro
+   * cuando el ejercito mezcla varios. "Reglas generales" es la excepcion: es
+   * el reglamento basico, comun a todas, y se sigue mostrando de una vez.
+   */
+  const hechizosPorFaccion = useMemo(
     () =>
-      librosConocidos.flatMap((libro) =>
-        parseSpells(libro.spells ?? null).map((spell) => ({ spell, faccion: libro.factionName ?? libro.name })),
-      ),
+      librosConocidos
+        .map((libro) => ({ libro, spells: parseSpells(libro.spells ?? null) }))
+        .filter((grupo) => grupo.spells.length > 0),
     [librosConocidos],
   );
-  /** Union de las reglas propias de cada faccion, sin repetir. */
-  const habilidades = useMemo(() => {
-    const vistas = new Map<string, CatalogRule>();
-    for (const libro of librosConocidos) {
-      for (const regla of habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? [])) {
-        vistas.set(regla.$id, regla);
-      }
-    }
-    return [...vistas.values()];
-  }, [librosConocidos, glosario, unidadesPorLibro]);
-  const equipo = useMemo(() => equipoDeFaccion(unidadesTodas), [unidadesTodas]);
+  const habilidadesPorFaccion = useMemo(
+    () =>
+      librosConocidos
+        .map((libro) => ({ libro, items: habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? []) }))
+        .filter((grupo) => grupo.items.length > 0),
+    [librosConocidos, glosario, unidadesPorLibro],
+  );
+  const equipoPorFaccion = useMemo(
+    () =>
+      librosConocidos
+        .map((libro) => ({ libro, items: equipoDeFaccion(unidadesPorLibro.get(libro.$id) ?? []) }))
+        .filter((grupo) => grupo.items.length > 0),
+    [librosConocidos, unidadesPorLibro],
+  );
+  const hechizos = useMemo(() => hechizosPorFaccion.flatMap((g) => g.spells), [hechizosPorFaccion]);
+  const habilidades = useMemo(() => habilidadesPorFaccion.flatMap((g) => g.items), [habilidadesPorFaccion]);
+  const equipo = useMemo(() => equipoPorFaccion.flatMap((g) => g.items), [equipoPorFaccion]);
   const generales = useMemo(
     () => reglasGeneralesDeFaccion(glosario, unidadesTodas, habilidades),
     [glosario, unidadesTodas, habilidades],
@@ -1057,35 +1068,51 @@ export default function ArmyEditor() {
 
       {pestana === "habilidades" ? (
         habilidades.length === 0 ? (
-          <EmptyState title="Esta faccion no publica reglas propias" />
+          <EmptyState title="Ninguna faccion de esta lista publica reglas propias" />
         ) : (
           <div className="army-strip">
-            {habilidades.map((regla) => (
-              <div key={regla.$id} className="army-slide">
-                <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
-              </div>
+            {habilidadesPorFaccion.map(({ libro, items }) => (
+              <Fragment key={libro.$id}>
+                <div className="army-divider" role="separator" aria-label={libro.factionName ?? libro.name}>
+                  <span className="army-divider-label">{libro.factionName ?? libro.name}</span>
+                  <span className="army-divider-count">{items.length}</span>
+                </div>
+                {items.map((regla) => (
+                  <div key={regla.$id} className="army-slide">
+                    <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+                  </div>
+                ))}
+              </Fragment>
             ))}
           </div>
         )
       ) : pestana === "equipo" ? (
         equipo.length === 0 ? (
-          <EmptyState title="Ninguna unidad de esta faccion lleva equipo" />
+          <EmptyState title="Ninguna unidad de esta lista lleva equipo" />
         ) : (
           <div className="army-strip">
-            {equipo.map((pieza) => (
-              <div key={pieza.habilidad.nombre} className="army-slide">
-                <RuleCard
-                  habilidad={pieza.habilidad}
-                  regla={glosario.get(pieza.habilidad.nombre.toLowerCase())}
-                  lleva={pieza.unidades}
-                />
-              </div>
+            {equipoPorFaccion.map(({ libro, items }) => (
+              <Fragment key={libro.$id}>
+                <div className="army-divider" role="separator" aria-label={libro.factionName ?? libro.name}>
+                  <span className="army-divider-label">{libro.factionName ?? libro.name}</span>
+                  <span className="army-divider-count">{items.length}</span>
+                </div>
+                {items.map((pieza) => (
+                  <div key={pieza.habilidad.nombre} className="army-slide">
+                    <RuleCard
+                      habilidad={pieza.habilidad}
+                      regla={glosario.get(pieza.habilidad.nombre.toLowerCase())}
+                      lleva={pieza.unidades}
+                    />
+                  </div>
+                ))}
+              </Fragment>
             ))}
           </div>
         )
       ) : pestana === "hechizos" ? (
         hechizos.length === 0 ? (
-          <EmptyState title="Esta faccion no tiene hechizos">
+          <EmptyState title="Ninguna faccion de esta lista tiene hechizos">
             <p className="muted">
               {librosConocidos.length > 0
                 ? `Su libro de ${noun.singular} no trae ninguno.`
@@ -1094,10 +1121,18 @@ export default function ArmyEditor() {
           </EmptyState>
         ) : (
           <div className="army-strip">
-            {hechizos.map(({ spell, faccion }) => (
-              <div key={spell.key} className="army-slide">
-                <SpellCard spell={spell} faction={faccion} />
-              </div>
+            {hechizosPorFaccion.map(({ libro, spells }) => (
+              <Fragment key={libro.$id}>
+                <div className="army-divider" role="separator" aria-label={libro.factionName ?? libro.name}>
+                  <span className="army-divider-label">{libro.factionName ?? libro.name}</span>
+                  <span className="army-divider-count">{spells.length}</span>
+                </div>
+                {spells.map((spell) => (
+                  <div key={spell.key} className="army-slide">
+                    <SpellCard spell={spell} faction={libro.factionName ?? libro.name} />
+                  </div>
+                ))}
+              </Fragment>
             ))}
           </div>
         )
