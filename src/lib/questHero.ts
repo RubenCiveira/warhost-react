@@ -14,6 +14,8 @@ import type { HeroClass } from "./types";
 export const HERO_ABILITY_CHOICES = ["strength", "dexterity", "willpower"] as const;
 export type HeroAbilityChoice = (typeof HERO_ABILITY_CHOICES)[number];
 
+export const QUEST_STARTING_GOLD = 30;
+
 export const HERO_ABILITY_LABEL: Record<HeroAbilityChoice, string> = {
   strength: "Fuerza",
   dexterity: "Destreza",
@@ -60,6 +62,8 @@ export interface PerfilQuest {
   tough: number;
   /** Fijo en 1: subir de nivel jugando no esta modelado todavia. */
   level: number;
+  /** Fijo en 0: ganar experiencia jugando no esta modelado todavia. */
+  experience: number;
   /** Fijo en 30 (questStartingGold de Army Forge): gastarlo en tienda no esta modelado todavia. */
   gold: number;
 }
@@ -73,7 +77,8 @@ const BASE: Omit<PerfilQuest, "tough"> = {
   willpower: 6,
   power: 3,
   level: 1,
-  gold: 30,
+  experience: 0,
+  gold: QUEST_STARTING_GOLD,
 };
 
 /**

@@ -13,6 +13,7 @@ import {
   entryUpgradeLabels,
   optionCost,
   optionId,
+  questGoldSpent,
   sectionsForUnit,
   toughOf,
 } from "../lib/builder";
@@ -208,6 +209,7 @@ export default function AddUnitWizard({
     const esHeroeDeQuest = book && necesitaClaseDeHeroe(actual, sections, book.gameSystem);
     const clase = heroClasses.find((candidata) => candidata.$id === actual.heroClassId);
     const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
+    const gold = perfilQuest ? Math.max(0, perfilQuest.gold - questGoldSpent(actual, sections, book?.gameSystem)) : undefined;
     return {
       name: actual.customName || actual.unit.name,
       size: actual.unit.size * (actual.combined ? 2 : 1),
@@ -215,7 +217,7 @@ export default function AddUnitWizard({
       defense: perfilQuest?.defense ?? actual.unit.defense,
       cost: entryCost(actual, sections),
       rules,
-      loadout: entryLoadoutFinal(actual, sections),
+      loadout: entryLoadoutFinal(actual, sections, book?.gameSystem),
       ...(perfilQuest ? { maxWounds: perfilQuest.tough } : {}),
       ...(perfilQuest
         ? {
@@ -224,7 +226,8 @@ export default function AddUnitWizard({
             willpower: perfilQuest.willpower,
             power: perfilQuest.power,
             level: perfilQuest.level,
-            gold: perfilQuest.gold,
+            experience: perfilQuest.experience,
+            gold,
           }
         : {}),
     };
@@ -261,9 +264,12 @@ export default function AddUnitWizard({
           Clase
           <select
             value={actual.heroClassId ?? ""}
-            onChange={(event) =>
-              setEntry((previo) => (previo ? { ...previo, heroClassId: event.target.value || undefined } : previo))
-            }
+            onChange={(event) => {
+              const heroClassId = event.target.value || undefined;
+              setEntry((previo) =>
+                previo && previo.heroClassId !== heroClassId ? { ...previo, heroClassId, choices: {} } : previo,
+              );
+            }}
           >
             <option value="">— elige clase —</option>
             {heroClasses.map((clase) => (
@@ -424,7 +430,7 @@ export default function AddUnitWizard({
                 optionAction={(section, option) => {
                   const id = optionId(option);
                   const cuantas = entry.choices[id] ?? 0;
-                  const bloqueo = blockReason(section, option, entry, sections);
+                  const bloqueo = blockReason(section, option, entry, sections, book?.gameSystem);
                   return (
                     <span className="row ucard-option-controls">
                       <span className="ucard-price">+{optionCost(option, entry.unit.unitId)}</span>

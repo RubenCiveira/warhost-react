@@ -122,6 +122,8 @@ export interface ResolvedUnit {
   power?: number;
   /** Fijo en 1 por ahora: subir de nivel jugando no esta modelado todavia. */
   level?: number;
+  /** Fijo en 0 por ahora: ganar experiencia jugando no esta modelado todavia. */
+  experience?: number;
   /** Fijo en 30 (questStartingGold) por ahora: gastarlo en tienda no esta modelado todavia. */
   gold?: number;
   /** Aproximado: no cuenta las mejoras que ya no existen en el libro. */

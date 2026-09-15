@@ -31,7 +31,7 @@ import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
-import { entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
+import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { getBook, getBookByUid, listBooks, listRuleGlossary } from "../../api/catalog";
@@ -111,6 +111,7 @@ export default function ArmyEditor() {
    */
   const [librosPorClave, setLibrosPorClave] = useState<Map<string, ArmyBook>>(new Map());
   const [unidadesPorLibro, setUnidadesPorLibro] = useState<Map<string, ArmyUnit[]>>(new Map());
+  const [paquetesPorClave, setPaquetesPorClave] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   /** Solo para quest: clase de cada heroe, para el subtitulo de su ficha. */
   const [heroClasses, setHeroClasses] = useState<HeroClass[]>([]);
@@ -146,6 +147,7 @@ export default function ArmyEditor() {
     // navega a otro no deberian arrastrarse las del anterior.
     setLibrosPorClave(new Map());
     setUnidadesPorLibro(new Map());
+    setPaquetesPorClave(new Map());
     setFacSeleccionada("");
     resolveArmy(armyId)
       .then(({ active: row, draft: pendiente }) => {
@@ -359,7 +361,7 @@ export default function ArmyEditor() {
 
   const noun = useMemo(() => armyNounFor(getGameSystem(form.gameSystem)), [form.gameSystem]);
   const quest = isQuestSystem(getGameSystem(form.gameSystem)?.id);
-  const units = useMemo(() => parseStoredList(listJson), [listJson]);
+  const unidadesGuardadas = useMemo(() => parseStoredList(listJson), [listJson]);
   const librosConocidos = useMemo(() => [...librosPorClave.values()], [librosPorClave]);
   const unidadesTodas = useMemo(() => [...unidadesPorLibro.values()].flat(), [unidadesPorLibro]);
   /** uid de Army Forge -> `bookKey` propio, para leer listas importadas multi-faccion. */
@@ -371,9 +373,20 @@ export default function ArmyEditor() {
   const registrarLibro = useCallback(
     async (libro: ArmyBook) => {
       setLibrosPorClave((prev) => (prev.has(libro.$id) ? prev : new Map(prev).set(libro.$id, libro)));
-      if (unidadesPorLibro.has(libro.$id)) return;
-      const unidades = await listCatalogUnits(libro.$id);
-      setUnidadesPorLibro((prev) => (prev.has(libro.$id) ? prev : new Map(prev).set(libro.$id, unidades)));
+      await Promise.all([
+        unidadesPorLibro.has(libro.$id)
+          ? Promise.resolve()
+          : listCatalogUnits(libro.$id).then((unidades) => {
+              setUnidadesPorLibro((prev) => (prev.has(libro.$id) ? prev : new Map(prev).set(libro.$id, unidades)));
+            }),
+        listUpgradePackages(libro.$id).then((paquetes) => {
+          setPaquetesPorClave((prev) => {
+            const siguiente = new Map(prev);
+            for (const [clave, secciones] of paquetes) siguiente.set(clave, secciones);
+            return siguiente;
+          });
+        }),
+      ]);
     },
     [unidadesPorLibro],
   );
@@ -465,6 +478,17 @@ export default function ArmyEditor() {
       return [];
     }
   }, [listJson, unidadesTodas, uidABookKey]);
+
+  const units = useMemo(() => {
+    if (!quest || entradasGuardadas.length === 0 || unidadesTodas.length === 0 || paquetesPorClave.size === 0) {
+      return unidadesGuardadas;
+    }
+
+    const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
+    const entradas = rehydrateEntries(entradasGuardadas, unidadesTodas, defaultBookKey);
+    if (entradas.length !== entradasGuardadas.length) return unidadesGuardadas;
+    return buildArmy(entradas, paquetesPorClave, heroClasses, form.gameSystem).units;
+  }, [entradasGuardadas, form.gameSystem, heroClasses, librosConocidos, paquetesPorClave, quest, unidadesGuardadas, unidadesTodas]);
   /**
    * Unidades a las que puede unirse el heroe que se esta editando: las del
    * ejercito que no son heroes, quitando la propia. El indice es el de la lista
@@ -1212,6 +1236,7 @@ export default function ArmyEditor() {
                   willpower: v.willpower,
                   power: v.power,
                   level: v.level,
+                  experience: v.experience,
                   gold: v.gold,
                 });
                 // "Clase · tipo de unidad" para el subtitulo de la ficha: solo

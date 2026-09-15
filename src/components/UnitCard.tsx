@@ -89,7 +89,7 @@ export interface UnitCardData {
   loadout: LoadoutEntry[] | unknown;
   /**
    * Atributos de heroe de quest (Fuerza, Destreza, Poder, Voluntad, mas
-   * Nivel y Oro de campana): no existen en el resto de sistemas, asi que
+   * Nivel, Experiencia y Oro de campana): no existen en el resto de sistemas, asi que
    * solo se pintan cuando llegan puestos.
    */
   strength?: number;
@@ -98,6 +98,8 @@ export interface UnitCardData {
   willpower?: number;
   /** Fijo en 1 por ahora: subir de nivel jugando no esta modelado todavia. */
   level?: number;
+  /** Fijo en 0 por ahora: ganar experiencia jugando no esta modelado todavia. */
+  experience?: number;
   /** Fijo en 30 (`questStartingGold`) por ahora: gastarlo en tienda no esta modelado todavia. */
   gold?: number;
 }
@@ -781,13 +783,16 @@ export default function UnitCard({
    * de cada columna.
    */
   // En quest el heroe no tiene miniaturas ni puntos de lista: la banda del
-  // titulo se queda solo con Cal/Def, como en el resto de sistemas. El resto
-  // de sus atributos —hay demasiados para una fila— van en una columna propia
-  // del cuerpo de la ficha (`atributosQuest`, mas abajo).
+  // titulo lleva su perfil de personaje completo.
   const stats: Array<[string, string]> = quest
     ? [
         ["Cal", `${unit.quality}+`],
         ["Def", `${unit.defense}+`],
+        ...(unit.maxWounds !== undefined ? ([["Agu", String(unit.maxWounds)]] as Array<[string, string]>) : []),
+        ...(unit.power !== undefined ? ([["Pow", String(unit.power)]] as Array<[string, string]>) : []),
+        ...(unit.strength !== undefined ? ([["Str", `${unit.strength}+`]] as Array<[string, string]>) : []),
+        ...(unit.dexterity !== undefined ? ([["Dex", `${unit.dexterity}+`]] as Array<[string, string]>) : []),
+        ...(unit.willpower !== undefined ? ([["Will", `${unit.willpower}+`]] as Array<[string, string]>) : []),
       ]
     : emparejada && adjunta
       ? [
@@ -804,19 +809,11 @@ export default function UnitCard({
           ...(unit.cost !== undefined ? ([["Pts", String(unit.cost)]] as Array<[string, string]>) : []),
         ];
 
-  // Los atributos de heroe de quest que no caben en la banda del titulo: cada
-  // uno solo aparece si llega puesto, mismo orden que el creador de heroes de
-  // Army Forge (Tou/Pod primero, luego Fue/Des/Vol), y Nivel/Oro al final,
-  // que son de campana, no de combate.
-  const atributosQuest: Array<[string, string]> = quest
+  const campanaQuest: Array<[string, string]> = quest
     ? [
-        ...(unit.maxWounds !== undefined ? ([["Aguante", String(unit.maxWounds)]] as Array<[string, string]>) : []),
-        ...(unit.power !== undefined ? ([["Poder", String(unit.power)]] as Array<[string, string]>) : []),
-        ...(unit.strength !== undefined ? ([["Fuerza", `${unit.strength}+`]] as Array<[string, string]>) : []),
-        ...(unit.dexterity !== undefined ? ([["Destreza", `${unit.dexterity}+`]] as Array<[string, string]>) : []),
-        ...(unit.willpower !== undefined ? ([["Voluntad", `${unit.willpower}+`]] as Array<[string, string]>) : []),
         ...(unit.level !== undefined ? ([["Nivel", String(unit.level)]] as Array<[string, string]>) : []),
-        ...(unit.gold !== undefined ? ([["Oro", String(unit.gold)]] as Array<[string, string]>) : []),
+        ...(unit.experience !== undefined ? ([["Experiencia", String(unit.experience)]] as Array<[string, string]>) : []),
+        ...(unit.gold !== undefined ? ([["Monedas", String(unit.gold)]] as Array<[string, string]>) : []),
       ]
     : [];
 
@@ -924,7 +921,7 @@ export default function UnitCard({
                 ) : null}
               </h3>
             )}
-            <div className="ucard-stats">
+            <div className={`ucard-stats${quest ? " quest" : ""}`}>
               {stats.map(([label, value]) => (
                 <div key={label} className="ucard-stat">
                   <span className="ucard-stat-key">{label}</span>
@@ -952,21 +949,22 @@ export default function UnitCard({
               <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />
 
               {quest ? (
-                // En quest hay demasiados atributos para la banda del titulo:
-                // van en su propia columna, aparte de reglas y equipo, para
-                // no mezclar "lo que el heroe es" con "lo que el heroe hace".
+                // En quest la columna lateral queda para seguimiento de
+                // campana; el perfil de atributos ya vive en la barra superior.
                 <div className="ucard-quest-cols">
-                  <div className="ucard-quest-atributos">
-                    <h4 className="ucard-bloque-title">Atributos</h4>
-                    <dl className="ucard-atributos-list">
-                      {atributosQuest.map(([label, value]) => (
-                        <div key={label} className="ucard-atributo-fila">
-                          <dt>{label}</dt>
-                          <dd>{value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
+                  {campanaQuest.length > 0 ? (
+                    <div className="ucard-quest-atributos">
+                      <h4 className="ucard-bloque-title">Campaña</h4>
+                      <dl className="ucard-campana-list">
+                        {campanaQuest.map(([label, value]) => (
+                          <div key={label} className="ucard-campana-fila">
+                            <dt>{label}</dt>
+                            <dd>{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  ) : null}
                   <div className="ucard-quest-habilidades">
                     <section className="ucard-bloque">
                       <h4 className="ucard-bloque-title">Reglas</h4>

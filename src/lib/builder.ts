@@ -11,7 +11,7 @@ import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 import { getGameSystem, isQuestSystem } from "./gameSystems";
 import type { GameSystemId } from "./gameSystems";
-import { perfilInicialQuest } from "./questHero";
+import { perfilInicialQuest, QUEST_STARTING_GOLD } from "./questHero";
 import type { HeroClass } from "./types";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
@@ -145,6 +145,85 @@ export function optionCost(option: UpgradeOption, unitId: string): number {
   return exact?.cost ?? costs[0]?.cost ?? 0;
 }
 
+function isQuestSystemId(gameSystem: GameSystemId | undefined): gameSystem is GameSystemId {
+  return gameSystem !== undefined && isQuestSystem(gameSystem);
+}
+
+function optionGains(option: UpgradeOption): Gain[] {
+  return option.gains ?? [];
+}
+
+function gainName(gain: Gain): string {
+  return gain.name ?? gain.label ?? "";
+}
+
+function gainIsWeapon(gain: Gain): boolean {
+  return gain.type?.includes("Weapon") === true || typeof gain.attacks === "number" || typeof gain.range === "number";
+}
+
+function gainHasForbiddenQuestRule(gain: Gain): boolean {
+  const name = gainName(gain);
+  const forbidden = name === "Caster" || name === "Spawn" || name === "Summon" || name.endsWith("Guard");
+  return forbidden || (gain.content ?? []).some(gainHasForbiddenQuestRule);
+}
+
+export function isForbiddenQuestPurchase(option: UpgradeOption): boolean {
+  return optionGains(option).some(gainHasForbiddenQuestRule);
+}
+
+function questDefaultGearOptions(entry: BuilderEntry, sections: UpgradeSection[], gameSystem?: GameSystemId): UpgradeOption[] {
+  if (!isQuestSystemId(gameSystem) || !esHeroe(entry.unit.rules)) return [];
+
+  const opciones: UpgradeOption[] = [];
+  let spent = 0;
+  const add = (option: UpgradeOption | undefined) => {
+    if (!option) return;
+    const cost = optionCost(option, entry.unit.unitId);
+    if (spent + cost > QUEST_STARTING_GOLD) return;
+    spent += cost;
+    opciones.push(option);
+  };
+  const find = (name: string) => {
+    for (const section of sections) {
+      for (const option of section.options ?? []) {
+        const cost = optionCost(option, entry.unit.unitId);
+        if (spent + cost > QUEST_STARTING_GOLD) continue;
+        if (optionGains(option).some((gain) => gainName(gain) === name)) return option;
+      }
+    }
+    return undefined;
+  };
+
+  if (entry.heroClassId?.endsWith("-pathfinder")) {
+    let best: { option: UpgradeOption; cost: number } | undefined;
+    for (const section of sections) {
+      for (const option of section.options ?? []) {
+        const cost = optionCost(option, entry.unit.unitId);
+        if (cost > 25 || spent + cost > QUEST_STARTING_GOLD) continue;
+        if (!optionGains(option).some((gain) => gainIsWeapon(gain) && (gain.range ?? 0) > 0)) continue;
+        if (!best || cost > best.cost) best = { option, cost };
+      }
+    }
+    add(best?.option);
+  }
+
+  add(find("Mystic Warding"));
+  add(find("Light Armor"));
+
+  for (const [first, second] of [
+    ["Health Potion", "Med Kit"],
+    ["Curing Potion", "Curing Kit"],
+  ] as const) {
+    for (let attempts = 0; attempts < 10 && spent < QUEST_STARTING_GOLD; attempts += 1) {
+      const option = find(first) ?? find(second);
+      if (!option) break;
+      add(option);
+    }
+  }
+
+  return opciones;
+}
+
 /**
  * Cuantas veces como maximo se puede coger una opcion de esta seccion.
  * `affects` habla de modelos: "exactly 1" es una vez, "up to 2" hasta dos, y
@@ -255,6 +334,7 @@ export function blockReason(
   option: UpgradeOption,
   entry: BuilderEntry,
   sections: UpgradeSection[] = [],
+  gameSystem?: GameSystemId,
 ): string | null {
   const id = optionId(option);
   const current = entry.choices[id] ?? 0;
@@ -269,6 +349,14 @@ export function blockReason(
   const limit = maxDistinctOptions(section);
   if (current === 0 && distinctChosen(section, entry.choices) >= limit) {
     return limit === 1 ? "Solo se puede elegir una opcion aqui." : `Como mucho ${limit} opciones distintas.`;
+  }
+  if (isQuestSystemId(gameSystem) && esHeroe(entry.unit.rules)) {
+    if (isForbiddenQuestPurchase(option)) return "Esta mejora no esta disponible para heroes de Quest.";
+    const spent = questGoldSpent(entry, sections, gameSystem);
+    const cost = optionCost(option, entry.unit.unitId);
+    if (spent + cost > QUEST_STARTING_GOLD) {
+      return `La tienda inicial admite como mucho ${QUEST_STARTING_GOLD} monedas.`;
+    }
   }
 
   // Sin `sections` no se puede saber con que ha quedado la unidad, asi que no
@@ -310,6 +398,21 @@ export function entryRules(entry: BuilderEntry, sections: UpgradeSection[]): str
     }
   }
   return [...new Set(rules.filter(Boolean))];
+}
+
+export function questGoldSpent(entry: BuilderEntry, sections: UpgradeSection[], gameSystem?: GameSystemId): number {
+  if (!isQuestSystemId(gameSystem) || !esHeroe(entry.unit.rules)) return 0;
+  let spent = questDefaultGearOptions(entry, sections, gameSystem).reduce(
+    (sum, option) => sum + optionCost(option, entry.unit.unitId),
+    0,
+  );
+  for (const section of sections) {
+    for (const option of section.options ?? []) {
+      const count = entry.choices[optionId(option)] ?? 0;
+      if (count > 0) spent += optionCost(option, entry.unit.unitId) * count;
+    }
+  }
+  return spent;
 }
 
 /** Las opciones elegidas, en texto, para poder leer la lista de un vistazo. */
@@ -363,8 +466,13 @@ export function necesitaClaseDeHeroe(entry: BuilderEntry, sections: UpgradeSecti
 }
 
 /** Las opciones elegidas, con la seccion que dice a que sustituyen. */
-export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]): AppliedOption[] {
+export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[], gameSystem?: GameSystemId): AppliedOption[] {
   const applied: AppliedOption[] = [];
+  const defaultCounts = new Map<string, number>();
+  for (const option of questDefaultGearOptions(entry, sections, gameSystem)) {
+    const id = optionId(option);
+    defaultCounts.set(id, (defaultCounts.get(id) ?? 0) + 1);
+  }
   for (const section of sections) {
     // Los limites se respetan al elegir, pero lo guardado puede venir de una
     // importacion o de una version anterior del libro. Sin acotar aqui, una
@@ -372,7 +480,8 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
     // unidad de cinco— sin que nada avise.
     const tope = maxPorOpcion(section, entry.unit.size);
     for (const option of section.options ?? []) {
-      const count = Math.min(entry.choices[optionId(option)] ?? 0, tope);
+      const id = optionId(option);
+      const count = Math.min(entry.choices[id] ?? 0, tope) + (defaultCounts.get(id) ?? 0);
       if (count > 0) {
         applied.push({
           variant: section.variant,
@@ -395,14 +504,14 @@ export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]):
  * sobre la unidad de siempre. Doblar aqui haria que un "Replace all" tuviera
  * que quitar diez cosas donde el catalogo cuenta cinco.
  */
-export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
+export function entryLoadout(entry: BuilderEntry, sections: UpgradeSection[], gameSystem?: GameSystemId): LoadoutEntry[] {
   const base = baseLoadout(entry.unit.weapons ?? null, entry.unit.items ?? null);
-  return applyOptions(base, appliedOptions(entry, sections));
+  return applyOptions(base, appliedOptions(entry, sections, gameSystem));
 }
 
 /** El equipo que sale a la mesa: el de la unidad normal, doblado si va combinada. */
-export function entryLoadoutFinal(entry: BuilderEntry, sections: UpgradeSection[]): LoadoutEntry[] {
-  const equipo = entryLoadout(entry, sections);
+export function entryLoadoutFinal(entry: BuilderEntry, sections: UpgradeSection[], gameSystem?: GameSystemId): LoadoutEntry[] {
+  const equipo = entryLoadout(entry, sections, gameSystem);
   const factor = factorCombinada(entry);
   return factor === 1 ? equipo : equipo.map((pieza) => ({ ...pieza, count: pieza.count * factor }));
 }
@@ -422,6 +531,7 @@ export function toResolvedUnit(
   const esHeroeDeQuest = gameSystem !== undefined && necesitaClaseDeHeroe(entry, sections, gameSystem);
   const clase = entry.heroClassId ? heroClasses.find((c) => c.$id === entry.heroClassId) : undefined;
   const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
+  const oroQuest = perfilQuest ? Math.max(0, QUEST_STARTING_GOLD - questGoldSpent(entry, sections, gameSystem)) : undefined;
   return {
     // Con nombre propio, ese es el que se ve; el tipo de unidad del catalogo
     // se guarda aparte en `unitTypeName`, para el subtitulo de la ficha.
@@ -441,12 +551,13 @@ export function toResolvedUnit(
           willpower: perfilQuest.willpower,
           power: perfilQuest.power,
           level: perfilQuest.level,
-          gold: perfilQuest.gold,
+          experience: perfilQuest.experience,
+          gold: oroQuest,
         }
       : {}),
     cost: entryCost(entry, sections),
     rules: rules.slice(0, 20),
-    loadout: entryLoadoutFinal(entry, sections),
+    loadout: entryLoadoutFinal(entry, sections, gameSystem),
     combined: entry.combined ? true : undefined,
     notes: entry.notes || undefined,
     upgrades: entryUpgradeLabels(entry, sections),

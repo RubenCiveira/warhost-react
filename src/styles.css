@@ -687,6 +687,10 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;
   background: var(--ucard-banda); color: var(--ucard-banda-texto);
 }
+.ucard-stats.quest { gap: 0.55mm; }
+.ucard-stats.quest .ucard-stat { width: 7.9mm; }
+.ucard-stats.quest .ucard-stat-key { font-size: 1.75mm; letter-spacing: 0.02em; }
+.ucard-stats.quest .ucard-stat-value { font-size: 2.85mm; }
 .ucard-stat:last-child { border-radius: 0 0.8mm 0.8mm 0; }
 .ucard-stat-key {
   display: block; color: var(--ucard-realce);
@@ -912,7 +916,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
    verdad necesitan (ver el comentario de mas arriba sobre por que esos dos no
    van a columnas). */
 .ucard-quest-cols { display: flex; gap: 3mm; margin-top: 2.4mm; padding: 0 2.5mm; flex: 0 0 auto; }
-.ucard-quest-atributos { flex: 0 0 22mm; }
+.ucard-quest-atributos { flex: 0 0 27mm; }
 .ucard-quest-habilidades { flex: 1; min-width: 0; }
 .ucard-quest-habilidades .ucard-bloque, .ucard-quest-habilidades .ucard-armas { margin-top: 0; padding: 0; }
 .ucard-quest-habilidades .ucard-bloque + * { margin-top: 1.6mm; }
@@ -920,6 +924,15 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard-atributo-fila { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.4mm; }
 .ucard-atributo-fila dt { color: var(--ucard-tenue); }
 .ucard-atributo-fila dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ucard-quest-campana { margin-top: 2mm; }
+.ucard-campana-list { margin: 0; display: grid; gap: 0.8mm; }
+.ucard-campana-fila { display: grid; grid-template-columns: 1fr 9mm; gap: 1.2mm; align-items: end; font-size: 2.2mm; }
+.ucard-campana-fila dt { color: var(--ucard-tenue); }
+.ucard-campana-fila dd {
+  min-height: 4.2mm; margin: 0; border: 0.35mm solid var(--ucard-filete);
+  border-radius: 1mm; text-align: center; font-weight: 600;
+  font-variant-numeric: tabular-nums; line-height: 3.6mm;
+}
 
 /* La tabla de equipo es la misma pieza que la de armas, con el objeto a la
    izquierda y lo que otorga a la derecha. */
