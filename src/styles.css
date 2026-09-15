@@ -670,6 +670,18 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   font-variant: var(--band-variant);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* El heroe de quest lleva nombre propio y, debajo, su clase y tipo de
+   unidad: la banda del titulo pasa a dos renglones apretados solo entonces. */
+.ucard-title.con-subtitulo {
+  flex-direction: column; align-items: flex-start; justify-content: center;
+  gap: 0.2mm; line-height: 1.05;
+}
+.ucard-title-nombre { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucard-subtitulo {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 2.1mm; font-weight: 500; letter-spacing: 0; text-transform: none;
+  font-variant: normal; opacity: 0.85;
+}
 .ucard-stats { display: flex; gap: 0.8mm; flex: 0 0 auto; }
 .ucard-stat {
   width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;

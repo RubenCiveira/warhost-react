@@ -11,6 +11,8 @@ import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 import { getGameSystem, isQuestSystem } from "./gameSystems";
 import type { GameSystemId } from "./gameSystems";
+import { perfilInicialQuest } from "./questHero";
+import type { HeroClass } from "./types";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
 export interface Quantifier {
@@ -79,6 +81,13 @@ export interface BuilderEntry {
    * vez de unirse a una unidad.
    */
   heroClassId?: string;
+  /**
+   * Nombre propio del heroe, puesto por el jugador. En quest cada heroe es un
+   * personaje con nombre, no una unidad generica del catalogo: sin esto la
+   * ficha solo podria mostrar el nombre del tipo de unidad, igual para todos
+   * los heroes de la misma clase.
+   */
+  customName?: string;
 }
 
 /**
@@ -315,7 +324,7 @@ export function entryUpgradeLabels(entry: BuilderEntry, sections: UpgradeSection
   return labels.filter(Boolean);
 }
 
-function toughOf(rules: string[]): number {
+export function toughOf(rules: string[]): number {
   for (const rule of rules) {
     const match = /^tough\((\d+)\)$/i.exec(rule.trim());
     if (match) return Number(match[1]);
@@ -402,17 +411,32 @@ export function toResolvedUnit(
   entry: BuilderEntry,
   sections: UpgradeSection[],
   index: number,
+  heroClasses: HeroClass[] = [],
+  gameSystem?: GameSystemId,
 ): ResolvedUnit {
   const rules = entryRules(entry, sections);
   const size = entry.unit.size * factorCombinada(entry);
+  // Un heroe de quest tiene perfil propio aunque todavia no haya elegido
+  // clase (el asistente ya lo ensena asi, con el perfil base): el mismo
+  // criterio de `necesitaClaseDeHeroe`, no si `heroClassId` esta puesto.
+  const esHeroeDeQuest = gameSystem !== undefined && necesitaClaseDeHeroe(entry, sections, gameSystem);
+  const clase = entry.heroClassId ? heroClasses.find((c) => c.$id === entry.heroClassId) : undefined;
+  const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
   return {
-    name: entry.unit.name,
+    // Con nombre propio, ese es el que se ve; el tipo de unidad del catalogo
+    // se guarda aparte en `unitTypeName`, para el subtitulo de la ficha.
+    name: entry.customName || entry.unit.name,
+    unitTypeName: entry.unit.name,
+    heroClassId: entry.heroClassId,
     unitKey: entry.unit.unitId,
     bookKey: entry.unit.bookKey,
     size,
-    quality: entry.unit.quality,
-    defense: entry.unit.defense,
-    maxWounds: size * toughOf(rules),
+    quality: perfilQuest?.quality ?? entry.unit.quality,
+    defense: perfilQuest?.defense ?? entry.unit.defense,
+    maxWounds: perfilQuest ? perfilQuest.tough : size * toughOf(rules),
+    ...(perfilQuest
+      ? { strength: perfilQuest.strength, dexterity: perfilQuest.dexterity, willpower: perfilQuest.willpower, power: perfilQuest.power }
+      : {}),
     cost: entryCost(entry, sections),
     rules: rules.slice(0, 20),
     loadout: entryLoadoutFinal(entry, sections),
@@ -433,9 +457,11 @@ export interface BuiltArmy {
 export function buildArmy(
   entries: BuilderEntry[],
   packages: Map<string, UpgradeSection[]>,
+  heroClasses: HeroClass[] = [],
+  gameSystem?: GameSystemId,
 ): BuiltArmy {
   const units = entries.map((entry, index) =>
-    toResolvedUnit(entry, sectionsForUnit(entry.unit, packages), index),
+    toResolvedUnit(entry, sectionsForUnit(entry.unit, packages), index, heroClasses, gameSystem),
   );
   return {
     units,
@@ -467,6 +493,8 @@ export interface StoredEntry {
   attachedTo?: number;
   /** `$id` de `hero_classes` elegida. Solo se usa en Star Quest / Fantasy Quest. */
   heroClassId?: string;
+  /** Nombre propio del heroe, puesto por el jugador. */
+  customName?: string;
 }
 
 export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
@@ -481,6 +509,7 @@ export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
       ...(entry.notes ? { notes: entry.notes } : {}),
       ...(indiceUnion !== undefined ? { attachedTo: indiceUnion } : {}),
       ...(entry.heroClassId ? { heroClassId: entry.heroClassId } : {}),
+      ...(entry.customName ? { customName: entry.customName } : {}),
     };
   });
 }
@@ -534,6 +563,7 @@ export function rehydrateEntries(
       ...(item.combined ? { combined: true } : {}),
       ...(typeof item.notes === "string" && item.notes ? { notes: item.notes } : {}),
       ...(typeof item.heroClassId === "string" && item.heroClassId ? { heroClassId: item.heroClassId } : {}),
+      ...(typeof item.customName === "string" && item.customName ? { customName: item.customName } : {}),
     };
     return [{ entry, indice, attachedTo: typeof item.attachedTo === "number" ? item.attachedTo : undefined }];
   });
@@ -555,6 +585,8 @@ interface ForgeListShape {
       selectedUpgrades?: Array<{ optionId?: string }>;
       combined?: boolean;
       notes?: string | null;
+      /** Nombre propio puesto en Army Forge, para heroes de quest. */
+      customName?: string | null;
       /** Puesto en la segunda mitad de una unidad combinada. */
       joinToUnit?: string | null;
     }>;
@@ -602,6 +634,7 @@ export function entriesFromForgeList(
         choices,
         ...(forgeUnit.combined && sePuedeCombinar(unit) ? { combined: true } : {}),
         ...(typeof forgeUnit.notes === "string" && forgeUnit.notes ? { notes: forgeUnit.notes } : {}),
+        ...(typeof forgeUnit.customName === "string" && forgeUnit.customName ? { customName: forgeUnit.customName } : {}),
       },
     ];
   });

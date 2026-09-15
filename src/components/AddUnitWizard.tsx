@@ -14,9 +14,11 @@ import {
   optionCost,
   optionId,
   sectionsForUnit,
+  toughOf,
 } from "../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../lib/builder";
 import { baseLoadout } from "../lib/loadout";
+import { perfilInicialQuest } from "../lib/questHero";
 import { armyNounFor, getGameSystem, isQuestSystem } from "../lib/gameSystems";
 import { errorMessage } from "../lib/format";
 import type { HeroClass } from "../lib/types";
@@ -37,6 +39,8 @@ export interface UnidadEnEdicion {
   attachedTo?: number;
   /** `$id` de `hero_classes` elegida. Solo en Star Quest / Fantasy Quest. */
   heroClassId?: string;
+  /** Nombre propio del heroe, puesto por el jugador. */
+  customName?: string;
 }
 
 /** Una unidad del ejercito a la que un heroe puede unirse. */
@@ -124,6 +128,7 @@ export default function AddUnitWizard({
               combined: editando.combined,
               notes: editando.notes,
               heroClassId: editando.heroClassId,
+              customName: editando.customName,
             });
             setUnirA(editando.attachedTo ?? null);
           }
@@ -195,23 +200,61 @@ export default function AddUnitWizard({
   const sections = entry ? sectionsForUnit(entry.unit, packages) : [];
 
   // La carta ensena la unidad tal como sale a la mesa: si va combinada, con el
-  // tamano, el coste y el equipo ya doblados.
-  const tarjeta = (actual: BuilderEntry) => ({
-    name: actual.unit.name,
-    size: actual.unit.size * (actual.combined ? 2 : 1),
-    quality: actual.unit.quality,
-    defense: actual.unit.defense,
-    cost: entryCost(actual, sections),
-    rules: entryRules(actual, sections),
-    loadout: entryLoadoutFinal(actual, sections),
-  });
+  // tamano, el coste y el equipo ya doblados. En quest, Calidad/Defensa/
+  // Aguante no salen del catalogo: salen del perfil inicial de heroe (ver
+  // questHero.ts), que solo depende de la clase elegida.
+  const tarjeta = (actual: BuilderEntry) => {
+    const rules = entryRules(actual, sections);
+    const esHeroeDeQuest = book && necesitaClaseDeHeroe(actual, sections, book.gameSystem);
+    const clase = heroClasses.find((candidata) => candidata.$id === actual.heroClassId);
+    const perfilQuest = esHeroeDeQuest ? perfilInicialQuest(clase, toughOf(rules)) : null;
+    return {
+      name: actual.customName || actual.unit.name,
+      size: actual.unit.size * (actual.combined ? 2 : 1),
+      quality: perfilQuest?.quality ?? actual.unit.quality,
+      defense: perfilQuest?.defense ?? actual.unit.defense,
+      cost: entryCost(actual, sections),
+      rules,
+      loadout: entryLoadoutFinal(actual, sections),
+      ...(perfilQuest ? { maxWounds: perfilQuest.tough } : {}),
+      ...(perfilQuest
+        ? {
+            strength: perfilQuest.strength,
+            dexterity: perfilQuest.dexterity,
+            willpower: perfilQuest.willpower,
+            power: perfilQuest.power,
+          }
+        : {}),
+    };
+  };
 
   const requiereClase = Boolean(entry && book && necesitaClaseDeHeroe(entry, sections, book.gameSystem));
   const faltaClase = requiereClase && !entry?.heroClassId;
+  const quest = Boolean(book && isQuestSystem(book.gameSystem));
 
-  const controlesDeUnidad = (actual: BuilderEntry) => (
-    <>
-      {book && necesitaClaseDeHeroe(actual, sections, book.gameSystem) ? (
+  /** "Clase · tipo de unidad" para el subtitulo de la ficha, solo en quest. */
+  const subtituloDe = (actual: BuilderEntry) => {
+    if (!quest) return undefined;
+    const clase = heroClasses.find((candidata) => candidata.$id === actual.heroClassId)?.name;
+    return [clase, actual.unit.name].filter(Boolean).join(" · ");
+  };
+
+  /**
+   * Nombre propio y clase del heroe: van antes de la ficha, no en su pie,
+   * porque son lo primero que hace falta decidir y la ficha se recalcula con
+   * cada cambio —el nombre en el titulo, la clase en todos los atributos—.
+   */
+  const controlesDeHeroeQuest = (actual: BuilderEntry) =>
+    book && necesitaClaseDeHeroe(actual, sections, book.gameSystem) ? (
+      <div className="row" style={{ marginBottom: 8 }}>
+        <input
+          type="text"
+          placeholder="Nombre del heroe"
+          value={actual.customName ?? ""}
+          onChange={(event) =>
+            setEntry((previo) => (previo ? { ...previo, customName: event.target.value } : previo))
+          }
+        />
         <label className="check tiny">
           Clase
           <select
@@ -228,7 +271,11 @@ export default function AddUnitWizard({
             ))}
           </select>
         </label>
-      ) : null}
+      </div>
+    ) : null;
+
+  const controlesDeUnidad = (actual: BuilderEntry) => (
+    <>
       {sePuedeCombinar(actual.unit) ? (
         <label className="check tiny">
           <input
@@ -323,6 +370,7 @@ export default function AddUnitWizard({
                       variant="catalogo"
                       formato="hoja"
                       unitId={unit.unitId}
+                      quest={quest}
                       glosario={glosario}
                       onHabilidad={setHabilidad}
                       sections={sectionsForUnit(unit, packages)}
@@ -354,10 +402,13 @@ export default function AddUnitWizard({
               Personaliza <strong>{entry.unit.name}</strong>. Los limites de cada seccion son los del libro de{" "}
               {noun.singular}.
             </p>
+            {controlesDeHeroeQuest(entry)}
             <div className="wizard-single">
               <UnitCard
                 variant="ejercito"
                 unitId={entry.unit.unitId}
+                quest={quest}
+                subtitulo={subtituloDe(entry)}
                 glosario={glosario}
                 onHabilidad={setHabilidad}
                 sections={sections}
@@ -421,6 +472,8 @@ export default function AddUnitWizard({
             <div className="wizard-single">
               <UnitCard
                 variant="ejercito"
+                quest={quest}
+                subtitulo={subtituloDe(entry)}
                 unit={tarjeta(entry)}
                 combinada={entry.combined}
                 notas={entry.notes}
@@ -451,7 +504,7 @@ export default function AddUnitWizard({
 
       {habilidad ? (
         <div className="sobre-modal">
-          <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+          <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
         </div>
       ) : null}
     </div>

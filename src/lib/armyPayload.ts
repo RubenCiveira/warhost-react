@@ -9,6 +9,7 @@ import { buildArmy, serializeEntries } from "./builder";
 import type { BuilderEntry, UpgradeSection } from "./builder";
 import { getGameSystem } from "./gameSystems";
 import type { GameSystemId, Setting } from "./gameSystems";
+import type { HeroClass } from "./types";
 
 export interface LibroDeOrigen {
   $id: string;
@@ -73,9 +74,10 @@ export function composeArmyPayload(
   books: LibroDeOrigen[],
   name: string,
   listId = "",
+  heroClasses: HeroClass[] = [],
 ): ArmyPayload {
-  const built = buildArmy(entries, packages);
   const principal = books[0];
+  const built = buildArmy(entries, packages, heroClasses, principal?.gameSystem);
   const nombre = name.trim() || principal?.name || "";
 
   // Puntos por libro, para saber cual pesa mas: los libros que se quedaron

@@ -180,6 +180,17 @@ export interface HeroClass extends Row {
   classFeatText: string | null;
   /** Lista de `HeroSkill`, serializada en JSON. */
   skills: string;
+  /**
+   * Que atributos (Fuerza/Destreza/Voluntad) mejora esta clase gratis al
+   * crear el heroe, antes de subir ningun nivel. Transcrito del creador de
+   * heroes de Army Forge: cada clase trae 2 elecciones fijas.
+   */
+  abilityChoices: string[];
+  /**
+   * Que mejoras de combate (las mismas opciones que al subir de nivel, ver
+   * `HeroCombatStatChoice`) trae esta clase gratis al crear el heroe.
+   */
+  combatStatChoices: string[];
   verified: boolean;
   sourceVersion: string | null;
   sortOrder: number;

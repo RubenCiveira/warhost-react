@@ -54,7 +54,19 @@ export async function listHeroClasses(gameSystem: GameSystemId): Promise<HeroCla
 /** Corrige una clase de heroe. Solo lo permite la tabla a quien lleve la etiqueta `editor`. */
 export async function saveHeroClass(
   id: string,
-  cambios: Partial<Pick<HeroClass, "name" | "description" | "classFeatName" | "classFeatText" | "skills" | "verified">>,
+  cambios: Partial<
+    Pick<
+      HeroClass,
+      | "name"
+      | "description"
+      | "classFeatName"
+      | "classFeatText"
+      | "skills"
+      | "abilityChoices"
+      | "combatStatChoices"
+      | "verified"
+    >
+  >,
 ): Promise<HeroClass> {
   return tables.updateRow<HeroClass>({
     databaseId: env.databaseId,

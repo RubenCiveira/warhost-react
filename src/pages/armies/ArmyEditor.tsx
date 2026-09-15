@@ -25,7 +25,7 @@ import {
 } from "../../api/armyForge";
 import { requiredBookUids } from "../../lib/armyForgeResolve";
 import type { ArmyForgeList } from "../../lib/armyForgeResolve";
-import type { Army } from "../../lib/types";
+import type { Army, HeroClass } from "../../lib/types";
 import { errorMessage, formatDateTime } from "../../lib/format";
 import { EmptyState, ErrorBanner, Spinner } from "../../components/ui";
 import UnitCard from "../../components/UnitCard";
@@ -48,6 +48,7 @@ import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/ca
 import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import { composeArmyPayload, sourceBooks } from "../../lib/armyPayload";
+import { listHeroClasses } from "../../api/content";
 
 interface FormState {
   name: string;
@@ -111,6 +112,8 @@ export default function ArmyEditor() {
   const [librosPorClave, setLibrosPorClave] = useState<Map<string, ArmyBook>>(new Map());
   const [unidadesPorLibro, setUnidadesPorLibro] = useState<Map<string, ArmyUnit[]>>(new Map());
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
+  /** Solo para quest: clase de cada heroe, para el subtitulo de su ficha. */
+  const [heroClasses, setHeroClasses] = useState<HeroClass[]>([]);
   /** `bookKey` elegido en el buscador: con esa faccion se anade la siguiente unidad. */
   const [facSeleccionada, setFacSeleccionada] = useState("");
   const [textoFaccion, setTextoFaccion] = useState("");
@@ -429,6 +432,18 @@ export default function ArmyEditor() {
     };
   }, [form.gameSystem]);
 
+  /** Solo hace falta en quest, para el subtitulo de la ficha de cada heroe. */
+  useEffect(() => {
+    if (!quest) return undefined;
+    let cancelado = false;
+    listHeroClasses(form.gameSystem)
+      .then((rows) => !cancelado && setHeroClasses(rows))
+      .catch(() => undefined);
+    return () => {
+      cancelado = true;
+    };
+  }, [quest, form.gameSystem]);
+
   /**
    * Las elecciones guardadas. Van en el mismo orden que las unidades —las
    * escribe `composeArmyPayload` del mismo array—, asi que el `sortOrder` de
@@ -715,6 +730,7 @@ export default function ArmyEditor() {
         librosConocidos,
         form.name,
         form.listId,
+        heroClasses,
       );
 
       const destino = await conBorrador();
@@ -788,6 +804,7 @@ export default function ArmyEditor() {
         librosTotal,
         form.name,
         form.listId,
+        heroClasses,
       );
 
       const destino = await conBorrador();
@@ -1190,7 +1207,19 @@ export default function ArmyEditor() {
                   maxWounds: v.maxWounds,
                   rules: v.rules,
                   loadout: v.loadout,
+                  strength: v.strength,
+                  dexterity: v.dexterity,
+                  willpower: v.willpower,
+                  power: v.power,
                 });
+                // "Clase · tipo de unidad" para el subtitulo de la ficha: solo
+                // en quest, donde el nombre de arriba es el propio del heroe.
+                const subtituloDe = (v: (typeof fila)["principal"]) =>
+                  quest
+                    ? [heroClasses.find((clase) => clase.$id === v.heroClassId)?.name, v.unitTypeName]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : undefined;
                 // Solo en el borrador: sobre el ejercito publicado la vista es
                 // de consulta y no ensena nada que se pueda tocar.
                 const acciones = (indice: number, nombre: string) =>
@@ -1213,6 +1242,8 @@ export default function ArmyEditor() {
                   <div key={fila.key} className="army-slide">
                     <UnitCard
                       variant="ejercito"
+                      quest={quest}
+                      subtitulo={subtituloDe(u)}
                       upgrades={u.upgrades ?? []}
                       glosario={glosario}
                       onHabilidad={setHabilidad}

@@ -107,10 +107,19 @@ export interface ResolvedUnit {
   unitKey: string | null;
   /** Libro propio de origen, cuando se conoce: permite agrupar puntos por faccion. */
   bookKey?: string;
+  /** Nombre del tipo de unidad del catalogo, cuando `name` es un nombre propio de heroe. */
+  unitTypeName?: string;
+  /** `$id` de `hero_classes` elegida. Solo en Star Quest / Fantasy Quest. */
+  heroClassId?: string;
   size: number;
   quality: number;
   defense: number;
   maxWounds: number;
+  /** Atributos de heroe de quest: solo llegan puestos cuando `heroClassId` esta presente. */
+  strength?: number;
+  dexterity?: number;
+  willpower?: number;
+  power?: number;
   /** Aproximado: no cuenta las mejoras que ya no existen en el libro. */
   cost: number;
   rules: string[];
@@ -254,6 +263,7 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
 
   return {
     name: unit.customName || definition?.name || `Unidad ${index + 1}`,
+    unitTypeName: definition?.name,
     unitKey: unit.selectionId ?? unit.id ?? null,
     size,
     quality: definition?.quality ?? 4,

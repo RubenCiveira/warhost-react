@@ -1,12 +1,22 @@
 import { useState } from "react";
 import type { HeroClass, HeroSkill, HeroSkillStat } from "../lib/types";
 import { parseHeroSkills } from "../lib/types";
+import {
+  HERO_ABILITY_CHOICES,
+  HERO_ABILITY_LABEL,
+  HERO_COMBAT_STAT_CHOICES,
+  HERO_COMBAT_STAT_LABEL,
+} from "../lib/questHero";
+import type { HeroAbilityChoice, HeroCombatStatChoice } from "../lib/questHero";
 
 const STAT_LABEL: Record<HeroSkillStat, string> = {
   strength: "Str",
   dexterity: "Dex",
   willpower: "Wil",
 };
+
+/** Dos huecos fijos: es lo que trae cada clase real en Army Forge. */
+const HUECOS_INICIALES = [0, 1] as const;
 
 const TIER_LABEL: Record<HeroSkill["tier"], string> = {
   0: "Habilidades iniciales",
@@ -50,6 +60,8 @@ export default function HeroClassCard({
     classFeatName: heroClass.classFeatName ?? "",
     classFeatText: heroClass.classFeatText ?? "",
     skills: parseHeroSkills(heroClass.skills),
+    abilityChoices: heroClass.abilityChoices ?? [],
+    combatStatChoices: heroClass.combatStatChoices ?? [],
   }));
 
   function actualizarSkill(index: number, cambios: Partial<HeroSkill>) {
@@ -57,6 +69,20 @@ export default function HeroClassCard({
       ...previo,
       skills: previo.skills.map((skill, i) => (i === index ? { ...skill, ...cambios } : skill)),
     }));
+  }
+
+  /**
+   * Cambia el hueco `index` de una de las dos listas de elecciones iniciales.
+   * Los huecos vacios ("— ninguna —") se guardan como cadena vacia y se
+   * descartan al guardar, no se recolocan los demas huecos.
+   */
+  function actualizarEleccion(lista: "abilityChoices" | "combatStatChoices", index: number, valor: string) {
+    setBorrador((previo) => {
+      const siguiente = [...previo[lista]];
+      while (siguiente.length <= index) siguiente.push("");
+      siguiente[index] = valor;
+      return { ...previo, [lista]: siguiente };
+    });
   }
 
   async function guardar() {
@@ -69,6 +95,8 @@ export default function HeroClassCard({
         classFeatName: borrador.classFeatName.trim() || null,
         classFeatText: borrador.classFeatText.trim() || null,
         skills: JSON.stringify(borrador.skills),
+        abilityChoices: borrador.abilityChoices.filter(Boolean),
+        combatStatChoices: borrador.combatStatChoices.filter(Boolean),
       });
       setEditando(false);
     } finally {
@@ -131,6 +159,59 @@ export default function HeroClassCard({
             <p style={{ margin: 0 }}>
               <strong>{heroClass.classFeatName}: </strong>
               {heroClass.classFeatText}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {!esDefault && (editando || heroClass.abilityChoices?.length || heroClass.combatStatChoices?.length) ? (
+        <div className="card" style={{ background: "var(--surface-2)", marginTop: 12 }}>
+          <h4 className="muted small" style={{ margin: "0 0 6px" }}>
+            Al crear el heroe (gratis, sin subir de nivel)
+          </h4>
+          {editando ? (
+            <div className="stack" style={{ gap: 8 }}>
+              <div className="row" style={{ gap: 6 }}>
+                {HUECOS_INICIALES.map((hueco) => (
+                  <select
+                    key={hueco}
+                    value={borrador.abilityChoices[hueco] ?? ""}
+                    aria-label={`Mejora de atributo ${hueco + 1}`}
+                    onChange={(event) => actualizarEleccion("abilityChoices", hueco, event.target.value)}
+                  >
+                    <option value="">— ningun atributo —</option>
+                    {HERO_ABILITY_CHOICES.map((opcion) => (
+                      <option key={opcion} value={opcion}>
+                        {HERO_ABILITY_LABEL[opcion as HeroAbilityChoice]}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+              <div className="row" style={{ gap: 6 }}>
+                {HUECOS_INICIALES.map((hueco) => (
+                  <select
+                    key={hueco}
+                    value={borrador.combatStatChoices[hueco] ?? ""}
+                    aria-label={`Mejora de combate ${hueco + 1}`}
+                    onChange={(event) => actualizarEleccion("combatStatChoices", hueco, event.target.value)}
+                  >
+                    <option value="">— ninguna mejora de combate —</option>
+                    {HERO_COMBAT_STAT_CHOICES.map((opcion) => (
+                      <option key={opcion} value={opcion}>
+                        {HERO_COMBAT_STAT_LABEL[opcion as HeroCombatStatChoice]}
+                      </option>
+                    ))}
+                  </select>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="small" style={{ margin: 0 }}>
+              {[
+                ...(heroClass.abilityChoices ?? []).map((c) => HERO_ABILITY_LABEL[c as HeroAbilityChoice] ?? c),
+                ...(heroClass.combatStatChoices ?? []).map((c) => HERO_COMBAT_STAT_LABEL[c as HeroCombatStatChoice] ?? c),
+              ].join(" · ") || "Sin elecciones iniciales todavia."}
             </p>
           )}
         </div>

@@ -87,6 +87,16 @@ export interface UnitCardData {
   maxWounds?: number;
   rules: string[];
   loadout: LoadoutEntry[] | unknown;
+  /**
+   * Atributos de heroe de quest (Fuerza, Destreza, Poder, Voluntad): no
+   * existen en el resto de sistemas, asi que solo se pintan cuando llegan
+   * puestos. La Experiencia no es un atributo de la ficha en Army Forge —
+   * se muestra como nivel, no como stat— y no se modela aqui todavia.
+   */
+  strength?: number;
+  dexterity?: number;
+  power?: number;
+  willpower?: number;
 }
 
 interface Props {
@@ -128,6 +138,17 @@ interface Props {
   combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
   notas?: string;
+  /**
+   * Segunda linea del titulo: en quest, la clase del heroe y el tipo de
+   * unidad del catalogo del que sale ("Berserker · Grunt Veteran"). El resto
+   * de sistemas no la usan.
+   */
+  subtitulo?: string;
+  /**
+   * Heroe de un sistema quest: ni miniaturas ni puntos ni heridas aparte, y en
+   * su lugar los cinco atributos (los que lleguen puestos en `unit`).
+   */
+  quest?: boolean;
   glosario?: GlosarioCarta;
   /** Abrir la carta de una habilidad o de un equipo. */
   onHabilidad?: (habilidad: Habilidad) => void;
@@ -707,6 +728,8 @@ export default function UnitCard({
   accionAdjunta,
   combinada = false,
   notas,
+  subtitulo,
+  quest = false,
   glosario,
   onHabilidad,
 }: Props) {
@@ -754,8 +777,21 @@ export default function UnitCard({
    * pareja entera —cuantas miniaturas hay, cuanto cuesta—. El resto vive dentro
    * de cada columna.
    */
-  const stats: Array<[string, string]> =
-    emparejada && adjunta
+  // En quest el heroe no tiene miniaturas ni puntos de lista: en su lugar van
+  // el Aguante y los atributos propios, los que hayan llegado puestos. Mismo
+  // orden que el creador de heroes de Army Forge: Cal, Def, Tou, Pod, luego
+  // Fue/Des/Vol.
+  const stats: Array<[string, string]> = quest
+    ? [
+        ["Cal", `${unit.quality}+`],
+        ["Def", `${unit.defense}+`],
+        ...(unit.maxWounds !== undefined ? ([["Agu", String(unit.maxWounds)]] as Array<[string, string]>) : []),
+        ...(unit.power !== undefined ? ([["Pod", String(unit.power)]] as Array<[string, string]>) : []),
+        ...(unit.strength !== undefined ? ([["Fue", `${unit.strength}+`]] as Array<[string, string]>) : []),
+        ...(unit.dexterity !== undefined ? ([["Des", `${unit.dexterity}+`]] as Array<[string, string]>) : []),
+        ...(unit.willpower !== undefined ? ([["Vol", `${unit.willpower}+`]] as Array<[string, string]>) : []),
+      ]
+    : emparejada && adjunta
       ? [
           ["Min", String(unit.size + adjunta.size)],
           ...(unit.cost !== undefined || adjunta.cost !== undefined
@@ -855,15 +891,25 @@ export default function UnitCard({
           }`}
         >
           <header className="ucard-head">
-            <h3 className="ucard-title">
-              {unit.name}
-              {emparejada && adjunta ? <span className="ucard-mas-heroe">+ {adjunta.name}</span> : null}
-              {/* El perfil de una combinada ya viene doblado, asi que hay que
-                  decirlo o parecera que la unidad es de otro tamaño. */}
-              {combinada || (emparejada && adjunta?.combinada) ? (
-                <span className="ucard-combinada">Combinada</span>
-              ) : null}
-            </h3>
+            {subtitulo ? (
+              // El heroe de quest lleva su nombre propio y, debajo, su clase y
+              // el tipo de unidad del que sale: nunca va emparejado ni
+              // combinado, asi que no hace falta el resto de adornos.
+              <h3 className="ucard-title con-subtitulo">
+                <span className="ucard-title-nombre">{unit.name}</span>
+                <span className="ucard-subtitulo">{subtitulo}</span>
+              </h3>
+            ) : (
+              <h3 className="ucard-title">
+                {unit.name}
+                {emparejada && adjunta ? <span className="ucard-mas-heroe">+ {adjunta.name}</span> : null}
+                {/* El perfil de una combinada ya viene doblado, asi que hay que
+                    decirlo o parecera que la unidad es de otro tamaño. */}
+                {combinada || (emparejada && adjunta?.combinada) ? (
+                  <span className="ucard-combinada">Combinada</span>
+                ) : null}
+              </h3>
+            )}
             <div className="ucard-stats">
               {stats.map(([label, value]) => (
                 <div key={label} className="ucard-stat">
