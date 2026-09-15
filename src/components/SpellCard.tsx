@@ -1,5 +1,8 @@
+import type { CatalogRule } from "../api/catalog";
 import type { Spell } from "../lib/spells";
+import type { Habilidad } from "../lib/reglas";
 import { densidadScard } from "../lib/cardDensity";
+import TextoConReferencias from "./TextoConReferencias";
 
 /**
  * Hechizo como carta Mini Euro vertical, 44 x 68 mm.
@@ -9,7 +12,18 @@ import { densidadScard } from "../lib/cardDensity";
  * texto cae en una columna comoda y el valor manda desde la cabecera, que es
  * como se busca un hechizo en mesa.
  */
-export default function SpellCard({ spell, faction }: { spell: Spell; faction?: string | null }) {
+export default function SpellCard({
+  spell,
+  faction,
+  glosario,
+  onAbrir,
+}: {
+  spell: Spell;
+  faction?: string | null;
+  /** Con esto, las menciones a otras reglas en el efecto se abren como referencia cruzada. */
+  glosario?: Map<string, CatalogRule>;
+  onAbrir?: (habilidad: Habilidad) => void;
+}) {
   return (
     <div className="scard-frame">
       <article className={`scard${densidadScard(spell.effect)}`}>
@@ -22,7 +36,9 @@ export default function SpellCard({ spell, faction }: { spell: Spell; faction?: 
         </header>
 
         <div className="scard-body">
-          <p className="scard-efecto">{spell.effect}</p>
+          <p className="scard-efecto">
+            <TextoConReferencias texto={spell.effect} glosario={glosario} onAbrir={onAbrir} />
+          </p>
         </div>
 
         <footer className="scard-foot">

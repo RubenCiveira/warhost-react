@@ -37,3 +37,42 @@ export function conValor(descripcion: string, valor: string | null): string {
   if (!valor) return descripcion;
   return descripcion.replace(/\bX\b/g, valor);
 }
+
+/** Escapa un nombre para meterlo literal dentro de un regex. */
+function escapado(texto: string): string {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Trocea un texto libre —la descripcion de una regla, un hechizo o un
+ * objeto— separando las menciones a otras reglas del glosario, para poder
+ * pintarlas como referencias pulsables en vez de texto suelto.
+ *
+ * Igual que `mencionada()` en `faccion.ts`, exige mayusculas exactas y palabra
+ * completa: las reglas del reglamento se nombran en capital ("gets AP(+4)"),
+ * y sin eso una palabra corriente como "hit" se colaria como si "Hit" fuera
+ * una regla real. `propio` excluye el nombre de la propia regla, para que su
+ * carta no se enlace a si misma cuando se repite en su descripcion.
+ */
+export function resaltarMenciones(
+  texto: string,
+  glosario: Map<string, { name: string }>,
+  propio?: string,
+): (string | Habilidad)[] {
+  const candidatas = [...glosario.values()]
+    .filter((regla) => regla.name.toLowerCase() !== propio?.toLowerCase())
+    .sort((a, b) => b.name.length - a.name.length);
+  if (candidatas.length === 0) return [texto];
+
+  const patron = new RegExp(`\\b(${candidatas.map((regla) => escapado(regla.name)).join("|")})(\\(\\+?-?\\d+\\))?\\b`, "g");
+  const partes: (string | Habilidad)[] = [];
+  let ultimo = 0;
+  for (const match of texto.matchAll(patron)) {
+    if (match.index === undefined) continue;
+    if (match.index > ultimo) partes.push(texto.slice(ultimo, match.index));
+    partes.push(parseHabilidad(match[0], "regla"));
+    ultimo = match.index + match[0].length;
+  }
+  if (ultimo < texto.length) partes.push(texto.slice(ultimo));
+  return partes;
+}

@@ -204,7 +204,7 @@ export default function CatalogBook() {
         </div>
       ) : null}
       {habilidad ? (
-        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
       ) : null}
 
       {admin ? null : (
@@ -255,7 +255,12 @@ export default function CatalogBook() {
             <div className="army-strip">
               {habilidades.map((regla) => (
                 <div key={regla.$id} className="army-slide">
-                  <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+                  <RuleCard
+                    habilidad={parseHabilidad(regla.name, "regla")}
+                    regla={regla}
+                    glosario={glosario}
+                    onAbrir={setHabilidad}
+                  />
                 </div>
               ))}
             </div>
@@ -276,6 +281,8 @@ export default function CatalogBook() {
                     habilidad={pieza.habilidad}
                     regla={glosario.get(pieza.habilidad.nombre.toLowerCase())}
                     lleva={pieza.unidades}
+                    glosario={glosario}
+                    onAbrir={setHabilidad}
                   />
                 </div>
               ))}
@@ -294,7 +301,12 @@ export default function CatalogBook() {
             <div className="army-strip">
               {hechizos.map((hechizo) => (
                 <div key={hechizo.key} className="army-slide">
-                  <SpellCard spell={hechizo} faction={book.factionName ?? book.name} />
+                  <SpellCard
+                    spell={hechizo}
+                    faction={book.factionName ?? book.name}
+                    glosario={glosario}
+                    onAbrir={setHabilidad}
+                  />
                 </div>
               ))}
             </div>
@@ -315,7 +327,12 @@ export default function CatalogBook() {
             <div className="army-strip">
               {generales.map((regla) => (
                 <div key={regla.$id} className="army-slide">
-                  <RuleCard habilidad={parseHabilidad(regla.name, "regla")} regla={regla} />
+                  <RuleCard
+                    habilidad={parseHabilidad(regla.name, "regla")}
+                    regla={regla}
+                    glosario={glosario}
+                    onAbrir={setHabilidad}
+                  />
                 </div>
               ))}
             </div>

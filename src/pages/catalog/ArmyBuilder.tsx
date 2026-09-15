@@ -418,7 +418,7 @@ export default function ArmyBuilder() {
 
       <ErrorBanner error={error} />
       {habilidad ? (
-        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} />
+        <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
       ) : null}
       {warning ? <div className="banner">{warning}</div> : null}
       {over ? (

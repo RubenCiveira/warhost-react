@@ -1369,6 +1369,14 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .ucard-chip-concede:hover:not(:disabled) { color: var(--ucard-tinta); background: #e2dbc8; }
 
+/* Una mencion a otra regla dentro de un texto libre: sin caja, para no romper
+   la lectura de la frase, pero marcada como pulsable. */
+.regla-mencion {
+  font: inherit; color: inherit; background: none; border: none; padding: 0;
+  cursor: pointer; text-decoration: underline dotted; text-underline-offset: 0.2em;
+}
+.regla-mencion:hover { color: var(--ucard-trim, var(--accent)); }
+
 /* La carta de una regla se abre sola, sin caja alrededor: es la carta lo que se
    mira, no un dialogo con una carta dentro. */
 .regla-modal { display: flex; flex-direction: column; align-items: center; gap: 12px; }
