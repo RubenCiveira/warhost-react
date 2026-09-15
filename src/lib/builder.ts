@@ -9,7 +9,7 @@ import { applyOptions, baseLoadout, llevaObjetivo } from "./loadout";
 import type { AppliedOption, LoadoutEntry } from "./loadout";
 import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
-import { getGameSystem } from "./gameSystems";
+import { getGameSystem, isQuestSystem } from "./gameSystems";
 import type { GameSystemId } from "./gameSystems";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
@@ -73,6 +73,12 @@ export interface BuilderEntry {
    * de `Tough(6)` o menos, que en el juego se despliegan dentro de otra unidad.
    */
   attachedTo?: string;
+  /**
+   * `$id` de la fila de `hero_classes` elegida para este heroe. Solo tiene
+   * sentido en Star Quest / Fantasy Quest, donde un heroe elige una clase en
+   * vez de unirse a una unidad.
+   */
+  heroClassId?: string;
 }
 
 /**
@@ -337,6 +343,16 @@ export function puedeAdjuntarse(entry: BuilderEntry, sections: UpgradeSection[],
   return esHeroe(rules) && toughOf(rules) <= 6;
 }
 
+/**
+ * En Star Quest / Fantasy Quest, todo heroe elige una clase del catalogo
+ * `hero_classes` al meterlo en la lista: es lo que determina su feat y sus
+ * habilidades de skill action, y estos sistemas no tienen otra forma de
+ * elegirla (no hay "unirse a una unidad" como en batalla).
+ */
+export function necesitaClaseDeHeroe(entry: BuilderEntry, sections: UpgradeSection[], gameSystem: GameSystemId): boolean {
+  return isQuestSystem(gameSystem) && esHeroe(entryRules(entry, sections));
+}
+
 /** Las opciones elegidas, con la seccion que dice a que sustituyen. */
 export function appliedOptions(entry: BuilderEntry, sections: UpgradeSection[]): AppliedOption[] {
   const applied: AppliedOption[] = [];
@@ -449,6 +465,8 @@ export interface StoredEntry {
    * guarda por posicion porque la `key` de cada entrada es de usar y tirar.
    */
   attachedTo?: number;
+  /** `$id` de `hero_classes` elegida. Solo se usa en Star Quest / Fantasy Quest. */
+  heroClassId?: string;
 }
 
 export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
@@ -462,6 +480,7 @@ export function serializeEntries(entries: BuilderEntry[]): StoredEntry[] {
       ...(entry.combined ? { combined: true } : {}),
       ...(entry.notes ? { notes: entry.notes } : {}),
       ...(indiceUnion !== undefined ? { attachedTo: indiceUnion } : {}),
+      ...(entry.heroClassId ? { heroClassId: entry.heroClassId } : {}),
     };
   });
 }
@@ -514,6 +533,7 @@ export function rehydrateEntries(
       choices,
       ...(item.combined ? { combined: true } : {}),
       ...(typeof item.notes === "string" && item.notes ? { notes: item.notes } : {}),
+      ...(typeof item.heroClassId === "string" && item.heroClassId ? { heroClassId: item.heroClassId } : {}),
     };
     return [{ entry, indice, attachedTo: typeof item.attachedTo === "number" ? item.attachedTo : undefined }];
   });

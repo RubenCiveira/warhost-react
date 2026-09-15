@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
+import { listHeroClasses } from "../api/content";
 import {
   blockReason,
   entryCost,
   entryLoadoutFinal,
   sePuedeCombinar,
   puedeAdjuntarse,
+  necesitaClaseDeHeroe,
   entryRules,
   entryUpgradeLabels,
   optionCost,
@@ -15,8 +17,9 @@ import {
 } from "../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../lib/builder";
 import { baseLoadout } from "../lib/loadout";
-import { armyNounFor, getGameSystem } from "../lib/gameSystems";
+import { armyNounFor, getGameSystem, isQuestSystem } from "../lib/gameSystems";
 import { errorMessage } from "../lib/format";
+import type { HeroClass } from "../lib/types";
 import { ErrorBanner, Spinner } from "./ui";
 import UnitCard from "./UnitCard";
 import RuleCardModal from "./RuleCardModal";
@@ -32,6 +35,8 @@ export interface UnidadEnEdicion {
   notes?: string;
   /** Indice, en la lista guardada, de la unidad a la que se unio el heroe. */
   attachedTo?: number;
+  /** `$id` de `hero_classes` elegida. Solo en Star Quest / Fantasy Quest. */
+  heroClassId?: string;
 }
 
 /** Una unidad del ejercito a la que un heroe puede unirse. */
@@ -92,6 +97,7 @@ export default function AddUnitWizard({
   const [busqueda, setBusqueda] = useState("");
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
+  const [heroClasses, setHeroClasses] = useState<HeroClass[]>([]);
   const noun = armyNounFor(getGameSystem(book?.gameSystem));
 
   useEffect(() => {
@@ -117,6 +123,7 @@ export default function AddUnitWizard({
               choices: { ...editando.choices },
               combined: editando.combined,
               notes: editando.notes,
+              heroClassId: editando.heroClassId,
             });
             setUnirA(editando.attachedTo ?? null);
           }
@@ -136,6 +143,18 @@ export default function AddUnitWizard({
       cancelled = true;
     };
   }, [bookKey, editando]);
+
+  /** Solo hace falta el catalogo de clases en Quest, y es el mismo para toda la sesion del asistente. */
+  useEffect(() => {
+    if (!book || !isQuestSystem(book.gameSystem)) return undefined;
+    let cancelled = false;
+    listHeroClasses(book.gameSystem)
+      .then((rows) => !cancelled && setHeroClasses(rows.filter((c) => c.classKey !== "default")))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [book]);
 
   useEffect(() => {
     const conEscape = (event: KeyboardEvent) => {
@@ -187,8 +206,29 @@ export default function AddUnitWizard({
     loadout: entryLoadoutFinal(actual, sections),
   });
 
+  const requiereClase = Boolean(entry && book && necesitaClaseDeHeroe(entry, sections, book.gameSystem));
+  const faltaClase = requiereClase && !entry?.heroClassId;
+
   const controlesDeUnidad = (actual: BuilderEntry) => (
     <>
+      {book && necesitaClaseDeHeroe(actual, sections, book.gameSystem) ? (
+        <label className="check tiny">
+          Clase
+          <select
+            value={actual.heroClassId ?? ""}
+            onChange={(event) =>
+              setEntry((previo) => (previo ? { ...previo, heroClassId: event.target.value || undefined } : previo))
+            }
+          >
+            <option value="">— elige clase —</option>
+            {heroClasses.map((clase) => (
+              <option key={clase.$id} value={clase.$id}>
+                {clase.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       {sePuedeCombinar(actual.unit) ? (
         <label className="check tiny">
           <input
@@ -396,7 +436,8 @@ export default function AddUnitWizard({
               <button
                 type="button"
                 className="primary"
-                disabled={busy || !book}
+                disabled={busy || !book || faltaClase}
+                title={faltaClase ? "Elige una clase para este heroe antes de confirmar." : undefined}
                 onClick={() =>
                   book && onConfirm(entry, book, packages, units, puedeAdjuntarse(entry, sections, book.gameSystem) ? unirA : null)
                 }
