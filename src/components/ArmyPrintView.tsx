@@ -308,46 +308,80 @@ function reglasDeOpcion(option: UpgradeOption): string[] {
 }
 
 function TablaOpcionesLibro({
-  sections,
+  section,
   unitId,
   glosario,
 }: {
-  sections: UpgradeSection[];
+  section: UpgradeSection;
   unitId: string;
+  glosario: Map<string, CatalogRule>;
+}) {
+  return (
+    <section className="ucard-bloque libro-bloque libro-opciones">
+      <table className="ucard-table libro-tabla">
+        <thead>
+          <tr>
+            <th className="libro-col-nombre">Opcion</th>
+            <th>Coste</th>
+            <th>Concede</th>
+            <th className="libro-col-reglas">Reglas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(section.options ?? []).map((option) => (
+            <tr key={option.id ?? option.uid ?? option.label}>
+              <td className="libro-col-nombre">{option.label ?? "Opcion"}</td>
+              <td className="num">{optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}</td>
+              <td>{textoGanancia(option) ?? <span className="ucard-vacio">—</span>}</td>
+              <td className="libro-col-reglas">
+                <ReglasTexto etiquetas={reglasDeOpcion(option)} glosario={glosario} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function tipoConfiguracion(section: UpgradeSection): string {
+  const limite = section.select?.value ? ` ${section.select.value}` : "";
+  return `${section.variant ?? "configuracion"}${limite}`;
+}
+
+export function FichaOpcionesLibro({
+  nombre,
+  unitId,
+  sections,
+  glosario,
+}: {
+  nombre: string;
+  unitId: string;
+  sections: UpgradeSection[];
   glosario: Map<string, CatalogRule>;
 }) {
   if (sections.length === 0) return null;
   return (
-    <section className="ucard-bloque libro-bloque libro-opciones">
-      <h4 className="ucard-bloque-title">Opciones</h4>
+    <>
       {sections.map((section) => (
-        <div key={section.id ?? section.uid} className="libro-opcion-seccion">
-          <h5>{section.label}</h5>
-          <table className="ucard-table libro-tabla">
-            <thead>
-              <tr>
-                <th className="libro-col-nombre">Opcion</th>
-                <th>Coste</th>
-                <th>Concede</th>
-                <th className="libro-col-reglas">Reglas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(section.options ?? []).map((option) => (
-                <tr key={option.id ?? option.uid ?? option.label}>
-                  <td className="libro-col-nombre">{option.label ?? "Opcion"}</td>
-                  <td className="num">{optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}</td>
-                  <td>{textoGanancia(option) ?? <span className="ucard-vacio">—</span>}</td>
-                  <td className="libro-col-reglas">
-                    <ReglasTexto etiquetas={reglasDeOpcion(option)} glosario={glosario} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <article key={section.id ?? section.uid} className="ucard ucard-ejercito libro-ficha libro-ficha-opciones">
+          <header className="ucard-head libro-cab">
+            <h3 className="ucard-title libro-nombre">
+              {nombre}
+              <span className="libro-opciones-separador">/</span>
+              {section.label ?? "Opciones"}
+            </h3>
+            <p className="libro-opciones-meta">
+              <span>Tipo: {tipoConfiguracion(section)}</span>
+              <span>Unidad: {nombre}</span>
+            </p>
+          </header>
+          <div className="ucard-body libro-cuerpo">
+            <TablaOpcionesLibro section={section} unitId={unitId} glosario={glosario} />
+          </div>
+        </article>
       ))}
-    </section>
+    </>
   );
 }
 
@@ -356,13 +390,11 @@ export function FichaUnidadLibro({
   glosario,
   libro,
   parte,
-  opciones = [],
 }: {
   unit: ResolvedUnit;
   glosario: Map<string, CatalogRule>;
   libro: ArmyBook | undefined;
   parte?: "perfil" | "detalles";
-  opciones?: UpgradeSection[];
 }) {
   const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
   const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
@@ -383,7 +415,6 @@ export function FichaUnidadLibro({
             <TablaReglasLibro reglas={unit.rules} glosario={glosario} />
             <TablaEquipoLibro equipo={equipo} glosario={glosario} />
             <TablaHechizosLibro hechizos={hechizos} />
-            {unit.unitKey ? <TablaOpcionesLibro sections={opciones} unitId={unit.unitKey} glosario={glosario} /> : null}
             {unit.notes ? (
               <p className="ucard-notas libro-notas">
                 <span className="ucard-label">Notas</span>

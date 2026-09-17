@@ -5,7 +5,7 @@ import type { UpgradeSection } from "../lib/builder";
 import type { ResolvedUnit } from "../lib/armyForgeResolve";
 import { baseLoadout } from "../lib/loadout";
 import { agruparUnidades } from "../lib/unidades";
-import { FichaUnidadLibro } from "./ArmyPrintView";
+import { FichaOpcionesLibro, FichaUnidadLibro } from "./ArmyPrintView";
 
 function unidadResuelta(unit: ArmyUnit): ResolvedUnit {
   return {
@@ -63,7 +63,8 @@ export default function FactionPrintView({
               const sections = sectionsForUnit(unit, packages);
               return (
                 <div key={unit.$id} className="army-slide print-faccion-unidad">
-                  <FichaUnidadLibro unit={unidadResuelta(unit)} glosario={glosario} libro={book} opciones={sections} />
+                  <FichaUnidadLibro unit={unidadResuelta(unit)} glosario={glosario} libro={book} />
+                  <FichaOpcionesLibro nombre={unit.name} unitId={unit.unitId} sections={sections} glosario={glosario} />
                 </div>
               );
             })}

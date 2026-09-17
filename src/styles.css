@@ -1582,7 +1582,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .print-libro { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
 .print-unidad { display: contents; }
 .print-faccion-grupo { width: 100%; }
-.print-faccion-unidad { display: flex; justify-content: center; }
+.print-faccion-unidad { display: grid; justify-items: center; gap: 2mm; }
 @media print {
   .print-toolbar { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
@@ -1615,13 +1615,19 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .libro-regla { margin: 0 0 1mm; }
 .libro-regla:last-child { margin-bottom: 0; }
 .libro-notas { margin-top: 0; }
-.libro-opcion-seccion { margin-top: 2mm; break-inside: avoid; }
-.libro-opcion-seccion h5 { margin: 0 0 1mm; font-size: 2.8mm; }
+.libro-ficha-opciones { margin-top: 2mm; margin-left: 8mm; width: min(calc(100% - 8mm), 182mm); }
+.libro-opciones-separador { margin: 0 1.5mm; color: var(--ucard-tenue); }
+.libro-opciones-meta {
+  display: flex; gap: 2mm; flex-wrap: wrap; margin: 0; color: var(--ucard-tenue);
+  font-size: 2.5mm; font-weight: 600;
+}
+.libro-opciones-meta span { padding: 0.3mm 1.2mm; border: 0.3mm solid var(--ucard-filete); border-radius: 999px; }
 @media print {
   .libro-ficha {
     width: 190mm; margin: 0 0 2mm; box-shadow: none;
     break-inside: avoid; page-break-inside: avoid;
   }
+  .libro-ficha-opciones { width: 182mm; margin-left: 8mm; }
   .libro-tabla tr { break-inside: avoid; }
 }
 
