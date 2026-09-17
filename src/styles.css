@@ -651,6 +651,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   --ucard-realce: var(--accent);
   width: var(--ucard-w);
   height: var(--ucard-h);
+  position: relative;
   transform: scale(var(--ucard-esc));
   transform-origin: top left;
   display: flex;
@@ -1512,8 +1513,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja.con-miniatura .ucard-head { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
 .ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
 .ucard.hoja.con-miniatura .ucard-miniatura {
-  width: 58mm; height: 30mm; max-height: none; flex: 0 0 auto;
-  margin: -1mm 1.8mm -0.6mm; object-fit: cover;
+  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
   border-color: var(--ucard-banda); box-shadow: 0 1.2mm 2.8mm rgba(0, 0, 0, 0.22);
 }
 .ucard.hoja.con-miniatura .ucard-stats {
