@@ -5,12 +5,12 @@ import { equipoDeEjercito, reglasUsadasEnEjercito, tieneCaster } from "../lib/fa
 import type { EquipoDeFaccion } from "../lib/faccion";
 import { agruparUnidades, emparejarHeroes } from "../lib/unidades";
 import type { FilaEjercito } from "../lib/unidades";
-import { parseHabilidad } from "../lib/reglas";
+import { conValor, parseHabilidad } from "../lib/reglas";
 import type { Habilidad } from "../lib/reglas";
 import { parseSpells } from "../lib/spells";
 import type { Spell } from "../lib/spells";
 import type { ArmyNoun } from "../lib/gameSystems";
-import { cuadriculaPorHoja, trocear, espejarHoja } from "../lib/print";
+import { cuadriculaPorHoja, PAGINA_MM, trocear, espejarHoja } from "../lib/print";
 import RuleCard from "./RuleCard";
 import SpellCard from "./SpellCard";
 import UnitCard from "./UnitCard";
@@ -22,6 +22,7 @@ import UnitCard from "./UnitCard";
 const TAROT_MM = { ancho: 120, alto: 70 };
 const TAROT_PERSONAJE_MM = { ancho: 120, alto: 140 };
 const SCARD_MM = { ancho: 44, alto: 68 };
+const LIBRO_ALTO_UTIL_MM = PAGINA_MM.alto - PAGINA_MM.margen * 2;
 
 type CartaMiniEuro =
   | { tipo: "regla"; key: string; habilidad: Habilidad; regla: CatalogRule }
@@ -84,53 +85,288 @@ function CartaMiniEuroVista({ carta, glosario }: { carta: CartaMiniEuro; glosari
   return <SpellCard spell={carta.spell} faction={carta.faccion} glosario={glosario} />;
 }
 
+/** El nombre tal como se escribe (con su valor) y el texto de su
+ *  descripcion, ya con el valor metido donde el glosario pone una X. Sin
+ *  descripcion no hay fila vacia: se deja en null y quien pinta decide. */
+function textoDeRegla(etiqueta: string, glosario: Map<string, CatalogRule>): { nombre: string; texto: string | null } {
+  const habilidad = parseHabilidad(etiqueta, "regla");
+  const regla = glosario.get(habilidad.nombre.toLowerCase());
+  return { nombre: habilidad.etiqueta, texto: regla?.description ? conValor(regla.description, habilidad.valor) : null };
+}
+
+/** Una regla por parrafo, nombre en negrita seguido del texto: es lo que va
+ *  en la columna ancha de armas y equipo, que puede llevar varias reglas. */
+function ReglasTexto({ etiquetas, glosario }: { etiquetas: string[]; glosario: Map<string, CatalogRule> }) {
+  if (etiquetas.length === 0) return <span className="muted">—</span>;
+  return (
+    <>
+      {etiquetas.map((etiqueta) => {
+        const { nombre, texto } = textoDeRegla(etiqueta, glosario);
+        return (
+          <p key={etiqueta} className="libro-regla">
+            <strong>{nombre}</strong>
+            {texto ? `: ${texto}` : ""}
+          </p>
+        );
+      })}
+    </>
+  );
+}
+
+function lineasDeTexto(texto: string | null | undefined, caracteresPorLinea: number): number {
+  if (!texto) return 1;
+  return Math.max(1, Math.ceil(texto.length / caracteresPorLinea));
+}
+
+function lineasDeReglas(etiquetas: string[], glosario: Map<string, CatalogRule>): number {
+  if (etiquetas.length === 0) return 1;
+  return etiquetas.reduce((total, etiqueta) => total + lineasDeTexto(textoDeRegla(etiqueta, glosario).texto, 92), 0);
+}
+
+function altoLibroEstimadoMm(unit: ResolvedUnit, glosario: Map<string, CatalogRule>, hechizos: Spell[]): number {
+  const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
+  const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
+  const filasArmas = armas.reduce((total, arma) => total + lineasDeReglas(arma.rules, glosario), 0);
+  const filasReglas = unit.rules.reduce((total, etiqueta) => total + lineasDeTexto(textoDeRegla(etiqueta, glosario).texto, 100), 0);
+  const filasEquipo = equipo.reduce((total, item) => total + lineasDeReglas(item.rules, glosario), 0);
+  const filasHechizos = hechizos.reduce((total, spell) => total + lineasDeTexto(spell.effect, 100), 0);
+  return 22 + armas.length * 8 + filasArmas * 4.1 + unit.rules.length * 7 + filasReglas * 4.1 + equipo.length * 7 + filasEquipo * 4.1 + hechizos.length * 7 + filasHechizos * 4.1 + (unit.notes ? lineasDeTexto(unit.notes, 110) * 4.1 + 8 : 0);
+}
+
+function LibroCabecera({ unit, parte }: { unit: ResolvedUnit; parte?: string }) {
+  return (
+    <header className="ucard-head libro-cab">
+      <h3 className="ucard-title libro-nombre">
+        {unit.name}
+        {unit.size > 1 ? ` (${unit.size})` : ""}
+        {unit.combined ? <span className="ucard-combinada">Combinada</span> : null}
+        {parte ? <span className="libro-parte">{parte}</span> : null}
+      </h3>
+      <div className="ucard-stats libro-stats">
+        <div className="ucard-stat">
+          <span className="ucard-stat-key">Cal</span>
+          <span className="ucard-stat-value">{unit.quality}+</span>
+        </div>
+        <div className="ucard-stat">
+          <span className="ucard-stat-key">Def</span>
+          <span className="ucard-stat-value">{unit.defense}+</span>
+        </div>
+        {unit.maxWounds !== undefined ? (
+          <div className="ucard-stat">
+            <span className="ucard-stat-key">Her</span>
+            <span className="ucard-stat-value">{unit.maxWounds}</span>
+          </div>
+        ) : null}
+        <div className="ucard-stat">
+          <span className="ucard-stat-key">Pts</span>
+          <span className="ucard-stat-value">{unit.cost}</span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function TablaArmasLibro({ armas, glosario }: { armas: ResolvedUnit["loadout"]; glosario: Map<string, CatalogRule> }) {
+  if (armas.length === 0) return null;
+  return (
+    <section className="ucard-bloque libro-bloque">
+      <h4 className="ucard-bloque-title">Armas</h4>
+      <table className="ucard-table libro-tabla">
+        <thead>
+          <tr>
+            <th className="libro-col-nombre">Arma</th>
+            <th>Alc.</th>
+            <th>Atq.</th>
+            <th className="libro-col-reglas">Reglas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {armas.map((arma, indice) => (
+            <tr key={`${arma.name}-${indice}`}>
+              <td className="libro-col-nombre">
+                {arma.count > 1 ? `${arma.count}× ` : ""}
+                {arma.name}
+              </td>
+              <td className="num">{arma.range ? `${arma.range}\"` : "CaC"}</td>
+              <td className="num">A{arma.attacks}</td>
+              <td className="libro-col-reglas">
+                <ReglasTexto etiquetas={arma.rules} glosario={glosario} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function TablaReglasLibro({ reglas, glosario }: { reglas: string[]; glosario: Map<string, CatalogRule> }) {
+  if (reglas.length === 0) return null;
+  return (
+    <section className="ucard-bloque libro-bloque">
+      <h4 className="ucard-bloque-title">Reglas</h4>
+      <table className="ucard-table libro-tabla">
+        <thead>
+          <tr>
+            <th className="libro-col-nombre">Regla</th>
+            <th className="libro-col-reglas">Texto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reglas.map((etiqueta) => {
+            const { nombre, texto } = textoDeRegla(etiqueta, glosario);
+            return (
+              <tr key={etiqueta}>
+                <td className="libro-col-nombre">{nombre}</td>
+                <td className="libro-col-reglas">{texto ?? <span className="ucard-vacio">—</span>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function TablaEquipoLibro({ equipo, glosario }: { equipo: ResolvedUnit["loadout"]; glosario: Map<string, CatalogRule> }) {
+  if (equipo.length === 0) return null;
+  return (
+    <section className="ucard-bloque libro-bloque">
+      <h4 className="ucard-bloque-title">Equipo</h4>
+      <table className="ucard-table libro-tabla">
+        <thead>
+          <tr>
+            <th className="libro-col-nombre">Equipo</th>
+            <th className="libro-col-reglas">Concede</th>
+          </tr>
+        </thead>
+        <tbody>
+          {equipo.map((item, indice) => (
+            <tr key={`${item.name}-${indice}`}>
+              <td className="libro-col-nombre">{item.name}</td>
+              <td className="libro-col-reglas">
+                <ReglasTexto etiquetas={item.rules} glosario={glosario} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function TablaHechizosLibro({ hechizos }: { hechizos: Spell[] }) {
+  if (hechizos.length === 0) return null;
+  return (
+    <section className="ucard-bloque libro-bloque">
+      <h4 className="ucard-bloque-title">Hechizos</h4>
+      <table className="ucard-table libro-tabla">
+        <thead>
+          <tr>
+            <th className="libro-col-nombre">Hechizo</th>
+            <th>Valor</th>
+            <th className="libro-col-reglas">Efecto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {hechizos.map((spell) => (
+            <tr key={spell.key}>
+              <td className="libro-col-nombre">{spell.name}</td>
+              <td className="num">{spell.threshold}+</td>
+              <td className="libro-col-reglas">{spell.effect}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function FichaUnidadLibro({
+  unit,
+  glosario,
+  libro,
+  parte,
+}: {
+  unit: ResolvedUnit;
+  glosario: Map<string, CatalogRule>;
+  libro: ArmyBook | undefined;
+  parte?: "perfil" | "detalles";
+}) {
+  const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
+  const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
+  const esCaster = tieneCaster([unit]);
+  const hechizos = esCaster && libro ? parseSpells(libro.spells ?? null) : [];
+  const dividida = parte !== undefined;
+
+  return (
+    <article className="ucard ucard-ejercito libro-ficha">
+      <LibroCabecera unit={unit} parte={dividida ? (parte === "perfil" ? "1/2" : "2/2") : undefined} />
+      {dividida ? <p className="libro-aviso">Ficha dividida para no recortar esta unidad al imprimir.</p> : null}
+      <div className="ucard-body libro-cuerpo">
+        {parte !== "detalles" ? (
+          <TablaArmasLibro armas={armas} glosario={glosario} />
+        ) : null}
+        {parte !== "perfil" ? (
+          <>
+            <TablaReglasLibro reglas={unit.rules} glosario={glosario} />
+            <TablaEquipoLibro equipo={equipo} glosario={glosario} />
+            <TablaHechizosLibro hechizos={hechizos} />
+            {unit.notes ? (
+              <p className="ucard-notas libro-notas">
+                <span className="ucard-label">Notas</span>
+                {unit.notes}
+              </p>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function TarjetasUnidadLibro({ unit, glosario, libro }: { unit: ResolvedUnit; glosario: Map<string, CatalogRule>; libro: ArmyBook | undefined }) {
+  const hechizos = tieneCaster([unit]) && libro ? parseSpells(libro.spells ?? null) : [];
+  const hayDetalles = unit.rules.length > 0 || unit.loadout.some((entrada) => entrada.kind === "gear") || hechizos.length > 0 || Boolean(unit.notes);
+  const partir = hayDetalles && altoLibroEstimadoMm(unit, glosario, hechizos) > LIBRO_ALTO_UTIL_MM;
+  if (!partir) return <FichaUnidadLibro unit={unit} glosario={glosario} libro={libro} />;
+  return (
+    <>
+      <FichaUnidadLibro unit={unit} glosario={glosario} libro={libro} parte="perfil" />
+      <FichaUnidadLibro unit={unit} glosario={glosario} libro={libro} parte="detalles" />
+    </>
+  );
+}
+
 /**
- * Modo libro: una hoja aparte por unidad, con su ficha completa y detras
- * todas las cartas de lo que lleva —directo, de su equipo, o arrastrado por
- * texto—. Las mismas cartas de habilidad pueden salir repetidas en mas de
- * una unidad: el objetivo es poder consultar cada unidad suelta, no ahorrar
- * papel.
+ * Modo libro: tarjetas grandes de unidad con el texto completo de cada regla.
+ * Fluyen una detras de otra para llenar cada pagina; si una se estima mas
+ * alta que una pagina, se divide en dos tarjetas marcadas.
  */
 function VistaLibro({
   units,
   glosario,
   librosConocidos,
-  quest,
   noun,
 }: {
   units: ResolvedUnit[];
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
-  quest: boolean;
   noun: ArmyNoun;
 }) {
   if (units.length === 0) return <p className="muted">{noun.demonstrativeCap} {noun.singular} no tiene unidades que imprimir.</p>;
+  // Una lista importada y todavia no tocada por el constructor no trae
+  // `bookKey` en sus unidades. Con una sola faccion conocida no hay
+  // ambiguedad: son todas suyas.
+  const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
   return (
     <div className="print-libro">
       {agruparUnidades(units).map((seccion) =>
-        seccion.unidades.map((unit) => {
-          const cartas = cartasDe(glosario, [unit], librosConocidos);
-          return (
-            <section key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="print-unidad">
-              <div className="army-slide">
-                {/* Sin `upgrades`: ese resumen vive fuera de la carta y, al
-                    variar de largo entre unidades, descuadraba la alineacion
-                    de las cartas en papel; lo elegido ya se ve en su tabla
-                    de armas y equipo. */}
-                <UnitCard variant="ejercito" formato="hoja" quest={quest} glosario={glosario} unit={perfilDe(unit)} combinada={unit.combined} notas={unit.notes} />
-              </div>
-              {cartas.length > 0 ? (
-                <div className="army-strip">
-                  {cartas.map((carta) => (
-                    <div key={carta.key} className="army-slide">
-                      <CartaMiniEuroVista carta={carta} glosario={glosario} />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          );
-        }),
+        seccion.unidades.map((unit) => (
+          <section key={`${unit.unitKey ?? unit.name}-${unit.sortOrder}`} className="print-unidad">
+            <TarjetasUnidadLibro unit={unit} glosario={glosario} libro={librosConocidos.find((libro) => (unit.bookKey ?? defaultBookKey) === libro.$id)} />
+          </section>
+        )),
       )}
     </div>
   );
@@ -278,9 +514,8 @@ export default function ArmyPrintView({
             <button type="button" className="print-opcion" onClick={() => setModo("libro")}>
               <strong>Modo libro</strong>
               <span>
-                Una ficha completa por unidad, seguida de todas sus cartas de habilidades, equipo, hechizos y reglas
-                generales —incluidas las que llegan por su equipo o por aura—. Facil de consultar unidad por unidad,
-                aunque una misma carta se repita en varias.
+                Tarjetas grandes de unidad con armas, equipo, hechizos y el texto de sus reglas especiales. La impresion
+                llena cada pagina con las tarjetas que quepan y divide las unidades demasiado largas.
               </span>
             </button>
             <button type="button" className="print-opcion" onClick={() => setModo("tarjetas")}>
@@ -294,7 +529,7 @@ export default function ArmyPrintView({
           </div>
         </div>
       ) : modo === "libro" ? (
-        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} quest={quest} noun={noun} />
+        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} noun={noun} />
       ) : (
         <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} />
       )}

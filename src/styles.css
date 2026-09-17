@@ -1577,15 +1577,46 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .print-opcion strong { font-size: 1.05rem; }
 .print-opcion span { color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
 
-/* Modo libro: cada unidad empieza hoja nueva, con su ficha y detras sus
-   cartas en el mismo strip que ya usan las pestanas de habilidades/equipo. */
-.print-unidad + .print-unidad { margin-top: 24px; padding-top: 24px; border-top: 1px dashed var(--border-strong); }
+/* Modo libro: tarjetas grandes con la misma piel visual que la carta de
+   unidad, pero sin alto fijo para poder llevar el texto completo. */
+.print-libro { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.print-unidad { display: contents; }
 @media print {
   .print-toolbar { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
-  .print-unidad { break-before: page; }
-  .print-unidad:first-child { break-before: auto; }
-  .print-unidad + .print-unidad { margin-top: 0; padding-top: 0; border-top: 0; }
+  .print-libro { display: block; }
+}
+
+.libro-ficha {
+  width: min(100%, 190mm); height: auto; min-height: 0; transform: none;
+  display: flex; flex-direction: column; overflow: visible;
+  padding-bottom: 2.6mm; box-shadow: var(--raise);
+}
+.libro-cab { align-items: stretch; flex-wrap: wrap; }
+.libro-nombre { min-width: 0; flex: 1 1 80mm; white-space: normal; }
+.libro-parte {
+  margin-left: 1.8mm; padding: 0.3mm 1.2mm; border: 0.3mm solid currentColor;
+  font-size: 0.72em; vertical-align: middle;
+}
+.libro-aviso { margin: 1.8mm 2.5mm 0; color: var(--ucard-tenue); font-size: 2.45mm; font-style: italic; }
+.libro-cuerpo { gap: 2.2mm; padding: 2.2mm 2.5mm 0; }
+.libro-bloque { padding: 0; margin: 0; }
+.libro-tabla { width: 100%; table-layout: auto; font-size: 2.65mm; line-height: 1.28; }
+.libro-tabla th, .libro-tabla td { text-align: left; vertical-align: top; }
+/* `width: 1%` es el truco clasico para que una columna de tabla se encoja a
+   lo que ocupa su contenido: las demas se reparten el resto. Con
+   `white-space: nowrap` el nombre del arma o del objeto no se parte solo. */
+.libro-col-nombre { width: 1%; white-space: nowrap; font-weight: 600; }
+.libro-col-reglas { width: auto; }
+.libro-regla { margin: 0 0 1mm; }
+.libro-regla:last-child { margin-bottom: 0; }
+.libro-notas { margin-top: 0; }
+@media print {
+  .libro-ficha {
+    width: 190mm; margin: 0 0 5mm; box-shadow: none;
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  .libro-tabla tr { break-inside: avoid; }
 }
 
 /* Modo tarjetas: un mazo por tipo de carta, en hojas de anverso seguidas de
