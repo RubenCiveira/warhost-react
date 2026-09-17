@@ -24,7 +24,7 @@ import {
   parseStoredList,
 } from "../../api/armyForge";
 import { requiredBookUids } from "../../lib/armyForgeResolve";
-import type { ArmyForgeList } from "../../lib/armyForgeResolve";
+import type { ArmyForgeList, ResolvedUnit } from "../../lib/armyForgeResolve";
 import type { Army, HeroClass, HeroSkill, QuestShopPackage } from "../../lib/types";
 import { parseHeroSkills } from "../../lib/types";
 import { errorMessage, formatDateTime } from "../../lib/format";
@@ -44,8 +44,16 @@ import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
 import { parseHabilidad } from "../../lib/reglas";
 import RuleCard from "../../components/RuleCard";
+import ArmyPrintView from "../../components/ArmyPrintView";
 import AvisoComposicion from "../../components/AvisoComposicion";
-import { equipoDeFaccion, habilidadesDeFaccion, reglasGeneralesDeFaccion } from "../../lib/faccion";
+import {
+  equipoDeEjercito,
+  equipoDeFaccion,
+  habilidadesDeFaccion,
+  reglasGeneralesDeFaccion,
+  reglasUsadasEnEjercito,
+  tieneCaster,
+} from "../../lib/faccion";
 import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
 import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/catalog";
 import { habilidadesInicialesQuest } from "../../lib/questHero";
@@ -121,14 +129,17 @@ export default function ArmyEditor() {
   /** Borrador en curso de este ejercito, si lo hay. */
   const [draft, setDraft] = useState<Army | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [imprimiendo, setImprimiendo] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   /** Accion destructiva a la espera de confirmacion. */
   const [confirmando, setConfirmando] = useState<"descartar" | "borrar" | null>(null);
   const [anadiendo, setAnadiendo] = useState(false);
   /** Indice en `entries` de la unidad que se esta reconfigurando. */
   const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("unidades");
-  const [verGenerales, setVerGenerales] = useState(false);
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("generales");
+  /** Si esta a false, las pestanas de habilidades/equipo/hechizos/generales
+   *  se recortan a lo que aparece de verdad en las fichas de esta lista. */
+  const [mostrarTodas, setMostrarTodas] = useState(false);
   /**
    * Las facciones conocidas de este ejercito (puede haber varias) y las
    * unidades de su catalogo, solo para saber que hechizos/habilidades/equipo
@@ -568,39 +579,80 @@ export default function ArmyEditor() {
     () => emparejarHeroes(units, entradasGuardadas.map((e) => e.attachedTo)),
     [units, entradasGuardadas],
   );
+  /** Las unidades de verdad de esta lista, agrupadas por el libro del que
+   *  vienen: lo que hace falta para saber que tarjetas aparecen de verdad en
+   *  sus fichas, en vez de todo lo que publica el libro. */
+  const unidadesEjercitoPorLibro = useMemo(() => {
+    // Una lista importada de Army Forge y todavia no tocada por el
+    // constructor no trae `bookKey` en sus unidades. Con una sola faccion
+    // conocida no hay ambiguedad: son todas suyas.
+    const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
+    const mapa = new Map<string, ResolvedUnit[]>();
+    for (const unidad of units) {
+      const bookKey = unidad.bookKey ?? defaultBookKey;
+      if (!bookKey) continue;
+      const lista = mapa.get(bookKey);
+      if (lista) lista.push(unidad);
+      else mapa.set(bookKey, [unidad]);
+    }
+    return mapa;
+  }, [units, librosConocidos]);
+  /** Reglas propias y del reglamento basico que aparecen de verdad en las
+   *  fichas de esta lista, con `mostrarTodas` desactivado. */
+  const reglasUsadas = useMemo(() => reglasUsadasEnEjercito(glosario, units), [glosario, units]);
+  const nombresUsados = useMemo(() => new Set(reglasUsadas.map((regla) => regla.name.toLowerCase())), [reglasUsadas]);
   /**
    * Habilidades, equipo y hechizos van una fila por faccion conocida —
    * principal y aliadas por igual—, para no mezclar lo que aporta cada libro
    * cuando el ejercito mezcla varios. "Reglas generales" es la excepcion: es
    * el reglamento basico, comun a todas, y se sigue mostrando de una vez.
+   *
+   * Con `mostrarTodas` desactivado, cada una se recorta a lo que aparece de
+   * verdad en las fichas de esta lista, en vez de todo lo que publica el
+   * libro.
    */
   const hechizosPorFaccion = useMemo(
     () =>
       librosConocidos
         .map((libro) => ({ libro, spells: parseSpells(libro.spells ?? null) }))
-        .filter((grupo) => grupo.spells.length > 0),
-    [librosConocidos],
+        .filter((grupo) => grupo.spells.length > 0)
+        .filter((grupo) => mostrarTodas || tieneCaster(unidadesEjercitoPorLibro.get(grupo.libro.$id) ?? [])),
+    [librosConocidos, mostrarTodas, unidadesEjercitoPorLibro],
   );
   const habilidadesPorFaccion = useMemo(
     () =>
       librosConocidos
-        .map((libro) => ({ libro, items: habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? []) }))
+        .map((libro) => {
+          const items = habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? []);
+          return {
+            libro,
+            items: mostrarTodas ? items : items.filter((regla) => nombresUsados.has(regla.name.toLowerCase())),
+          };
+        })
         .filter((grupo) => grupo.items.length > 0),
-    [librosConocidos, glosario, unidadesPorLibro],
+    [librosConocidos, glosario, unidadesPorLibro, mostrarTodas, nombresUsados],
   );
   const equipoPorFaccion = useMemo(
     () =>
       librosConocidos
-        .map((libro) => ({ libro, items: equipoDeFaccion(unidadesPorLibro.get(libro.$id) ?? []) }))
+        .map((libro) => ({
+          libro,
+          items: mostrarTodas
+            ? equipoDeFaccion(unidadesPorLibro.get(libro.$id) ?? [])
+            : equipoDeEjercito(unidadesEjercitoPorLibro.get(libro.$id) ?? []),
+        }))
         .filter((grupo) => grupo.items.length > 0),
-    [librosConocidos, unidadesPorLibro],
+    [librosConocidos, unidadesPorLibro, mostrarTodas, unidadesEjercitoPorLibro],
   );
   const hechizos = useMemo(() => hechizosPorFaccion.flatMap((g) => g.spells), [hechizosPorFaccion]);
   const habilidades = useMemo(() => habilidadesPorFaccion.flatMap((g) => g.items), [habilidadesPorFaccion]);
   const equipo = useMemo(() => equipoPorFaccion.flatMap((g) => g.items), [equipoPorFaccion]);
   const generales = useMemo(
-    () => reglasGeneralesDeFaccion(glosario, unidadesTodas, habilidades),
-    [glosario, unidadesTodas, habilidades],
+    () =>
+      mostrarTodas
+        ? reglasGeneralesDeFaccion(glosario, unidadesTodas, habilidades)
+        : reglasUsadas.filter((regla) => regla.coreType !== null).sort((a, b) => a.name.localeCompare(b.name, "es")),
+    [mostrarTodas, glosario, unidadesTodas, habilidades, reglasUsadas],
   );
   const clasesDeHeroe = useMemo(() => heroClasses.filter((heroClass) => heroClass.classKey !== "default"), [heroClasses]);
   const habilidadesDeClase = useMemo<HeroSkillCardData[]>(
@@ -900,18 +952,14 @@ export default function ArmyEditor() {
       // conozcan tambien.
       void registrarLibro(book);
 
-      const guardadas = (() => {
-        try {
-          return (JSON.parse(listJson ?? "{}") as { entries?: unknown }).entries;
-        } catch {
-          return undefined;
-        }
-      })();
       // El indice viene del array guardado, asi que se aplica ahi y no sobre la
       // lista ya rehidratada: rehidratar descarta las unidades que ya no estan
       // en el libro, y entonces los indices no serian los mismos y se
-      // reconfiguraria otra unidad sin que nada avisara.
-      const anteriores = Array.isArray(guardadas) ? (guardadas as StoredEntry[]) : [];
+      // reconfiguraria otra unidad sin que nada avisara. `entradasGuardadas` es
+      // ese array guardado, ya con su respaldo si la lista viene de una
+      // importacion de Army Forge que todavia no tiene `entries` propio: leer
+      // `listJson` a pelo aqui se lo saltaria y perderia todo lo importado.
+      const anteriores = entradasGuardadas;
       // `serializeEntries` de una sola entrada no puede resolver la union —no
       // tiene el resto del array—, asi que el indice destino se pone aqui.
       const suya: StoredEntry = { ...serializeEntries([nueva])[0] };
@@ -1013,6 +1061,21 @@ export default function ArmyEditor() {
 
   if (loading) return <Spinner />;
 
+  if (imprimiendo) {
+    return (
+      <ArmyPrintView
+        nombre={form.name}
+        noun={noun}
+        quest={quest}
+        units={units}
+        entradasAttachedTo={entradasGuardadas.map((entrada) => entrada.attachedTo)}
+        glosario={glosario}
+        librosConocidos={librosConocidos}
+        onCerrar={() => setImprimiendo(false)}
+      />
+    );
+  }
+
   return (
     <>
       <header className="army-bar">
@@ -1100,6 +1163,11 @@ export default function ArmyEditor() {
           {!army ? (
             <button type="button" onClick={() => setImportOpen(true)}>
               Importar desde Army Forge
+            </button>
+          ) : null}
+          {army ? (
+            <button type="button" onClick={() => setImprimiendo(true)}>
+              Imprimir
             </button>
           ) : null}
           {draft && !viendoBorrador ? (
@@ -1203,22 +1271,17 @@ export default function ArmyEditor() {
           ...(quest ? [{ id: "habilidadesClase" as const, label: "Habs. clase", count: habilidadesDeClase.length }] : []),
           { id: "equipo", label: "Equipo", count: equipo.length },
           { id: "hechizos", label: "Hechizos", count: hechizos.length },
-          ...(verGenerales
-            ? [{ id: "generales" as const, label: "Reglas generales", count: generales.length }]
-            : []),
+          { id: "generales", label: "Reglas generales", count: generales.length },
         ]}
       />
       <label className="row" style={{ cursor: "pointer" }}>
         <input
           type="checkbox"
-          checked={verGenerales}
-          onChange={(e) => {
-            setVerGenerales(e.target.checked);
-            if (!e.target.checked && pestana === "generales") setPestana("unidades");
-          }}
+          checked={mostrarTodas}
+          onChange={(e) => setMostrarTodas(e.target.checked)}
           style={{ width: "auto" }}
         />
-        <span>Ver reglas generales</span>
+        <span>Mostrar todas las tarjetas</span>
       </label>
 
       {pestana === "habilidades" ? (

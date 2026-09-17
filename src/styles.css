@@ -1524,12 +1524,21 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 /* Impresion: A4, dos fichas por hoja y a tamano real. Fuera todo lo que no sea
    la ficha, que en papel no se puede pulsar. */
 @media print {
-  :root { --uhoja-esc: 1; }
+  /* En grimdark `color-scheme: dark` hace que Chromium rellene de negro el
+     margen de la pagina en la exportacion a PDF —no la pantalla, solo el PDF
+     con "graficos de fondo" marcado— por mucho que `body` sea blanco: ese
+     margen no es parte del elemento `body`, y su color sale del esquema, no
+     del fondo. `!important` hace falta porque `:root[data-setting="…"]` tiene
+     mas especificidad que un `:root` a secas. En papel no hay modo oscuro. */
+  :root { --uhoja-esc: 1; color-scheme: light !important; }
   @page { size: A4 portrait; margin: 10mm; }
 
-  body { background: #fff; }
+  html, body { background: #fff !important; }
+  /* Y que las cartas mantengan su color de papel salga o no marcado ese
+     mismo ajuste: sin esto, desmarcarlo dejaba las cartas transparentes. */
+  .ucard, .scard, .print-dorso { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .topbar, .fab, .tabs, .page-head, .army-details, .modal-backdrop, .ucard-foot { display: none !important; }
-  .content { max-width: none; padding: 0; }
+  .content { max-width: none; padding: 0; background: #fff; }
 
   .army-strip { display: block; overflow: visible; padding: 0; }
   .army-slide { break-inside: avoid; margin: 0 0 8mm; }
@@ -1545,6 +1554,81 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   .ucard.hoja { box-shadow: none; }
   /* Las galerias y los formularios de subida no pintan nada en papel. */
   .gallery, .uploader { display: none !important; }
+}
+
+/* ── Vista de impresion del ejercito ────────────────────────────────────────
+   El asistente elige entre dos maquetas antes de componer nada: modo libro,
+   una hoja por unidad con sus cartas detras, y modo tarjetas, mazos a tamano
+   real con su reverso listo para recortar. */
+.print-vista { max-width: 900px; margin: 0 auto; padding: 16px; }
+.print-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.print-toolbar-title { margin: 0; font-size: 1.1rem; flex: 1 1 auto; text-align: center; }
+.print-asistente { display: flex; flex-direction: column; gap: 16px; }
+.print-opciones { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.print-opcion {
+  display: flex; flex-direction: column; gap: 8px; text-align: left;
+  padding: 16px; border: 1px solid var(--border-strong); border-radius: 10px;
+  background: var(--surface); cursor: pointer;
+}
+.print-opcion:hover { border-color: var(--accent); }
+.print-opcion strong { font-size: 1.05rem; }
+.print-opcion span { color: var(--muted); font-size: 0.92rem; line-height: 1.4; }
+
+/* Modo libro: cada unidad empieza hoja nueva, con su ficha y detras sus
+   cartas en el mismo strip que ya usan las pestanas de habilidades/equipo. */
+.print-unidad + .print-unidad { margin-top: 24px; padding-top: 24px; border-top: 1px dashed var(--border-strong); }
+@media print {
+  .print-toolbar { display: none !important; }
+  .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
+  .print-unidad { break-before: page; }
+  .print-unidad:first-child { break-before: auto; }
+  .print-unidad + .print-unidad { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+
+/* Modo tarjetas: un mazo por tipo de carta, en hojas de anverso seguidas de
+   su reverso con las columnas invertidas. `--print-cols` la fija cada grid
+   segun cuantas caben, y el reverso reutiliza la misma anchura de columna. */
+.print-mazo + .print-mazo { margin-top: 32px; }
+.print-mazo-title { margin: 0 0 12px; }
+.print-hoja {
+  display: grid; justify-content: center; gap: 4mm;
+  margin-bottom: 14px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 8px;
+}
+/* Las columnas de cada grid las fija en linea VistaTarjetas, calculadas con
+   cuadriculaPorHoja: dependen del tamano de carta, no son fijas aqui. */
+/* Sin depender de fondos: muchas impresoras y navegadores no imprimen los
+   "graficos de fondo" salvo que se marquen a mano, asi que el dorso se dibuja
+   solo con bordes y texto —trazo, no relleno—, que siempre sale en papel. */
+.print-dorso { position: relative; border-radius: 2.5mm; border: 0.6mm solid var(--border-strong); }
+.print-dorso::before {
+  content: ""; position: absolute; inset: 3mm;
+  border: 0.35mm solid var(--border-strong); border-radius: 1.5mm;
+}
+.print-dorso::after {
+  content: "✦"; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 7mm; color: var(--border-strong);
+}
+.print-dorso-tarot { width: calc(var(--ucard-w) * var(--ucard-esc)); height: calc(var(--ucard-h) * var(--ucard-esc)); }
+.print-dorso-scard { width: calc(var(--scard-w) * var(--scard-esc)); height: calc(var(--scard-h) * var(--scard-esc)); }
+.print-dorso-vacio { visibility: hidden; }
+@media print {
+  :root { --ucard-esc: 1; --scard-esc: 1; }
+  .print-hoja { border: 0; break-after: page; padding: 0; margin: 0; }
+  .print-dorso { border-color: #000; }
+  /* El mazo de unidades tarot es mas ancho que alto: una hoja apaisada le
+     cabe una fila de mas. `page` es una pagina con nombre (soporte de
+     Chromium): en un navegador que no la reconozca, estas hojas simplemente
+     salen en la orientacion por defecto —de sobra, no de menos, porque
+     `cuadriculaPorHoja` ya cuenta con lo apaisado al repartir las cartas. */
+  @page tarot { size: A4 landscape; margin: 10mm; }
+  /* En la seccion entera, no solo en las hojas: `page` se hereda, y puesto
+     solo en las hojas el titulo se queda en la pagina por defecto —vertical—
+     y mete una hoja en blanco antes de que empiece lo apaisado. */
+  .print-mazo-apaisado { page: tarot; }
 }
 
 
