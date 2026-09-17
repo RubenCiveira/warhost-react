@@ -1581,13 +1581,11 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
    unidad, pero sin alto fijo para poder llevar el texto completo. */
 .print-libro { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
 .print-unidad { display: contents; }
-.print-faccion-grupo { width: 100%; }
 .print-faccion-unidad { display: grid; justify-items: center; gap: 2mm; }
 @media print {
   .print-toolbar { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
   .print-libro { display: block; }
-  .print-faccion-grupo { break-after: auto; }
   .print-faccion-unidad { display: block; }
 }
 

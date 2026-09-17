@@ -38,7 +38,7 @@ export default function FactionPrintView({
   glosario: Map<string, CatalogRule>;
   onCerrar: () => void;
 }) {
-  const secciones = useMemo(() => agruparUnidades(units), [units]);
+  const unidadesOrdenadas = useMemo(() => agruparUnidades(units).flatMap((grupo) => grupo.unidades), [units]);
 
   return (
     <div className="print-vista print-faccion">
@@ -53,23 +53,15 @@ export default function FactionPrintView({
       </div>
 
       <div className="print-libro print-faccion-libro">
-        {secciones.map((grupo) => (
-          <section key={grupo.grupo} className="print-faccion-grupo">
-            <h3 className="army-group-sep">
-              {grupo.etiqueta}
-              <span className="army-group-count">{grupo.unidades.length}</span>
-            </h3>
-            {grupo.unidades.map((unit) => {
-              const sections = sectionsForUnit(unit, packages);
-              return (
-                <div key={unit.$id} className="army-slide print-faccion-unidad">
-                  <FichaUnidadLibro unit={unidadResuelta(unit)} glosario={glosario} libro={book} />
-                  <FichaOpcionesLibro nombre={unit.name} unitId={unit.unitId} sections={sections} glosario={glosario} />
-                </div>
-              );
-            })}
-          </section>
-        ))}
+        {unidadesOrdenadas.map((unit) => {
+          const sections = sectionsForUnit(unit, packages);
+          return (
+            <div key={unit.$id} className="army-slide print-faccion-unidad">
+              <FichaUnidadLibro unit={unidadResuelta(unit)} glosario={glosario} libro={book} />
+              <FichaOpcionesLibro nombre={unit.name} unitId={unit.unitId} sections={sections} glosario={glosario} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
