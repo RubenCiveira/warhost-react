@@ -148,6 +148,10 @@ interface Props {
   combinada?: boolean;
   /** Anotacion del jugador sobre esta unidad. */
   notas?: string;
+  /** Trasfondo breve de catalogo, escrito por editores. */
+  lore?: string | null;
+  /** Retrato de catalogo para la cabecera de la ficha. */
+  avatarUrl?: string | null;
   /**
    * Segunda linea del titulo: en quest, la clase del heroe y el tipo de
    * unidad del catalogo del que sale ("Berserker · Grunt Veteran"). El resto
@@ -742,6 +746,8 @@ export default function UnitCard({
   accionAdjunta,
   combinada = false,
   notas,
+  lore,
+  avatarUrl,
   subtitulo,
   quest = false,
   glosario,
@@ -952,6 +958,7 @@ export default function UnitCard({
           }`}
         >
           <header className="ucard-head">
+            {avatarUrl ? <img className="ucard-avatar" src={avatarUrl} alt="" loading="lazy" /> : null}
             {subtitulo ? (
               // El heroe de quest lleva su nombre propio y, debajo, su clase y
               // el tipo de unidad del que sale: nunca va emparejado ni
@@ -1058,6 +1065,8 @@ export default function UnitCard({
                   {notas}
                 </p>
               ) : null}
+
+              {lore ? <p className="ucard-lore">{lore}</p> : null}
 
               {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
 

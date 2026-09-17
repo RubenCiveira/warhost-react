@@ -12,11 +12,13 @@ import {
   listUnits,
   listUpgradePackages,
   listRuleGlossary,
+  pickImageByType,
   setPrimaryImage,
   targetKeyFor,
+  updateUnitLore,
   uploadCatalogImage,
 } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogImage, CatalogImageType, CatalogRule } from "../../api/catalog";
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
@@ -35,10 +37,44 @@ import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
 
+function UnitLoreEditor({
+  unit,
+  busy,
+  onSave,
+}: {
+  unit: ArmyUnit;
+  busy: boolean;
+  onSave: (unit: ArmyUnit, lore: string) => Promise<void>;
+}) {
+  const [lore, setLore] = useState(unit.lore ?? "");
+
+  useEffect(() => {
+    setLore(unit.lore ?? "");
+  }, [unit.lore]);
+
+  return (
+    <div className="unit-lore-editor">
+      <label htmlFor={`lore-${unit.$id}`}>Descripcion de la unidad</label>
+      <textarea
+        id={`lore-${unit.$id}`}
+        value={lore}
+        rows={4}
+        maxLength={4000}
+        disabled={busy}
+        placeholder="Trasfondo breve, notas de ambientacion o descripcion visual."
+        onChange={(event) => setLore(event.target.value)}
+      />
+      <button type="button" className="tiny" disabled={busy || lore === (unit.lore ?? "")} onClick={() => void onSave(unit, lore)}>
+        Guardar descripcion
+      </button>
+    </div>
+  );
+}
+
 /** Ficha de una faccion: sus imagenes y las de cada tipo de unidad. */
 export default function CatalogBook() {
   const { bookKey = "" } = useParams();
-  const { user, admin } = useAuth();
+  const { user, editor } = useAuth();
   const { system } = useGameSystem();
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
@@ -95,14 +131,14 @@ export default function CatalogBook() {
   );
 
   const upload = useCallback(
-    async (files: File[], caption: string, unit?: ArmyUnit) => {
+    async (files: File[], caption: string, imageType: CatalogImageType, unit?: ArmyUnit) => {
       if (!book || !user) return;
       setBusy(true);
       try {
         // En serie a proposito: son ficheros grandes y subirlos todos a la vez
         // satura la conexion sin ganar nada.
         for (const file of files) {
-          await uploadCatalogImage(file, { scope: unit ? "unit" : "faction", book, unit }, user, caption);
+          await uploadCatalogImage(file, { scope: unit ? "unit" : "faction", book, unit, imageType }, user, caption);
         }
         setImages(await listBookImages(bookKey));
       } finally {
@@ -111,6 +147,19 @@ export default function CatalogBook() {
     },
     [book, bookKey, user],
   );
+
+  async function saveLore(unit: ArmyUnit, lore: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await updateUnitLore(unit, lore);
+      setUnits((prev) => prev.map((candidate) => (candidate.$id === updated.$id ? updated : candidate)));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function remove(image: CatalogImage) {
     setBusy(true);
@@ -139,7 +188,7 @@ export default function CatalogBook() {
   }
 
   function gallery(targetKey: string, fallback?: string | null) {
-    const list = byTarget.get(targetKey) ?? [];
+    const list = (byTarget.get(targetKey) ?? []).filter((image) => (image.imageType ?? "gallery") === "gallery");
     if (list.length === 0) {
       return fallback ? <img className="thumb" src={fallback} alt="" loading="lazy" /> : null;
     }
@@ -151,7 +200,7 @@ export default function CatalogBook() {
             <figcaption className="small muted">
               {image.caption ? <span>{image.caption}</span> : null}
               <span className="by">{image.uploadedByName}</span>
-              {admin ? (
+              {editor ? (
                 <span className="row">
                   {!image.isPrimary ? (
                     <button type="button" className="ghost tiny" disabled={busy} onClick={() => void makePrimary(image)}>
@@ -185,6 +234,7 @@ export default function CatalogBook() {
       <FactionPrintView
         book={book}
         units={units}
+        images={images}
         packages={packages}
         glosario={glosario}
         onCerrar={() => setImprimir(false)}
@@ -224,13 +274,23 @@ export default function CatalogBook() {
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
       ) : null}
 
-      {admin ? null : (
+      {editor ? null : (
         <p className="muted small">
-          Las imagenes del catalogo las mantienen los administradores. Si quieres aportar alguna, pidesela a uno.
+          Las imagenes y textos del catalogo los mantienen los editores. Si quieres aportar algo, pideselo a uno.
         </p>
       )}
 
       {book.hint ? <p className="muted small">{book.hint}</p> : null}
+      {gallery(targetKeyFor(book.$id), book.coverImagePath)}
+      {book.lore ? <p className="faction-lore">{book.lore}</p> : null}
+      {editor ? (
+        <ImageUploader
+          label={`Anadir imagen de ${book.name}`}
+          busy={busy}
+          imageType="gallery"
+          onUpload={(files, caption, imageType) => upload(files, caption, imageType)}
+        />
+      ) : null}
 
       <Tabs
         value={pestana}
@@ -365,39 +425,45 @@ export default function CatalogBook() {
                 {seccion.etiqueta}
                 <span className="army-group-count">{seccion.unidades.length}</span>
               </h3>
-              {seccion.unidades.map((unit) => (
-                <div key={unit.$id} className="army-slide">
-                  <UnitCard
-                    variant="catalogo"
-                    formato="hoja"
-                    glosario={glosario}
-                    onHabilidad={setHabilidad}
-                    unitId={unit.unitId}
-                    sections={sectionsForUnit(unit, packages)}
-                    unit={{
-                      name: unit.name,
-                      size: unit.size,
-                      quality: unit.quality,
-                      defense: unit.defense,
-                      cost: unit.cost,
-                      rules: unit.rules,
-                      loadout: baseLoadout(unit.weapons, unit.items),
-                    }}
-                    footer={
-                      <>
-                        {gallery(targetKeyFor(book.$id, unit.unitId))}
-                        {admin ? (
-                          <ImageUploader
-                            label={`Anadir imagenes de ${unit.name}`}
-                            busy={busy}
-                            onUpload={(files, caption) => upload(files, caption, unit)}
-                          />
-                        ) : null}
-                      </>
-                    }
-                  />
-                </div>
-              ))}
+              {seccion.unidades.map((unit) => {
+                const avatar = pickImageByType(byTarget.get(targetKeyFor(book.$id, unit.unitId)), "avatar");
+                return (
+                  <div key={unit.$id} className="army-slide">
+                    <UnitCard
+                      variant="catalogo"
+                      formato="hoja"
+                      glosario={glosario}
+                      onHabilidad={setHabilidad}
+                      avatarUrl={avatar ? catalogImageUrl(avatar.fileId) : null}
+                      lore={unit.lore}
+                      unitId={unit.unitId}
+                      sections={sectionsForUnit(unit, packages)}
+                      unit={{
+                        name: unit.name,
+                        size: unit.size,
+                        quality: unit.quality,
+                        defense: unit.defense,
+                        cost: unit.cost,
+                        rules: unit.rules,
+                        loadout: baseLoadout(unit.weapons, unit.items),
+                      }}
+                      footer={
+                        <>
+                          {editor ? <UnitLoreEditor unit={unit} busy={busy} onSave={saveLore} /> : unit.lore ? <p>{unit.lore}</p> : null}
+                          {gallery(targetKeyFor(book.$id, unit.unitId))}
+                          {editor ? (
+                            <ImageUploader
+                              label={`Anadir imagenes de ${unit.name}`}
+                              busy={busy}
+                              onUpload={(files, caption, imageType) => upload(files, caption, imageType, unit)}
+                            />
+                          ) : null}
+                        </>
+                      }
+                    />
+                  </div>
+                );
+              })}
             </section>
           ))}
         </div>

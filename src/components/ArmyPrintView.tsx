@@ -390,11 +390,15 @@ export function FichaUnidadLibro({
   glosario,
   libro,
   parte,
+  lore,
+  miniaturaUrl,
 }: {
   unit: ResolvedUnit;
   glosario: Map<string, CatalogRule>;
   libro: ArmyBook | undefined;
   parte?: "perfil" | "detalles";
+  lore?: string | null;
+  miniaturaUrl?: string | null;
 }) {
   const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
   const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
@@ -405,8 +409,10 @@ export function FichaUnidadLibro({
   return (
     <article className="ucard ucard-ejercito libro-ficha">
       <LibroCabecera unit={unit} parte={dividida ? (parte === "perfil" ? "1/2" : "2/2") : undefined} />
+      {miniaturaUrl ? <img className="libro-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
       {dividida ? <p className="libro-aviso">Ficha dividida para no recortar esta unidad al imprimir.</p> : null}
       <div className="ucard-body libro-cuerpo">
+        {lore && parte !== "detalles" ? <p className="libro-lore">{lore}</p> : null}
         {parte !== "detalles" ? (
           <TablaArmasLibro armas={armas} glosario={glosario} />
         ) : null}

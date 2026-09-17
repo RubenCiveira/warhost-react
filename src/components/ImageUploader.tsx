@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { errorMessage } from "../lib/format";
+import type { CatalogImageType } from "../api/catalog";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
@@ -8,7 +9,8 @@ const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
 interface Props {
   label: string;
   busy?: boolean;
-  onUpload: (files: File[], caption: string) => Promise<void>;
+  imageType?: CatalogImageType;
+  onUpload: (files: File[], caption: string, imageType: CatalogImageType) => Promise<void>;
 }
 
 /**
@@ -16,9 +18,10 @@ interface Props {
  * Valida tipo y tamano antes de llamar a Appwrite, que si no responde con un
  * error generico que no ayuda a quien lo esta usando.
  */
-export default function ImageUploader({ label, busy, onUpload }: Props) {
+export default function ImageUploader({ label, busy, imageType = "gallery", onUpload }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState("");
+  const [type, setType] = useState<CatalogImageType>(imageType);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +41,7 @@ export default function ImageUploader({ label, busy, onUpload }: Props) {
     setWorking(true);
     setError(null);
     try {
-      await onUpload(files, caption);
+      await onUpload(files, caption, type);
       setFiles([]);
       setCaption("");
       if (inputRef.current) inputRef.current.value = "";
@@ -65,6 +68,11 @@ export default function ImageUploader({ label, busy, onUpload }: Props) {
       />
       {files.length > 0 ? (
         <>
+          <select value={type} disabled={disabled} onChange={(event) => setType(event.target.value as CatalogImageType)}>
+            <option value="gallery">Galeria</option>
+            <option value="avatar">Avatar</option>
+            <option value="miniature">Miniatura</option>
+          </select>
           <input
             type="text"
             placeholder="Pie de foto (opcional)"

@@ -567,6 +567,10 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
 .uploader label { margin: 0; flex-basis: 100%; }
 .uploader input[type="file"] { flex: 1 1 220px; width: auto; padding: 6px; }
 .uploader input[type="text"] { flex: 1 1 180px; width: auto; }
+.uploader select { flex: 0 1 140px; }
+
+.unit-lore-editor { display: grid; gap: 8px; margin-bottom: 12px; }
+.unit-lore-editor textarea { min-height: 90px; resize: vertical; }
 
 .danger-text { color: var(--danger); flex-basis: 100%; margin: 0; }
 
@@ -659,6 +663,11 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   display: flex; align-items: stretch; gap: 0.8mm;
   padding: 1.6mm 2mm 1mm;
   flex: 0 0 auto;
+}
+.ucard-avatar {
+  width: 13mm; height: 11mm; object-fit: cover; flex: 0 0 auto;
+  border: 0.45mm solid var(--ucard-banda); border-radius: 1.2mm 0 1.2mm 0;
+  clip-path: polygon(9% 0, 100% 0, 91% 100%, 0 100%);
 }
 .ucard-title {
   flex: 1; margin: 0; min-width: 0;
@@ -841,6 +850,10 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard-notas {
   margin: 1.2mm 0 0; padding: 1mm 2.5mm 0; font-size: 2.3mm; line-height: 1.3;
   color: var(--ucard-tinta);
+}
+.ucard-lore {
+  margin: 1.2mm 0 0; padding: 1mm 2.5mm 0; font-size: 2.25mm; line-height: 1.25;
+  color: var(--ucard-tenue); border-left: 0.5mm solid var(--ucard-filete);
 }
 .ucard-notas .ucard-label { color: var(--ucard-tenue); margin-right: 1.2mm; }
 .ucard.hoja /* El pie de la carta ya lleva botones; el control de notas se alinea con
@@ -1581,11 +1594,23 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
    unidad, pero sin alto fijo para poder llevar el texto completo. */
 .print-libro { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
 .print-unidad { display: contents; }
+.print-faccion-titulo {
+  width: min(100%, 190mm); padding: 4mm 0 2mm; border-bottom: 0.5mm solid var(--border-strong);
+  margin-bottom: 2mm; color: #111;
+}
+.print-faccion-titulo h1 { margin: 0; font-size: 8mm; line-height: 1; letter-spacing: 0.02em; }
+.print-faccion-cover {
+  width: 100%; max-height: 82mm; object-fit: cover; object-position: center;
+  margin-top: 4mm; border: 0.5mm solid #000; border-radius: 2mm;
+}
+.print-faccion-lore { margin: 4mm 0 0; color: #111; font-size: 3.2mm; line-height: 1.35; white-space: pre-line; }
 .print-faccion-unidad { display: grid; justify-items: center; gap: 2mm; }
 @media print {
   .print-toolbar { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
   .print-libro { display: block; }
+  .print-faccion-titulo { width: 190mm; border-color: #000; color: #000; break-after: avoid; }
+  .print-faccion-lore { color: #000; }
   .print-faccion-unidad { display: block; }
 }
 
@@ -1602,6 +1627,15 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .libro-aviso { margin: 1.8mm 2.5mm 0; color: var(--ucard-tenue); font-size: 2.45mm; font-style: italic; }
 .libro-cuerpo { gap: 2.2mm; padding: 2.2mm 2.5mm 0; }
+.libro-miniatura {
+  width: calc(100% - 5mm); max-height: 42mm; object-fit: cover; object-position: center;
+  margin: 1.8mm 2.5mm 0; border: 0.45mm solid var(--ucard-filete); border-radius: 1.5mm;
+}
+.libro-lore {
+  margin: 0; padding: 1.6mm 2mm; color: var(--ucard-tenue);
+  border-left: 0.6mm solid var(--ucard-realce); background: color-mix(in srgb, var(--ucard-realce) 10%, transparent);
+  font-size: 2.75mm; line-height: 1.28;
+}
 .libro-bloque { padding: 0; margin: 0; }
 .libro-tabla { width: 100%; table-layout: auto; font-size: 2.65mm; line-height: 1.28; }
 .libro-tabla th, .libro-tabla td { text-align: left; vertical-align: top; }

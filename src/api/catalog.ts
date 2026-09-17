@@ -20,6 +20,8 @@ export interface ArmyBook extends Row {
   bannerImagePath: string | null;
   popularity: number;
   spells: string | null;
+  lore: string | null;
+  loreSyncedAt: string | null;
   syncedAt: string | null;
   syncedVersion: string | null;
   /** Reglas que publica este libro; el glosario es comun y no lo dice. */
@@ -41,6 +43,7 @@ export interface ArmyUnit extends Row {
   items: string | null;
   upgradePackageUids: string[];
   sortOrder: number;
+  lore: string | null;
 }
 
 export interface UpgradePackageRow extends Row {
@@ -52,6 +55,7 @@ export interface UpgradePackageRow extends Row {
 }
 
 export type ImageScope = "faction" | "unit";
+export type CatalogImageType = "gallery" | "avatar" | "miniature";
 
 export interface CatalogImage extends Row {
   targetKey: string;
@@ -65,6 +69,7 @@ export interface CatalogImage extends Row {
   unitName: string | null;
   fileId: string;
   caption: string | null;
+  imageType?: CatalogImageType | null;
   isPrimary: boolean;
   uploadedBy: string;
   uploadedByName: string | null;
@@ -167,6 +172,7 @@ export interface UploadTarget {
   scope: ImageScope;
   book: ArmyBook;
   unit?: ArmyUnit;
+  imageType?: CatalogImageType;
 }
 
 export async function uploadCatalogImage(
@@ -196,6 +202,7 @@ export async function uploadCatalogImage(
       unitName: target.unit?.name ?? null,
       fileId,
       caption: caption?.trim() || null,
+      imageType: target.imageType ?? "gallery",
       isPrimary: false,
       uploadedBy: user.$id,
       uploadedByName: user.name || user.email,
@@ -219,6 +226,7 @@ export async function deleteCatalogImage(image: CatalogImage): Promise<void> {
 export async function setPrimaryImage(image: CatalogImage, siblings: CatalogImage[]): Promise<void> {
   await Promise.all(
     siblings
+      .filter((candidate) => (candidate.imageType ?? "gallery") === (image.imageType ?? "gallery"))
       .filter((candidate) => candidate.isPrimary && candidate.$id !== image.$id)
       .map((candidate) =>
         tables.updateRow({
@@ -234,6 +242,15 @@ export async function setPrimaryImage(image: CatalogImage, siblings: CatalogImag
     tableId: TABLES.catalogImages,
     rowId: image.$id,
     data: { isPrimary: true },
+  });
+}
+
+export async function updateUnitLore(unit: ArmyUnit, lore: string): Promise<ArmyUnit> {
+  return tables.updateRow<ArmyUnit>({
+    databaseId: env.databaseId,
+    tableId: TABLES.armyUnits,
+    rowId: unit.$id,
+    data: { lore: lore.trim() || null },
   });
 }
 
@@ -256,6 +273,10 @@ export function groupImages(images: CatalogImage[]): Map<string, CatalogImage[]>
 export function pickCover(images: CatalogImage[] | undefined): CatalogImage | null {
   if (!images?.length) return null;
   return images.find((image) => image.isPrimary) ?? images[0];
+}
+
+export function pickImageByType(images: CatalogImage[] | undefined, imageType: CatalogImageType): CatalogImage | null {
+  return pickCover(images?.filter((image) => (image.imageType ?? "gallery") === imageType));
 }
 
 export interface CatalogRule extends Row {
