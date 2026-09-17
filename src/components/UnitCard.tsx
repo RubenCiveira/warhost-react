@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { normalizeLoadout } from "../lib/loadout";
 import type { LoadoutEntry } from "../lib/loadout";
@@ -941,6 +942,7 @@ export default function UnitCard({
 
   const wrapClase = hoja ? "ucard-wrap hoja" : personaje ? "ucard-wrap personaje" : "ucard-wrap";
   const marcoClase = hoja ? "ucard-frame hoja" : personaje ? "ucard-frame personaje" : "ucard-frame";
+  const avatarEnStats = variant === "ejercito" && !hoja && avatarUrl;
   const claseCarta = [
     `ucard ucard-${variant}`,
     hoja
@@ -962,7 +964,6 @@ export default function UnitCard({
       <div className={marcoClase}>
         <article className={claseCarta}>
           <header className="ucard-head">
-            {avatarUrl ? <img className="ucard-avatar" src={avatarUrl} alt="" loading="lazy" /> : null}
             {subtitulo ? (
               // El heroe de quest lleva su nombre propio y, debajo, su clase y
               // el tipo de unidad del que sale: nunca va emparejado ni
@@ -984,11 +985,16 @@ export default function UnitCard({
             )}
             {hoja && miniaturaUrl ? <img className="ucard-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
             <div className={`ucard-stats${quest ? " quest" : ""}`}>
-              {stats.map(([label, value]) => (
-                <div key={label} className="ucard-stat">
-                  <span className="ucard-stat-key">{label}</span>
-                  <span className="ucard-stat-value">{value}</span>
-                </div>
+              {stats.map(([label, value], index) => (
+                <Fragment key={label}>
+                  <div className="ucard-stat">
+                    <span className="ucard-stat-key">{label}</span>
+                    <span className="ucard-stat-value">{value}</span>
+                  </div>
+                  {index === 0 && avatarEnStats ? (
+                    <img className="ucard-avatar" src={avatarEnStats} alt="" loading="lazy" />
+                  ) : null}
+                </Fragment>
               ))}
             </div>
           </header>
