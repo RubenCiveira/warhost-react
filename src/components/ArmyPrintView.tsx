@@ -37,6 +37,7 @@ interface TarjetaLibro {
   key: string;
   unit: ResolvedUnit;
   libro: ArmyBook | undefined;
+  miniaturaUrl?: string | null;
   parte?: "perfil" | "detalles";
 }
 
@@ -435,20 +436,33 @@ export function FichaUnidadLibro({
   );
 }
 
-function tarjetasDeUnidadLibro(unit: ResolvedUnit, glosario: Map<string, CatalogRule>, libro: ArmyBook | undefined): TarjetaLibro[] {
+function tarjetasDeUnidadLibro(
+  unit: ResolvedUnit,
+  glosario: Map<string, CatalogRule>,
+  libro: ArmyBook | undefined,
+  miniaturaUrl?: string | null,
+): TarjetaLibro[] {
   const hechizos = tieneCaster([unit]) && libro ? parseSpells(libro.spells ?? null) : [];
   const hayDetalles = unit.rules.length > 0 || unit.loadout.some((entrada) => entrada.kind === "gear") || hechizos.length > 0 || Boolean(unit.notes);
   const partir = hayDetalles && altoLibroEstimadoMm(unit, glosario, hechizos) > LIBRO_ALTO_UTIL_MM;
   const keyBase = `${unit.unitKey ?? unit.name}-${unit.sortOrder}`;
-  if (!partir) return [{ key: keyBase, unit, libro }];
+  if (!partir) return [{ key: keyBase, unit, libro, miniaturaUrl }];
   return [
-    { key: `${keyBase}-perfil`, unit, libro, parte: "perfil" },
+    { key: `${keyBase}-perfil`, unit, libro, miniaturaUrl, parte: "perfil" },
     { key: `${keyBase}-detalles`, unit, libro, parte: "detalles" },
   ];
 }
 
 function TarjetaUnidadLibro({ tarjeta, glosario }: { tarjeta: TarjetaLibro; glosario: Map<string, CatalogRule> }) {
-  return <FichaUnidadLibro unit={tarjeta.unit} glosario={glosario} libro={tarjeta.libro} parte={tarjeta.parte} />;
+  return (
+    <FichaUnidadLibro
+      unit={tarjeta.unit}
+      glosario={glosario}
+      libro={tarjeta.libro}
+      miniaturaUrl={tarjeta.miniaturaUrl}
+      parte={tarjeta.parte}
+    />
+  );
 }
 
 /**
@@ -460,11 +474,13 @@ function VistaLibro({
   units,
   glosario,
   librosConocidos,
+  miniaturaDe,
   noun,
 }: {
   units: ResolvedUnit[];
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
+  miniaturaDe?: (unit: ResolvedUnit) => string | null;
   noun: ArmyNoun;
 }) {
   // Una lista importada y todavia no tocada por el constructor no trae
@@ -474,9 +490,16 @@ function VistaLibro({
   const tarjetas = useMemo(
     () =>
       agruparUnidades(units).flatMap((seccion) =>
-        seccion.unidades.flatMap((unit) => tarjetasDeUnidadLibro(unit, glosario, librosConocidos.find((libro) => (unit.bookKey ?? defaultBookKey) === libro.$id))),
+        seccion.unidades.flatMap((unit) =>
+          tarjetasDeUnidadLibro(
+            unit,
+            glosario,
+            librosConocidos.find((libro) => (unit.bookKey ?? defaultBookKey) === libro.$id),
+            miniaturaDe?.(unit) ?? null,
+          ),
+        ),
       ),
-    [defaultBookKey, glosario, librosConocidos, units],
+    [defaultBookKey, glosario, librosConocidos, miniaturaDe, units],
   );
 
   if (units.length === 0) return <p className="muted">{noun.demonstrativeCap} {noun.singular} no tiene unidades que imprimir.</p>;
@@ -595,6 +618,7 @@ export default function ArmyPrintView({
   entradasAttachedTo,
   glosario,
   librosConocidos,
+  miniaturaDe,
   onCerrar,
 }: {
   nombre: string;
@@ -605,6 +629,7 @@ export default function ArmyPrintView({
   entradasAttachedTo: Array<number | undefined>;
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
+  miniaturaDe?: (unit: ResolvedUnit) => string | null;
   onCerrar: () => void;
 }) {
   const [modo, setModo] = useState<"elegir" | "libro" | "tarjetas">("elegir");
@@ -647,7 +672,7 @@ export default function ArmyPrintView({
           </div>
         </div>
       ) : modo === "libro" ? (
-        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} noun={noun} />
+        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} miniaturaDe={miniaturaDe} noun={noun} />
       ) : (
         <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} />
       )}

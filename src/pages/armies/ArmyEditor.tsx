@@ -407,15 +407,20 @@ export default function ArmyEditor() {
   const imagenesPorObjetivo = useMemo(() => groupImages(imagenesCatalogo), [imagenesCatalogo]);
   /** uid de Army Forge -> `bookKey` propio, para leer listas importadas multi-faccion. */
   const uidABookKey = useMemo(() => new Map(librosConocidos.map((libro) => [libro.uid, libro.$id])), [librosConocidos]);
-  const avatarDe = useCallback(
-    (unit: ResolvedUnit): string | null => {
+  const imagenCatalogoDe = useCallback(
+    (unit: ResolvedUnit, tipo: "avatar" | "miniature"): string | null => {
       const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
       const bookKey = unit.bookKey ?? defaultBookKey;
       if (!bookKey || !unit.unitKey) return null;
-      const avatar = pickImageByType(imagenesPorObjetivo.get(targetKeyFor(bookKey, unit.unitKey)), "avatar");
-      return avatar ? catalogImageUrl(avatar.fileId) : null;
+      const imagen = pickImageByType(imagenesPorObjetivo.get(targetKeyFor(bookKey, unit.unitKey)), tipo);
+      return imagen ? catalogImageUrl(imagen.fileId) : null;
     },
     [imagenesPorObjetivo, librosConocidos],
+  );
+  const avatarDe = useCallback((unit: ResolvedUnit) => imagenCatalogoDe(unit, "avatar"), [imagenCatalogoDe]);
+  const miniaturaDe = useCallback(
+    (unit: ResolvedUnit) => imagenCatalogoDe(unit, "miniature"),
+    [imagenCatalogoDe],
   );
   /**
    * Registra un libro ya resuelto (y su catalogo) entre los conocidos de este
@@ -1087,6 +1092,7 @@ export default function ArmyEditor() {
         entradasAttachedTo={entradasGuardadas.map((entrada) => entrada.attachedTo)}
         glosario={glosario}
         librosConocidos={librosConocidos}
+        miniaturaDe={miniaturaDe}
         onCerrar={() => setImprimiendo(false)}
       />
     );
