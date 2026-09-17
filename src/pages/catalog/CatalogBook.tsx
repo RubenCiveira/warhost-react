@@ -20,6 +20,7 @@ import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../../api/ca
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
+import FactionPrintView from "../../components/FactionPrintView";
 import UnitCard from "../../components/UnitCard";
 import { sectionsForUnit } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
@@ -46,6 +47,7 @@ export default function CatalogBook() {
   const [loading, setLoading] = useState(true);
   const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "equipo" | "generales">("unidades");
   const [verGenerales, setVerGenerales] = useState(false);
+  const [imprimir, setImprimir] = useState(false);
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
   const [busy, setBusy] = useState(false);
@@ -178,6 +180,18 @@ export default function CatalogBook() {
     );
   }
 
+  if (imprimir) {
+    return (
+      <FactionPrintView
+        book={book}
+        units={units}
+        packages={packages}
+        glosario={glosario}
+        onCerrar={() => setImprimir(false)}
+      />
+    );
+  }
+
   return (
     <>
       <PageHead
@@ -188,6 +202,9 @@ export default function CatalogBook() {
         }
         actions={
           <>
+            <button type="button" onClick={() => setImprimir(true)}>
+              Imprimir faccion
+            </button>
             <Link to={`/facciones/${book.$id}/crear`} className="button-link">
               Crear {armyNounFor(bookSystem).singular}
             </Link>

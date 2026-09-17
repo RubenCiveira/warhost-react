@@ -7,6 +7,9 @@ import { agruparUnidades, emparejarHeroes } from "../lib/unidades";
 import type { FilaEjercito } from "../lib/unidades";
 import { conValor, parseHabilidad } from "../lib/reglas";
 import type { Habilidad } from "../lib/reglas";
+import { optionCost } from "../lib/builder";
+import type { UpgradeOption, UpgradeSection } from "../lib/builder";
+import { desglosarOpcion } from "../lib/opciones";
 import { parseSpells } from "../lib/spells";
 import type { Spell } from "../lib/spells";
 import type { ArmyNoun } from "../lib/gameSystems";
@@ -289,16 +292,77 @@ function TablaHechizosLibro({ hechizos }: { hechizos: Spell[] }) {
   );
 }
 
-function FichaUnidadLibro({
+function textoGanancia(option: UpgradeOption): string | null {
+  const desglose = desglosarOpcion(option);
+  if (desglose.crudo) return option.label ?? null;
+  const ganancias = desglose.ganancias.map((ganancia) => {
+    const cantidad = ganancia.cuantas > 1 ? `${ganancia.cuantas}x ` : "";
+    return `${cantidad}${ganancia.nombre}${ganancia.perfil ? ` (${ganancia.perfil})` : ""}`;
+  });
+  return ganancias.length > 0 ? ganancias.join("; ") : null;
+}
+
+function reglasDeOpcion(option: UpgradeOption): string[] {
+  const desglose = desglosarOpcion(option);
+  return [...desglose.reglas, ...desglose.ganancias.flatMap((ganancia) => ganancia.reglas)].map((regla) => regla.etiqueta);
+}
+
+function TablaOpcionesLibro({
+  sections,
+  unitId,
+  glosario,
+}: {
+  sections: UpgradeSection[];
+  unitId: string;
+  glosario: Map<string, CatalogRule>;
+}) {
+  if (sections.length === 0) return null;
+  return (
+    <section className="ucard-bloque libro-bloque libro-opciones">
+      <h4 className="ucard-bloque-title">Opciones</h4>
+      {sections.map((section) => (
+        <div key={section.id ?? section.uid} className="libro-opcion-seccion">
+          <h5>{section.label}</h5>
+          <table className="ucard-table libro-tabla">
+            <thead>
+              <tr>
+                <th className="libro-col-nombre">Opcion</th>
+                <th>Coste</th>
+                <th>Concede</th>
+                <th className="libro-col-reglas">Reglas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(section.options ?? []).map((option) => (
+                <tr key={option.id ?? option.uid ?? option.label}>
+                  <td className="libro-col-nombre">{option.label ?? "Opcion"}</td>
+                  <td className="num">{optionCost(option, unitId) === 0 ? "gratis" : `+${optionCost(option, unitId)}`}</td>
+                  <td>{textoGanancia(option) ?? <span className="ucard-vacio">—</span>}</td>
+                  <td className="libro-col-reglas">
+                    <ReglasTexto etiquetas={reglasDeOpcion(option)} glosario={glosario} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+export function FichaUnidadLibro({
   unit,
   glosario,
   libro,
   parte,
+  opciones = [],
 }: {
   unit: ResolvedUnit;
   glosario: Map<string, CatalogRule>;
   libro: ArmyBook | undefined;
   parte?: "perfil" | "detalles";
+  opciones?: UpgradeSection[];
 }) {
   const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
   const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
@@ -319,6 +383,7 @@ function FichaUnidadLibro({
             <TablaReglasLibro reglas={unit.rules} glosario={glosario} />
             <TablaEquipoLibro equipo={equipo} glosario={glosario} />
             <TablaHechizosLibro hechizos={hechizos} />
+            {unit.unitKey ? <TablaOpcionesLibro sections={opciones} unitId={unit.unitKey} glosario={glosario} /> : null}
             {unit.notes ? (
               <p className="ucard-notas libro-notas">
                 <span className="ucard-label">Notas</span>

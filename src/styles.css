@@ -1581,10 +1581,14 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
    unidad, pero sin alto fijo para poder llevar el texto completo. */
 .print-libro { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
 .print-unidad { display: contents; }
+.print-faccion-grupo { width: 100%; }
+.print-faccion-unidad { display: flex; justify-content: center; }
 @media print {
   .print-toolbar { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
   .print-libro { display: block; }
+  .print-faccion-grupo { break-after: auto; }
+  .print-faccion-unidad { display: block; }
 }
 
 .libro-ficha {
@@ -1611,6 +1615,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .libro-regla { margin: 0 0 1mm; }
 .libro-regla:last-child { margin-bottom: 0; }
 .libro-notas { margin-top: 0; }
+.libro-opcion-seccion { margin-top: 2mm; break-inside: avoid; }
+.libro-opcion-seccion h5 { margin: 0 0 1mm; font-size: 2.8mm; }
 @media print {
   .libro-ficha {
     width: 190mm; margin: 0 0 2mm; box-shadow: none;
