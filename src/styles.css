@@ -1513,8 +1513,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja.con-miniatura .ucard-head { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
 .ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
 .ucard.hoja.con-miniatura .ucard-miniatura {
-  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
-  border: 0; border-radius: 0; box-shadow: none;
+  position: absolute; top: 0; right: 25%; width: 58mm; height: 50mm; max-height: none;
+  object-fit: fill; object-position: top; border: 0; border-radius: 0; box-shadow: none;
 }
 .ucard.hoja.con-miniatura .ucard-stats {
   align-self: flex-end; width: auto; flex-wrap: nowrap; justify-content: flex-end;
