@@ -684,10 +684,6 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
   border: 0.45mm solid var(--ucard-banda); border-radius: 1.2mm 0 1.2mm 0;
   clip-path: polygon(9% 0, 100% 0, 91% 100%, 0 100%);
 }
-.ucard-miniatura {
-  width: 100%; max-height: 28mm; object-fit: cover; object-position: center;
-  border: 0.35mm solid var(--ucard-filete); border-radius: 1.2mm;
-}
 .ucard-title {
   flex: 1; margin: 0; min-width: 0;
   display: flex; align-items: center;
@@ -1513,8 +1509,8 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja.con-miniatura .ucard-head { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
 .ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
 .ucard.hoja.con-miniatura .ucard-miniatura {
-  position: absolute; top: 0; right: 25%; width: 58mm; height: 50mm; max-height: none;
-  object-fit: fill; object-position: top; border: 0; border-radius: 0; box-shadow: none;
+  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
+  border: 0; border-radius: 0; box-shadow: none; object-position: top;
 }
 .ucard.hoja.con-miniatura .ucard-stats {
   align-self: flex-end; width: auto; flex-wrap: nowrap; justify-content: flex-end;
@@ -1528,7 +1524,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja .ucard-chip { font-size: 2.8mm; padding: 0.8mm 2mm; }
 .ucard.hoja .ucard-bloque-title { font-size: 2.5mm; }
 .ucard.hoja .ucard-lore-intro {
-  max-height: 16mm; overflow: hidden; font-size: 2.5mm; line-height: 1.28;
+  width: 55%; overflow: hidden; font-size: 2.5mm; line-height: 1.28;
   border-left: 0; border-top: 0.35mm solid var(--ucard-filete);
   border-bottom: 0.35mm solid var(--ucard-filete); background: rgba(255, 255, 255, 0.24);
 }
@@ -1666,11 +1662,12 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .libro-aviso { margin: 1.8mm 2.5mm 0; color: var(--ucard-tenue); font-size: 2.45mm; font-style: italic; }
 .libro-cuerpo { gap: 2.2mm; padding: 2.2mm 2.5mm 0; }
 .libro-miniatura {
-  width: calc(100% - 5mm); max-height: 42mm; object-fit: cover; object-position: center;
-  margin: 1.8mm 2.5mm 0; border: 0.45mm solid var(--ucard-filete); border-radius: 1.5mm;
+  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
+  border: 0; border-radius: 0; box-shadow: none; object-position: top;
 }
 .libro-lore {
   margin: 0; padding: 1.6mm 2mm; color: var(--ucard-tenue);
+  width: 50%;
   border-left: 0.6mm solid var(--ucard-realce); background: color-mix(in srgb, var(--ucard-realce) 10%, transparent);
   font-size: 2.75mm; line-height: 1.28;
 }
