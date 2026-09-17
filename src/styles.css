@@ -1661,7 +1661,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .libro-aviso { margin: 1.8mm 2.5mm 0; color: var(--ucard-tenue); font-size: 2.45mm; font-style: italic; }
 .libro-cuerpo { gap: 2.2mm; padding: 2.2mm 2.5mm 0; }
-.libro-miniatura {
+.libro-ficha.con-miniatura .libro-miniatura {
   position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
   border: 0; border-radius: 0; box-shadow: none; object-position: top;
 }

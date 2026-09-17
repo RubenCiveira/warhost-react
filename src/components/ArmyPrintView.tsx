@@ -409,7 +409,7 @@ export function FichaUnidadLibro({
   const dividida = parte !== undefined;
 
   return (
-    <article className="ucard ucard-ejercito libro-ficha">
+    <article className={`ucard ucard-ejercito libro-ficha${miniaturaUrl ? " con-miniatura" : ""}`}>
       <LibroCabecera unit={unit} parte={dividida ? (parte === "perfil" ? "1/2" : "2/2") : undefined} />
       {miniaturaUrl ? <img className="libro-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
       {dividida ? <p className="libro-aviso">Ficha dividida para no recortar esta unidad al imprimir.</p> : null}
@@ -527,11 +527,13 @@ function VistaTarjetas({
   cartas,
   glosario,
   quest,
+  avatarDe,
 }: {
   filas: FilaEjercito[];
   cartas: CartaMiniEuro[];
   glosario: Map<string, CatalogRule>;
   quest: boolean;
+  avatarDe?: (unit: ResolvedUnit) => string | null;
 }) {
   const tarotMm = quest ? TAROT_PERSONAJE_MM : TAROT_MM;
   // Una carta tipo tarot es mas ancha que alta: una hoja tambien apaisada
@@ -558,6 +560,7 @@ function VistaTarjetas({
                     quest={quest}
                     formato={quest ? "personaje" : "tarot"}
                     glosario={glosario}
+                    avatarUrl={avatarDe?.(fila.principal) ?? null}
                     unit={perfilDe(fila.principal)}
                     combinada={fila.principal.combined}
                     notas={fila.principal.notes}
@@ -618,6 +621,7 @@ export default function ArmyPrintView({
   entradasAttachedTo,
   glosario,
   librosConocidos,
+  avatarDe,
   miniaturaDe,
   onCerrar,
 }: {
@@ -629,6 +633,7 @@ export default function ArmyPrintView({
   entradasAttachedTo: Array<number | undefined>;
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
+  avatarDe?: (unit: ResolvedUnit) => string | null;
   miniaturaDe?: (unit: ResolvedUnit) => string | null;
   onCerrar: () => void;
 }) {
@@ -674,7 +679,7 @@ export default function ArmyPrintView({
       ) : modo === "libro" ? (
         <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} miniaturaDe={miniaturaDe} noun={noun} />
       ) : (
-        <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} />
+        <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} avatarDe={avatarDe} />
       )}
     </div>
   );

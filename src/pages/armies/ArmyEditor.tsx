@@ -1092,6 +1092,7 @@ export default function ArmyEditor() {
         entradasAttachedTo={entradasGuardadas.map((entrada) => entrada.attachedTo)}
         glosario={glosario}
         librosConocidos={librosConocidos}
+        avatarDe={avatarDe}
         miniaturaDe={miniaturaDe}
         onCerrar={() => setImprimiendo(false)}
       />
