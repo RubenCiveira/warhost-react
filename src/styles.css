@@ -1514,12 +1514,12 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
 .ucard.hoja.con-miniatura .ucard-miniatura {
   position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
-  border-color: var(--ucard-banda); box-shadow: 0 1.2mm 2.8mm rgba(0, 0, 0, 0.22);
+  border: 0; border-radius: 0; box-shadow: none;
 }
 .ucard.hoja.con-miniatura .ucard-stats {
-  align-self: stretch; width: 28mm; flex-wrap: wrap; align-content: flex-end; justify-content: flex-end;
+  align-self: flex-end; width: auto; flex-wrap: nowrap; justify-content: flex-end;
 }
-.ucard.hoja.con-miniatura .ucard-stat { width: 13.4mm; }
+.ucard.hoja.con-miniatura .ucard-stat { width: 13mm; }
 .ucard.hoja .ucard-stat { width: 13mm; padding: 1.2mm 0 1mm; }
 .ucard.hoja .ucard-stat-key { font-size: 2.4mm; }
 .ucard.hoja .ucard-stat-value { font-size: 4.2mm; }
