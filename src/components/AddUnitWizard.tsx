@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../api/catalog";
-import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
+import { catalogImageUrl, getBook, groupImages, listBookImages, listRuleGlossary, listUnits, listUpgradePackages, pickImageByType, targetKeyFor } from "../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../api/catalog";
 import { listHeroClasses, listQuestShopPackages } from "../api/content";
 import {
   blockReason,
@@ -107,6 +107,7 @@ export default function AddUnitWizard({
 }: Props) {
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
+  const [images, setImages] = useState<CatalogImage[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,11 +128,12 @@ export default function AddUnitWizard({
     let cancelled = false;
     void (async () => {
       try {
-        const [b, u, p] = await Promise.all([getBook(bookKey), listUnits(bookKey), listUpgradePackages(bookKey)]);
+        const [b, u, p, imgs] = await Promise.all([getBook(bookKey), listUnits(bookKey), listUpgradePackages(bookKey), listBookImages(bookKey)]);
         if (cancelled) return;
         setBook(b);
         setUnits(u);
         setPackages(p);
+        setImages(imgs);
         // Al editar, la unidad ya esta elegida: se rehace su entrada con lo
         // que tenia puesto. Si su unidad ya no esta en el libro no hay nada
         // que configurar, y se dice en vez de abrir el asistente en blanco.
@@ -207,6 +209,20 @@ export default function AddUnitWizard({
       (unit) => unit.name.toLowerCase().includes(aguja) || unit.rules.some((r) => r.toLowerCase().includes(aguja)),
     );
   }, [units, busqueda]);
+  const byTarget = useMemo(() => (book ? groupImages(images) : new Map<string, CatalogImage[]>()), [book, images]);
+  const imagenesDe = useCallback(
+    (unit: { unitId: string }) => {
+      if (!book) return { avatarUrl: null, miniaturaUrl: null };
+      const list = byTarget.get(targetKeyFor(book.$id, unit.unitId));
+      const avatar = pickImageByType(list, "avatar");
+      const miniatura = pickImageByType(list, "miniature");
+      return {
+        avatarUrl: avatar ? catalogImageUrl(avatar.fileId) : null,
+        miniaturaUrl: miniatura ? catalogImageUrl(miniatura.fileId) : null,
+      };
+    },
+    [book, byTarget],
+  );
 
   const elegir = useCallback((unit: ArmyUnit) => {
     setEntry({ key: `${unit.unitId}-${Date.now()}`, unit, choices: {} });
@@ -441,6 +457,8 @@ export default function AddUnitWizard({
                       quest={quest}
                       glosario={glosario}
                       onHabilidad={setHabilidad}
+                      miniaturaUrl={imagenesDe(unit).miniaturaUrl}
+                      lore={unit.lore}
                       sections={sectionsForUnit(unit, packages)}
                       unit={{
                         name: unit.name,
@@ -480,6 +498,7 @@ export default function AddUnitWizard({
                 subtitulo={subtituloDe(entry)}
                 glosario={glosario}
                 onHabilidad={setHabilidad}
+                avatarUrl={imagenesDe(entry.unit).avatarUrl}
                 sections={sectionsConTiendaQuest}
                 upgrades={entryUpgradeLabels(entry, sectionsConTiendaQuest)}
                 optionsOpen
@@ -546,6 +565,7 @@ export default function AddUnitWizard({
                 quest={quest}
                 formato={quest ? "personaje" : "tarot"}
                 subtitulo={subtituloDe(entry)}
+                avatarUrl={imagenesDe(entry.unit).avatarUrl}
                 unit={tarjeta(entry)}
                 questClassSkills={habilidadesParaHeroe(entry)}
                 onQuestClassSkill={setHabilidadClase}

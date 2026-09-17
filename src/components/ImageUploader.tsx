@@ -18,10 +18,10 @@ interface Props {
  * Valida tipo y tamano antes de llamar a Appwrite, que si no responde con un
  * error generico que no ayuda a quien lo esta usando.
  */
-export default function ImageUploader({ label, busy, imageType = "gallery", onUpload }: Props) {
+export default function ImageUploader({ label, busy, imageType, onUpload }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [caption, setCaption] = useState("");
-  const [type, setType] = useState<CatalogImageType>(imageType);
+  const [type, setType] = useState<CatalogImageType>(imageType ?? "gallery");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,11 +68,13 @@ export default function ImageUploader({ label, busy, imageType = "gallery", onUp
       />
       {files.length > 0 ? (
         <>
-          <select value={type} disabled={disabled} onChange={(event) => setType(event.target.value as CatalogImageType)}>
-            <option value="gallery">Galeria</option>
-            <option value="avatar">Avatar</option>
-            <option value="miniature">Miniatura</option>
-          </select>
+          {imageType ? null : (
+            <select value={type} disabled={disabled} onChange={(event) => setType(event.target.value as CatalogImageType)}>
+              <option value="gallery">Galeria</option>
+              <option value="avatar">Avatar</option>
+              <option value="miniature">Miniatura</option>
+            </select>
+          )}
           <input
             type="text"
             placeholder="Pie de foto (opcional)"

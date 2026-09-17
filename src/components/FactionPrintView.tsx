@@ -7,6 +7,7 @@ import type { ResolvedUnit } from "../lib/armyForgeResolve";
 import { baseLoadout } from "../lib/loadout";
 import { agruparUnidades } from "../lib/unidades";
 import { FichaOpcionesLibro, FichaUnidadLibro } from "./ArmyPrintView";
+import LoreText from "./LoreText";
 
 function unidadResuelta(unit: ArmyUnit): ResolvedUnit {
   return {
@@ -62,7 +63,7 @@ export default function FactionPrintView({
         <header className="print-faccion-titulo">
           <h1>{book.name}</h1>
           {coverUrl ? <img className="print-faccion-cover" src={coverUrl} alt="" /> : null}
-          {book.lore ? <p className="print-faccion-lore">{book.lore}</p> : null}
+          {book.lore ? <LoreText text={book.lore} className="print-faccion-lore" /> : null}
         </header>
         {unidadesOrdenadas.map((unit) => {
           const sections = sectionsForUnit(unit, packages);

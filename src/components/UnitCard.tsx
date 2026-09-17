@@ -9,6 +9,7 @@ import { desglosarOpcion } from "../lib/opciones";
 import { reglaDelAura, reglaParaLaUnidad } from "../lib/auras";
 import type { Habilidad } from "../lib/reglas";
 import type { HeroSkillCardData } from "./HeroSkillCard";
+import LoreText from "./LoreText";
 
 /**
  * Lo que la carta necesita del glosario: quien tiene descripcion, y cual es,
@@ -152,6 +153,8 @@ interface Props {
   lore?: string | null;
   /** Retrato de catalogo para la cabecera de la ficha. */
   avatarUrl?: string | null;
+  /** Imagen de miniatura de catalogo para la ficha configurable. */
+  miniaturaUrl?: string | null;
   /**
    * Segunda linea del titulo: en quest, la clase del heroe y el tipo de
    * unidad del catalogo del que sale ("Berserker · Grunt Veteran"). El resto
@@ -748,6 +751,7 @@ export default function UnitCard({
   notas,
   lore,
   avatarUrl,
+  miniaturaUrl,
   subtitulo,
   quest = false,
   glosario,
@@ -1003,6 +1007,7 @@ export default function UnitCard({
             </div>
           ) : (
             <div className="ucard-body">
+              {hoja && miniaturaUrl ? <img className="ucard-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
               {personaje ? null : <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />}
 
               {quest && personaje ? (
@@ -1066,7 +1071,7 @@ export default function UnitCard({
                 </p>
               ) : null}
 
-              {lore ? <p className="ucard-lore">{lore}</p> : null}
+              {lore ? <LoreText text={lore} className="ucard-lore" /> : null}
 
               {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
 

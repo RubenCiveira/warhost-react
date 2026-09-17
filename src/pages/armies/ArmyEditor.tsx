@@ -37,8 +37,8 @@ import AddUnitWizard from "../../components/AddUnitWizard";
 import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
-import { getBook, getBookByUid, listBooks, listRuleGlossary } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
+import { catalogImageUrl, getBook, getBookByUid, groupImages, listBookImages, listBooks, listRuleGlossary, pickImageByType, targetKeyFor } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../../api/catalog";
 import SpellCard from "../../components/SpellCard";
 import RuleCardModal from "../../components/RuleCardModal";
 import type { Habilidad } from "../../lib/reglas";
@@ -147,6 +147,7 @@ export default function ArmyEditor() {
    */
   const [librosPorClave, setLibrosPorClave] = useState<Map<string, ArmyBook>>(new Map());
   const [unidadesPorLibro, setUnidadesPorLibro] = useState<Map<string, ArmyUnit[]>>(new Map());
+  const [imagenesCatalogo, setImagenesCatalogo] = useState<CatalogImage[]>([]);
   const [paquetesPorClave, setPaquetesPorClave] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   /** Solo para quest: clase de cada heroe, para el subtitulo de su ficha. */
@@ -185,6 +186,7 @@ export default function ArmyEditor() {
     // navega a otro no deberian arrastrarse las del anterior.
     setLibrosPorClave(new Map());
     setUnidadesPorLibro(new Map());
+    setImagenesCatalogo([]);
     setPaquetesPorClave(new Map());
     setFacSeleccionada("");
     resolveArmy(armyId)
@@ -402,8 +404,19 @@ export default function ArmyEditor() {
   const unidadesGuardadas = useMemo(() => parseStoredList(listJson), [listJson]);
   const librosConocidos = useMemo(() => [...librosPorClave.values()], [librosPorClave]);
   const unidadesTodas = useMemo(() => [...unidadesPorLibro.values()].flat(), [unidadesPorLibro]);
+  const imagenesPorObjetivo = useMemo(() => groupImages(imagenesCatalogo), [imagenesCatalogo]);
   /** uid de Army Forge -> `bookKey` propio, para leer listas importadas multi-faccion. */
   const uidABookKey = useMemo(() => new Map(librosConocidos.map((libro) => [libro.uid, libro.$id])), [librosConocidos]);
+  const avatarDe = useCallback(
+    (unit: ResolvedUnit): string | null => {
+      const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
+      const bookKey = unit.bookKey ?? defaultBookKey;
+      if (!bookKey || !unit.unitKey) return null;
+      const avatar = pickImageByType(imagenesPorObjetivo.get(targetKeyFor(bookKey, unit.unitKey)), "avatar");
+      return avatar ? catalogImageUrl(avatar.fileId) : null;
+    },
+    [imagenesPorObjetivo, librosConocidos],
+  );
   /**
    * Registra un libro ya resuelto (y su catalogo) entre los conocidos de este
    * ejercito, si no lo estaba ya.
@@ -423,6 +436,9 @@ export default function ArmyEditor() {
             for (const [clave, secciones] of paquetes) siguiente.set(clave, secciones);
             return siguiente;
           });
+        }),
+        listBookImages(libro.$id).then((imagenes) => {
+          setImagenesCatalogo((prev) => [...prev.filter((image) => image.bookKey !== libro.$id), ...imagenes]);
         }),
       ]);
     },
@@ -1464,6 +1480,7 @@ export default function ArmyEditor() {
                       upgrades={u.upgrades ?? []}
                       glosario={glosario}
                       onHabilidad={setHabilidad}
+                      avatarUrl={avatarDe(u)}
                       unit={perfil(u)}
                       questClassSkills={habilidadesParaHeroe(u.heroClassId, u.level)}
                       onQuestClassSkill={setHabilidadClase}

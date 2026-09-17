@@ -24,6 +24,7 @@ import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui"
 import ImageUploader from "../../components/ImageUploader";
 import FactionPrintView from "../../components/FactionPrintView";
 import UnitCard from "../../components/UnitCard";
+import LoreText from "../../components/LoreText";
 import { sectionsForUnit } from "../../lib/builder";
 import { baseLoadout } from "../../lib/loadout";
 import SpellCard from "../../components/SpellCard";
@@ -37,14 +38,24 @@ import Tabs from "../../components/Tabs";
 import { parseSpells } from "../../lib/spells";
 import type { UpgradeSection } from "../../lib/builder";
 
-function UnitLoreEditor({
+function UnitEditorModal({
   unit,
+  images,
   busy,
   onSave,
+  onUpload,
+  onPrimary,
+  onRemove,
+  onClose,
 }: {
   unit: ArmyUnit;
+  images: CatalogImage[];
   busy: boolean;
   onSave: (unit: ArmyUnit, lore: string) => Promise<void>;
+  onUpload: (files: File[], caption: string, imageType: CatalogImageType, unit: ArmyUnit) => Promise<void>;
+  onPrimary: (image: CatalogImage) => Promise<void>;
+  onRemove: (image: CatalogImage) => Promise<void>;
+  onClose: () => void;
 }) {
   const [lore, setLore] = useState(unit.lore ?? "");
 
@@ -52,21 +63,69 @@ function UnitLoreEditor({
     setLore(unit.lore ?? "");
   }, [unit.lore]);
 
+  const bloqueImagen = (tipo: CatalogImageType, titulo: string) => {
+    const propias = images.filter((image) => (image.imageType ?? "gallery") === tipo);
+    return (
+      <section className="unit-editor-media">
+        <h3>{titulo}</h3>
+        {propias.length > 0 ? (
+          <div className="gallery">
+            {propias.map((image) => (
+              <figure key={image.$id} className={image.isPrimary ? "shot primary" : "shot"}>
+                <img src={catalogImageUrl(image.fileId)} alt={image.caption ?? ""} loading="lazy" />
+                <figcaption className="small muted">
+                  {image.caption ? <span>{image.caption}</span> : null}
+                  <span className="row">
+                    {!image.isPrimary ? (
+                      <button type="button" className="ghost tiny" disabled={busy} onClick={() => void onPrimary(image)}>
+                        Principal
+                      </button>
+                    ) : null}
+                    <button type="button" className="ghost tiny danger" disabled={busy} onClick={() => void onRemove(image)}>
+                      Borrar
+                    </button>
+                  </span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <p className="muted small">Sin imagen.</p>
+        )}
+        <ImageUploader label={`Subir ${titulo.toLowerCase()}`} busy={busy} imageType={tipo} onUpload={(files, caption) => onUpload(files, caption, tipo, unit)} />
+      </section>
+    );
+  };
+
   return (
-    <div className="unit-lore-editor">
-      <label htmlFor={`lore-${unit.$id}`}>Descripcion de la unidad</label>
-      <textarea
-        id={`lore-${unit.$id}`}
-        value={lore}
-        rows={4}
-        maxLength={4000}
-        disabled={busy}
-        placeholder="Trasfondo breve, notas de ambientacion o descripcion visual."
-        onChange={(event) => setLore(event.target.value)}
-      />
-      <button type="button" className="tiny" disabled={busy || lore === (unit.lore ?? "")} onClick={() => void onSave(unit, lore)}>
-        Guardar descripcion
-      </button>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Editar ${unit.name}`} onClick={onClose}>
+      <div className="modal wide unit-editor-modal" onClick={(event) => event.stopPropagation()}>
+        <header className="spread">
+          <h2 style={{ margin: 0 }}>Editar {unit.name}</h2>
+          <button type="button" className="ghost tiny" onClick={onClose}>
+            Cerrar
+          </button>
+        </header>
+        <section className="unit-lore-editor">
+          <label htmlFor={`lore-${unit.$id}`}>Descripcion de la unidad</label>
+          <textarea
+            id={`lore-${unit.$id}`}
+            value={lore}
+            rows={6}
+            maxLength={4000}
+            disabled={busy}
+            placeholder="Trasfondo breve, notas de ambientacion o descripcion visual. Admite Markdown."
+            onChange={(event) => setLore(event.target.value)}
+          />
+          <button type="button" className="tiny" disabled={busy || lore === (unit.lore ?? "")} onClick={() => void onSave(unit, lore)}>
+            Guardar descripcion
+          </button>
+        </section>
+        <div className="unit-editor-grid">
+          {bloqueImagen("avatar", "Avatar")}
+          {bloqueImagen("miniature", "Miniatura")}
+        </div>
+      </div>
     </div>
   );
 }
@@ -86,6 +145,7 @@ export default function CatalogBook() {
   const [imprimir, setImprimir] = useState(false);
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
+  const [unidadEditando, setUnidadEditando] = useState<ArmyUnit | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,6 +214,7 @@ export default function CatalogBook() {
     try {
       const updated = await updateUnitLore(unit, lore);
       setUnits((prev) => prev.map((candidate) => (candidate.$id === updated.$id ? updated : candidate)));
+      setUnidadEditando((current) => (current?.$id === updated.$id ? updated : current));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -273,6 +334,18 @@ export default function CatalogBook() {
       {habilidad ? (
         <RuleCardModal habilidad={habilidad} glosario={glosario} onCerrar={() => setHabilidad(null)} onAbrir={setHabilidad} />
       ) : null}
+      {unidadEditando ? (
+        <UnitEditorModal
+          unit={unidadEditando}
+          images={byTarget.get(targetKeyFor(book.$id, unidadEditando.unitId)) ?? []}
+          busy={busy}
+          onSave={saveLore}
+          onUpload={upload}
+          onPrimary={makePrimary}
+          onRemove={remove}
+          onClose={() => setUnidadEditando(null)}
+        />
+      ) : null}
 
       {editor ? null : (
         <p className="muted small">
@@ -282,7 +355,7 @@ export default function CatalogBook() {
 
       {book.hint ? <p className="muted small">{book.hint}</p> : null}
       {gallery(targetKeyFor(book.$id), book.coverImagePath)}
-      {book.lore ? <p className="faction-lore">{book.lore}</p> : null}
+      {book.lore ? <LoreText text={book.lore} className="faction-lore" /> : null}
       {editor ? (
         <ImageUploader
           label={`Anadir imagen de ${book.name}`}
@@ -426,7 +499,9 @@ export default function CatalogBook() {
                 <span className="army-group-count">{seccion.unidades.length}</span>
               </h3>
               {seccion.unidades.map((unit) => {
-                const avatar = pickImageByType(byTarget.get(targetKeyFor(book.$id, unit.unitId)), "avatar");
+                const unitImages = byTarget.get(targetKeyFor(book.$id, unit.unitId));
+                const avatar = pickImageByType(unitImages, "avatar");
+                const miniatura = pickImageByType(unitImages, "miniature");
                 return (
                   <div key={unit.$id} className="army-slide">
                     <UnitCard
@@ -435,6 +510,7 @@ export default function CatalogBook() {
                       glosario={glosario}
                       onHabilidad={setHabilidad}
                       avatarUrl={avatar ? catalogImageUrl(avatar.fileId) : null}
+                      miniaturaUrl={miniatura ? catalogImageUrl(miniatura.fileId) : null}
                       lore={unit.lore}
                       unitId={unit.unitId}
                       sections={sectionsForUnit(unit, packages)}
@@ -449,15 +525,14 @@ export default function CatalogBook() {
                       }}
                       footer={
                         <>
-                          {editor ? <UnitLoreEditor unit={unit} busy={busy} onSave={saveLore} /> : unit.lore ? <p>{unit.lore}</p> : null}
-                          {gallery(targetKeyFor(book.$id, unit.unitId))}
                           {editor ? (
-                            <ImageUploader
-                              label={`Anadir imagenes de ${unit.name}`}
-                              busy={busy}
-                              onUpload={(files, caption, imageType) => upload(files, caption, imageType, unit)}
-                            />
+                            <button type="button" className="tiny" onClick={() => setUnidadEditando(unit)}>
+                              Editar
+                            </button>
+                          ) : unit.lore ? (
+                            <LoreText text={unit.lore} />
                           ) : null}
+                          {gallery(targetKeyFor(book.$id, unit.unitId))}
                         </>
                       }
                     />

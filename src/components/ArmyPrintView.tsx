@@ -17,6 +17,7 @@ import { cuadriculaPorHoja, PAGINA_MM, trocear, espejarHoja } from "../lib/print
 import RuleCard from "./RuleCard";
 import SpellCard from "./SpellCard";
 import UnitCard from "./UnitCard";
+import LoreText from "./LoreText";
 
 /** Los mismos mm que fijan `--ucard-w/h` y `--scard-w/h` en styles.css: hay
  *  que mantenerlos iguales para que la cuadricula calculada aqui coincida con
@@ -412,7 +413,7 @@ export function FichaUnidadLibro({
       {miniaturaUrl ? <img className="libro-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
       {dividida ? <p className="libro-aviso">Ficha dividida para no recortar esta unidad al imprimir.</p> : null}
       <div className="ucard-body libro-cuerpo">
-        {lore && parte !== "detalles" ? <p className="libro-lore">{lore}</p> : null}
+        {lore && parte !== "detalles" ? <LoreText text={lore} className="libro-lore" /> : null}
         {parte !== "detalles" ? (
           <TablaArmasLibro armas={armas} glosario={glosario} />
         ) : null}

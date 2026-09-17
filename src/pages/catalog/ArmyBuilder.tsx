@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { getBook, listRuleGlossary, listUnits, listUpgradePackages } from "../../api/catalog";
-import type { ArmyBook, ArmyUnit, CatalogRule } from "../../api/catalog";
+import { catalogImageUrl, getBook, groupImages, listBookImages, listRuleGlossary, listUnits, listUpgradePackages, pickImageByType, targetKeyFor } from "../../api/catalog";
+import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../../api/catalog";
 import { createArmy, getArmy, getDraftFor, saveDraft, startDraft } from "../../api/armies";
 import type { Army } from "../../lib/types";
 import {
@@ -60,6 +60,7 @@ export default function ArmyBuilder() {
   const [book, setBook] = useState<ArmyBook | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [units, setUnits] = useState<ArmyUnit[]>([]);
+  const [images, setImages] = useState<CatalogImage[]>([]);
   const [packages, setPackages] = useState<Map<string, UpgradeSection[]>>(new Map());
   const [glosario, setGlosario] = useState<Map<string, CatalogRule>>(new Map());
   const [habilidad, setHabilidad] = useState<Habilidad | null>(null);
@@ -104,16 +105,18 @@ export default function ArmyBuilder() {
           }
         }
 
-        const [loadedBook, loadedUnits, loadedPackages] = await Promise.all([
+        const [loadedBook, loadedUnits, loadedPackages, loadedImages] = await Promise.all([
           getBook(key),
           listUnits(key),
           listUpgradePackages(key),
+          listBookImages(key),
         ]);
         if (cancelled) return;
 
         setArmy(loadedArmy);
         setBook(loadedBook);
         setUnits(loadedUnits);
+        setImages(loadedImages);
         setPackages(loadedPackages);
         // El glosario no bloquea la pagina: sin el los chips siguen ahi y solo
         // se quedan sin descripcion.
@@ -173,6 +176,20 @@ export default function ArmyBuilder() {
   const built = useMemo(() => buildArmy(entries, packages), [entries, packages]);
   const bookSystem = getGameSystem(book?.gameSystem);
   const noun = armyNounFor(bookSystem);
+  const byTarget = useMemo(() => (book ? groupImages(images) : new Map<string, CatalogImage[]>()), [book, images]);
+  const imagenesDe = useCallback(
+    (unit: { unitId: string }) => {
+      if (!book) return { avatarUrl: null, miniaturaUrl: null };
+      const list = byTarget.get(targetKeyFor(book.$id, unit.unitId));
+      const avatar = pickImageByType(list, "avatar");
+      const miniatura = pickImageByType(list, "miniature");
+      return {
+        avatarUrl: avatar ? catalogImageUrl(avatar.fileId) : null,
+        miniaturaUrl: miniatura ? catalogImageUrl(miniatura.fileId) : null,
+      };
+    },
+    [book, byTarget],
+  );
 
   // Un heroe solo se une a una unidad de verdad, no a otro heroe. El conjunto
   // se calcula una vez y no por cada tarjeta.
@@ -444,6 +461,7 @@ export default function ArmyBuilder() {
           {entries.map((entry) => {
             const sections = sectionsForUnit(entry.unit, packages);
             const open = openEntry === entry.key;
+            const imagenes = imagenesDe(entry.unit);
             return (
               <div key={entry.key} className="army-slide">
                 <UnitCard
@@ -451,6 +469,7 @@ export default function ArmyBuilder() {
                   unitId={entry.unit.unitId}
                   glosario={glosario}
                   onHabilidad={setHabilidad}
+                  avatarUrl={imagenes.avatarUrl}
                   sections={sections}
                   upgrades={entryUpgradeLabels(entry, sections)}
                   optionsOpen={open}
@@ -590,6 +609,8 @@ export default function ArmyBuilder() {
                   unitId={unit.unitId}
                   glosario={glosario}
                   onHabilidad={setHabilidad}
+                  miniaturaUrl={imagenesDe(unit).miniaturaUrl}
+                  lore={unit.lore}
                   sections={sectionsForUnit(unit, packages)}
                   unit={{
                     name: unit.name,
