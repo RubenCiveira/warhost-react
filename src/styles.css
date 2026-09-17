@@ -873,6 +873,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   margin: 1.2mm 0 0; padding: 1mm 2.5mm 0; font-size: 2.25mm; line-height: 1.25;
   color: var(--ucard-tenue); border-left: 0.5mm solid var(--ucard-filete);
 }
+.ucard-lore-intro { margin: 0 0 1.4mm; padding: 0.8mm 2.5mm 0.8mm; }
 .ucard-lore h2, .ucard-lore h3, .ucard-lore h4 { font-size: 1.05em; }
 .ucard-lore p, .ucard-lore ul, .ucard-lore ol { margin-bottom: 0.45em; }
 .ucard-notas .ucard-label { color: var(--ucard-tenue); margin-right: 1.2mm; }
@@ -1508,6 +1509,17 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 
 /* Con el doble de ancho, la banda y el armamento pueden respirar. */
 .ucard.hoja .ucard-title { font-size: 4.4mm; }
+.ucard.hoja.con-miniatura .ucard-head { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
+.ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
+.ucard.hoja.con-miniatura .ucard-miniatura {
+  width: 58mm; height: 30mm; max-height: none; flex: 0 0 auto;
+  margin: -1mm 1.8mm -0.6mm; object-fit: cover;
+  border-color: var(--ucard-banda); box-shadow: 0 1.2mm 2.8mm rgba(0, 0, 0, 0.22);
+}
+.ucard.hoja.con-miniatura .ucard-stats {
+  align-self: stretch; width: 28mm; flex-wrap: wrap; align-content: flex-end; justify-content: flex-end;
+}
+.ucard.hoja.con-miniatura .ucard-stat { width: 13.4mm; }
 .ucard.hoja .ucard-stat { width: 13mm; padding: 1.2mm 0 1mm; }
 .ucard.hoja .ucard-stat-key { font-size: 2.4mm; }
 .ucard.hoja .ucard-stat-value { font-size: 4.2mm; }
@@ -1515,6 +1527,11 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja .ucard-table thead th { font-size: 2.5mm; }
 .ucard.hoja .ucard-chip { font-size: 2.8mm; padding: 0.8mm 2mm; }
 .ucard.hoja .ucard-bloque-title { font-size: 2.5mm; }
+.ucard.hoja .ucard-lore-intro {
+  max-height: 16mm; overflow: hidden; font-size: 2.5mm; line-height: 1.28;
+  border-left: 0; border-top: 0.35mm solid var(--ucard-filete);
+  border-bottom: 0.35mm solid var(--ucard-filete); background: rgba(255, 255, 255, 0.24);
+}
 
 /* Las opciones, dentro y a dos columnas: con 36 en el peor caso, en una sola
    no entrarian. Las secciones no se parten entre columnas. */

@@ -941,26 +941,26 @@ export default function UnitCard({
 
   const wrapClase = hoja ? "ucard-wrap hoja" : personaje ? "ucard-wrap personaje" : "ucard-wrap";
   const marcoClase = hoja ? "ucard-frame hoja" : personaje ? "ucard-frame personaje" : "ucard-frame";
+  const claseCarta = [
+    `ucard ucard-${variant}`,
+    hoja
+      ? `hoja${miniaturaUrl ? " con-miniatura" : ""}${densidadOpciones}`
+      : personaje
+        ? "personaje"
+        : emparejada && adjunta
+          ? `emparejada${densidad(
+              [...weapons, ...adjWeapons],
+              [...unit.rules, ...adjunta.rules],
+              [...gear, ...adjGear],
+              true,
+            )}`
+          : densidad(weapons, unit.rules, gear, Boolean(accion)),
+  ].join(" ");
 
   return (
     <div className={wrapClase}>
       <div className={marcoClase}>
-        <article
-          className={`ucard ucard-${variant}${
-            hoja
-              ? ` hoja${densidadOpciones}`
-              : personaje
-                ? " personaje"
-                : emparejada && adjunta
-                ? ` emparejada${densidad(
-                    [...weapons, ...adjWeapons],
-                    [...unit.rules, ...adjunta.rules],
-                    [...gear, ...adjGear],
-                    true,
-                  )}`
-                : densidad(weapons, unit.rules, gear, Boolean(accion))
-          }`}
-        >
+        <article className={claseCarta}>
           <header className="ucard-head">
             {avatarUrl ? <img className="ucard-avatar" src={avatarUrl} alt="" loading="lazy" /> : null}
             {subtitulo ? (
@@ -982,6 +982,7 @@ export default function UnitCard({
                 ) : null}
               </h3>
             )}
+            {hoja && miniaturaUrl ? <img className="ucard-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
             <div className={`ucard-stats${quest ? " quest" : ""}`}>
               {stats.map(([label, value]) => (
                 <div key={label} className="ucard-stat">
@@ -1007,7 +1008,7 @@ export default function UnitCard({
             </div>
           ) : (
             <div className="ucard-body">
-              {hoja && miniaturaUrl ? <img className="ucard-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
+              {hoja && lore ? <LoreText text={lore} className="ucard-lore ucard-lore-intro" /> : null}
               {personaje ? null : <TablaArmas weapons={weapons} glosario={glosario} onAbrir={onHabilidad} />}
 
               {quest && personaje ? (
@@ -1071,7 +1072,7 @@ export default function UnitCard({
                 </p>
               ) : null}
 
-              {lore ? <LoreText text={lore} className="ucard-lore" /> : null}
+              {!hoja && lore ? <LoreText text={lore} className="ucard-lore" /> : null}
 
               {hoja ? <div className="ucard-bloque ucard-opciones-dentro">{opciones}</div> : null}
 
