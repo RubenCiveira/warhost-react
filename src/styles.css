@@ -1613,7 +1613,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .libro-notas { margin-top: 0; }
 @media print {
   .libro-ficha {
-    width: 190mm; margin: 0 0 5mm; box-shadow: none;
+    width: 190mm; margin: 0 0 2mm; box-shadow: none;
     break-inside: avoid; page-break-inside: avoid;
   }
   .libro-tabla tr { break-inside: avoid; }
