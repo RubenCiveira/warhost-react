@@ -183,7 +183,7 @@ export async function uploadCatalogImage(
 ): Promise<CatalogImage> {
   const fileId = ID.unique();
   // Sin permisos por fichero: manda el bucket, que deja leer a los aceptados y
-  // escribir solo a los admins.
+  // escribir a admins y editores.
   await storage.createFile({ bucketId: env.catalogBucketId, fileId, file });
 
   return tables.createRow<CatalogImage>({

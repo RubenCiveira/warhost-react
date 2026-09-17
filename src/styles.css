@@ -1207,6 +1207,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .modal.wide { max-width: 980px; }
 .modal > input[type="search"] { margin: 12px 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .picker-grid { grid-template-columns: 1fr; }
 @media (min-width: 641px) {
   .picker-grid { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }

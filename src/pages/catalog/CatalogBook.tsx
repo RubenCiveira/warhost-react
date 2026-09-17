@@ -61,7 +61,19 @@ function UnitEditorModal({
 
   useEffect(() => {
     setLore(unit.lore ?? "");
-  }, [unit.lore]);
+  }, [unit.$id, unit.lore]);
+
+  const hasChanges = lore !== (unit.lore ?? "");
+
+  function close() {
+    if (hasChanges && !window.confirm("Hay cambios sin guardar. Cerrar igualmente?")) return;
+    onClose();
+  }
+
+  async function save() {
+    if (hasChanges) await onSave(unit, lore);
+    onClose();
+  }
 
   const bloqueImagen = (tipo: CatalogImageType, titulo: string) => {
     const propias = images.filter((image) => (image.imageType ?? "gallery") === tipo);
@@ -98,11 +110,11 @@ function UnitEditorModal({
   };
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Editar ${unit.name}`} onClick={onClose}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Editar ${unit.name}`} onClick={close}>
       <div className="modal wide unit-editor-modal" onClick={(event) => event.stopPropagation()}>
         <header className="spread">
           <h2 style={{ margin: 0 }}>Editar {unit.name}</h2>
-          <button type="button" className="ghost tiny" onClick={onClose}>
+          <button type="button" className="ghost tiny" disabled={busy} onClick={close}>
             Cerrar
           </button>
         </header>
@@ -117,14 +129,19 @@ function UnitEditorModal({
             placeholder="Trasfondo breve, notas de ambientacion o descripcion visual. Admite Markdown."
             onChange={(event) => setLore(event.target.value)}
           />
-          <button type="button" className="tiny" disabled={busy || lore === (unit.lore ?? "")} onClick={() => void onSave(unit, lore)}>
-            Guardar descripcion
-          </button>
         </section>
         <div className="unit-editor-grid">
           {bloqueImagen("avatar", "Avatar")}
           {bloqueImagen("miniature", "Miniatura")}
         </div>
+        <footer className="modal-actions">
+          <button type="button" className="ghost" disabled={busy} onClick={close}>
+            Cancelar
+          </button>
+          <button type="button" className="primary" disabled={busy || !hasChanges} onClick={() => void save()}>
+            Guardar cambios
+          </button>
+        </footer>
       </div>
     </div>
   );
