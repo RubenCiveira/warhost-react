@@ -32,6 +32,7 @@ export default function WarhubPicker({
   const [original, setOriginal] = useState<File | null>(null);
   const [prepared, setPrepared] = useState<File | null>(null);
   const [sinFondo, setSinFondo] = useState(false);
+  const [tolerancia, setTolerancia] = useState(32);
   const [cropFor, setCropFor] = useState<CatalogImageType | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +67,7 @@ export default function WarhubPicker({
     setPrepared(null);
     setOriginal(null);
     setSinFondo(false);
+    setTolerancia(32);
     setWorking(true);
     setError(null);
     try {
@@ -80,12 +82,12 @@ export default function WarhubPicker({
     }
   }
 
-  async function quitarFondo() {
+  async function quitarFondo(nivel: number) {
     if (!original) return;
     setWorking(true);
     setError(null);
     try {
-      setPrepared(await removeBackground(original));
+      setPrepared(await removeBackground(original, nivel));
       setSinFondo(true);
     } catch (err) {
       setError(errorMessage(err));
@@ -93,6 +95,13 @@ export default function WarhubPicker({
       setWorking(false);
     }
   }
+
+  // Recalcula al mover el slider, sin disparar una pasada por cada tick.
+  useEffect(() => {
+    if (!sinFondo || !original) return;
+    const timeout = setTimeout(() => void quitarFondo(tolerancia), 200);
+    return () => clearTimeout(timeout);
+  }, [tolerancia]);
 
   function volverAlOriginal() {
     setPrepared(original);
@@ -175,7 +184,7 @@ export default function WarhubPicker({
                 Deshacer fondo transparente
               </button>
             ) : (
-              <button type="button" className="ghost tiny" disabled={disabled} onClick={() => void quitarFondo()}>
+              <button type="button" className="ghost tiny" disabled={disabled} onClick={() => void quitarFondo(tolerancia)}>
                 {working ? "Procesando…" : "Fondo transparente (aprox.)"}
               </button>
             )}
@@ -186,6 +195,21 @@ export default function WarhubPicker({
               Recortar y subir como avatar
             </button>
           </div>
+          {sinFondo ? (
+            <label className="crop-control">
+              <span>Rango de color</span>
+              <input
+                type="range"
+                min={8}
+                max={100}
+                step={2}
+                value={tolerancia}
+                disabled={disabled}
+                onChange={(event) => setTolerancia(Number(event.target.value))}
+              />
+              <span className="small muted">{tolerancia}</span>
+            </label>
+          ) : null}
         </div>
       ) : null}
 
