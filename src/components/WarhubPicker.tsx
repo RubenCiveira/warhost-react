@@ -201,7 +201,7 @@ export default function WarhubPicker({
               <input
                 type="range"
                 min={0}
-                max={8}
+                max={12}
                 step={0.25}
                 value={tolerancia}
                 disabled={disabled}
