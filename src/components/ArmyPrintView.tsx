@@ -37,6 +37,7 @@ interface TarjetaLibro {
   key: string;
   unit: ResolvedUnit;
   libro: ArmyBook | undefined;
+  avatarUrl?: string | null;
   miniaturaUrl?: string | null;
   parte?: "perfil" | "detalles";
 }
@@ -145,7 +146,7 @@ function altoLibroEstimadoMm(unit: ResolvedUnit, glosario: Map<string, CatalogRu
   return 22 + armas.length * 8 + filasArmas * 4.1 + unit.rules.length * 7 + filasReglas * 4.1 + equipo.length * 7 + filasEquipo * 4.1 + hechizos.length * 7 + filasHechizos * 4.1 + (unit.notes ? lineasDeTexto(unit.notes, 110) * 4.1 + 8 : 0);
 }
 
-function LibroCabecera({ unit, parte }: { unit: ResolvedUnit; parte?: string }) {
+function LibroCabecera({ unit, parte, avatarUrl }: { unit: ResolvedUnit; parte?: string; avatarUrl?: string | null }) {
   return (
     <header className="ucard-head libro-cab">
       <h3 className="ucard-title libro-nombre">
@@ -154,6 +155,7 @@ function LibroCabecera({ unit, parte }: { unit: ResolvedUnit; parte?: string }) 
         {unit.combined ? <span className="ucard-combinada">Combinada</span> : null}
         {parte ? <span className="libro-parte">{parte}</span> : null}
       </h3>
+      {avatarUrl ? <img className="ucard-avatar libro-avatar" src={avatarUrl} alt="" loading="lazy" /> : null}
       <div className="ucard-stats libro-stats">
         <div className="ucard-stat">
           <span className="ucard-stat-key">Cal</span>
@@ -392,6 +394,7 @@ export function FichaUnidadLibro({
   glosario,
   libro,
   parte,
+  avatarUrl,
   lore,
   miniaturaUrl,
 }: {
@@ -399,6 +402,7 @@ export function FichaUnidadLibro({
   glosario: Map<string, CatalogRule>;
   libro: ArmyBook | undefined;
   parte?: "perfil" | "detalles";
+  avatarUrl?: string | null;
   lore?: string | null;
   miniaturaUrl?: string | null;
 }) {
@@ -409,8 +413,8 @@ export function FichaUnidadLibro({
   const dividida = parte !== undefined;
 
   return (
-    <article className={`ucard ucard-ejercito libro-ficha${miniaturaUrl ? " con-miniatura" : ""}`}>
-      <LibroCabecera unit={unit} parte={dividida ? (parte === "perfil" ? "1/2" : "2/2") : undefined} />
+    <article className={`ucard ucard-ejercito libro-ficha${avatarUrl ? " con-avatar" : ""}${miniaturaUrl ? " con-miniatura" : ""}`}>
+      <LibroCabecera unit={unit} avatarUrl={avatarUrl} parte={dividida ? (parte === "perfil" ? "1/2" : "2/2") : undefined} />
       {miniaturaUrl ? <img className="libro-miniatura" src={miniaturaUrl} alt="" loading="lazy" /> : null}
       {dividida ? <p className="libro-aviso">Ficha dividida para no recortar esta unidad al imprimir.</p> : null}
       <div className="ucard-body libro-cuerpo">
@@ -440,15 +444,15 @@ function tarjetasDeUnidadLibro(
   unit: ResolvedUnit,
   glosario: Map<string, CatalogRule>,
   libro: ArmyBook | undefined,
-  miniaturaUrl?: string | null,
+  avatarUrl?: string | null,
 ): TarjetaLibro[] {
   const hechizos = tieneCaster([unit]) && libro ? parseSpells(libro.spells ?? null) : [];
   const hayDetalles = unit.rules.length > 0 || unit.loadout.some((entrada) => entrada.kind === "gear") || hechizos.length > 0 || Boolean(unit.notes);
   const partir = hayDetalles && altoLibroEstimadoMm(unit, glosario, hechizos) > LIBRO_ALTO_UTIL_MM;
   const keyBase = `${unit.unitKey ?? unit.name}-${unit.sortOrder}`;
-  if (!partir) return [{ key: keyBase, unit, libro, miniaturaUrl }];
+  if (!partir) return [{ key: keyBase, unit, libro, avatarUrl }];
   return [
-    { key: `${keyBase}-perfil`, unit, libro, miniaturaUrl, parte: "perfil" },
+    { key: `${keyBase}-perfil`, unit, libro, avatarUrl, parte: "perfil" },
     { key: `${keyBase}-detalles`, unit, libro, parte: "detalles" },
   ];
 }
@@ -459,6 +463,7 @@ function TarjetaUnidadLibro({ tarjeta, glosario }: { tarjeta: TarjetaLibro; glos
       unit={tarjeta.unit}
       glosario={glosario}
       libro={tarjeta.libro}
+      avatarUrl={tarjeta.avatarUrl}
       miniaturaUrl={tarjeta.miniaturaUrl}
       parte={tarjeta.parte}
     />
@@ -474,13 +479,13 @@ function VistaLibro({
   units,
   glosario,
   librosConocidos,
-  miniaturaDe,
+  avatarDe,
   noun,
 }: {
   units: ResolvedUnit[];
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
-  miniaturaDe?: (unit: ResolvedUnit) => string | null;
+  avatarDe?: (unit: ResolvedUnit) => string | null;
   noun: ArmyNoun;
 }) {
   // Una lista importada y todavia no tocada por el constructor no trae
@@ -495,11 +500,11 @@ function VistaLibro({
             unit,
             glosario,
             librosConocidos.find((libro) => (unit.bookKey ?? defaultBookKey) === libro.$id),
-            miniaturaDe?.(unit) ?? null,
+            avatarDe?.(unit) ?? null,
           ),
         ),
       ),
-    [defaultBookKey, glosario, librosConocidos, miniaturaDe, units],
+    [avatarDe, defaultBookKey, glosario, librosConocidos, units],
   );
 
   if (units.length === 0) return <p className="muted">{noun.demonstrativeCap} {noun.singular} no tiene unidades que imprimir.</p>;
@@ -622,7 +627,6 @@ export default function ArmyPrintView({
   glosario,
   librosConocidos,
   avatarDe,
-  miniaturaDe,
   onCerrar,
 }: {
   nombre: string;
@@ -634,7 +638,6 @@ export default function ArmyPrintView({
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
   avatarDe?: (unit: ResolvedUnit) => string | null;
-  miniaturaDe?: (unit: ResolvedUnit) => string | null;
   onCerrar: () => void;
 }) {
   const [modo, setModo] = useState<"elegir" | "libro" | "tarjetas">("elegir");
@@ -677,7 +680,7 @@ export default function ArmyPrintView({
           </div>
         </div>
       ) : modo === "libro" ? (
-        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} miniaturaDe={miniaturaDe} noun={noun} />
+        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} avatarDe={avatarDe} noun={noun} />
       ) : (
         <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} avatarDe={avatarDe} />
       )}
