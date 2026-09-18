@@ -11,6 +11,7 @@ import type { UpgradeOption } from "./builder";
 import type { Gain } from "./loadout";
 import { parseHabilidad } from "./reglas";
 import type { Habilidad } from "./reglas";
+import { gainIsRule, gainLabel, walkGains } from "./armyForgeGains";
 
 /** Un arma o una pieza de equipo que da la opcion. */
 export interface GananciaOpcion {
@@ -30,21 +31,6 @@ export interface DesgloseOpcion {
   crudo: boolean;
 }
 
-function etiquetaRegla(regla: { name?: string; label?: string; rating?: string | number }): string {
-  if (regla.label) return regla.label;
-  if (!regla.name) return "";
-  return regla.rating === undefined || regla.rating === null || regla.rating === ""
-    ? regla.name
-    : `${regla.name}(${regla.rating})`;
-}
-
-function esRegla(gain: Gain): boolean {
-  // El catalogo no siempre pone `type`, asi que tambien vale la forma: una
-  // regla no tiene perfil ni contenido.
-  if (gain.type) return gain.type.includes("Rule");
-  return gain.range === undefined && gain.attacks === undefined && !gain.specialRules && !gain.content;
-}
-
 function perfilDe(gain: Gain): string | null {
   const partes: string[] = [];
   if (typeof gain.range === "number" && gain.range > 0) partes.push(`${gain.range}"`);
@@ -62,8 +48,8 @@ export function desglosarOpcion(option: UpgradeOption): DesgloseOpcion {
   const reglas: Habilidad[] = [];
 
   for (const gain of gains) {
-    if (esRegla(gain)) {
-      const etiqueta = etiquetaRegla(gain);
+    if (gainIsRule(gain)) {
+      const etiqueta = gainLabel(gain);
       if (etiqueta) reglas.push(parseHabilidad(etiqueta, "regla"));
       continue;
     }
@@ -72,10 +58,7 @@ export function desglosarOpcion(option: UpgradeOption): DesgloseOpcion {
     ganancias.push({
       nombre,
       perfil: perfilDe(gain),
-      reglas: (gain.specialRules ?? gain.content ?? [])
-        .map(etiquetaRegla)
-        .filter(Boolean)
-        .map((etiqueta) => parseHabilidad(etiqueta, "regla")),
+      reglas: reglasDe(gain),
       cuantas: gain.count ?? 1,
     });
   }
@@ -84,4 +67,14 @@ export function desglosarOpcion(option: UpgradeOption): DesgloseOpcion {
   // una fila vacia.
   if (ganancias.length === 0 && reglas.length === 0) return { ganancias: [], reglas: [], crudo: true };
   return { ganancias, reglas, crudo: false };
+}
+
+function reglasDe(gain: Gain): Habilidad[] {
+  const reglas: Habilidad[] = [];
+  walkGains([...(gain.specialRules ?? []), ...(gain.content ?? [])], (nested) => {
+    if (!gainIsRule(nested)) return;
+    const etiqueta = gainLabel(nested);
+    if (etiqueta) reglas.push(parseHabilidad(etiqueta, "regla"));
+  });
+  return reglas;
 }

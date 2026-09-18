@@ -5,6 +5,7 @@ import type { Habilidad } from "./reglas";
 import { baseLoadout } from "./loadout";
 import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
+import { gainLabel, walkGains } from "./armyForgeGains";
 
 /** "Tough(3)" -> "Tough": el glosario indexa por el nombre pelado. */
 function nombreBase(etiqueta: string): string {
@@ -56,17 +57,12 @@ function mencionada(nombre: string, texto: string): boolean {
 const esCaster = (regla: string): boolean => /^caster(?:\(\d+\))?$/i.test(regla.trim());
 const mencionaCaster = (texto: string | undefined): boolean => /\bcaster(?:\(\d+\))?\b/i.test(texto ?? "");
 
-function etiquetaGain(gain: { name?: string; label?: string; rating?: string | number }): string {
-  if (gain.label) return gain.label;
-  if (!gain.name) return "";
-  return gain.rating ? `${gain.name}(${gain.rating})` : gain.name;
-}
-
 function gainConcedeCaster(gain: Gain): boolean {
-  if (esCaster(etiquetaGain(gain)) || mencionaCaster(gain.label)) return true;
-  return [...(gain.specialRules ?? []), ...(gain.content ?? [])].some((pieza) =>
-    esCaster(etiquetaGain(pieza)) || mencionaCaster(pieza.label),
-  );
+  let concede = false;
+  walkGains([gain], (pieza) => {
+    if (esCaster(gainLabel(pieza)) || mencionaCaster(pieza.label)) concede = true;
+  });
+  return concede;
 }
 
 /**

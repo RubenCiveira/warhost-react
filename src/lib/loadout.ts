@@ -32,8 +32,8 @@ export interface Gain {
   rating?: string | number;
   range?: number;
   attacks?: number;
-  specialRules?: Array<{ name?: string; label?: string; rating?: string | number }>;
-  content?: Array<{ name?: string; label?: string; rating?: string | number }>;
+  specialRules?: Gain[];
+  content?: Gain[];
 }
 
 /** Una opcion elegida, con lo que hace falta saber para aplicarla. */

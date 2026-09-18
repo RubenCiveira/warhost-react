@@ -13,6 +13,7 @@ import { getGameSystem, isQuestSystem } from "./gameSystems";
 import type { GameSystemId } from "./gameSystems";
 import { perfilInicialQuest, QUEST_STARTING_GOLD, reglasInicialesQuest } from "./questHero";
 import type { HeroClass } from "./types";
+import { gainIsWeapon, gainName, ruleLabelsFromGains, walkGains } from "./armyForgeGains";
 
 /** Cuantos modelos afecta una seccion, o cuantas opciones deja elegir. */
 export interface Quantifier {
@@ -25,6 +26,7 @@ export interface UpgradeOption {
   uid?: string;
   label?: string;
   parentSectionUid?: string;
+  parentSectionId?: string;
   costs?: Array<{ cost?: number; unitId?: string }>;
   gains?: Gain[];
 }
@@ -122,7 +124,10 @@ export function parseSections(json: string | null | undefined): UpgradeSection[]
       .map((section) => ({
         ...section,
         options: (section.options ?? []).filter(
-          (option) => !option.parentSectionUid || option.parentSectionUid === section.uid,
+          (option) =>
+            !option.parentSectionUid ||
+            [section.uid, section.id].includes(option.parentSectionUid) ||
+            [section.uid, section.id].includes(option.parentSectionId),
         ),
       }))
       .filter((section) => (section.options ?? []).length > 0);
@@ -174,18 +179,17 @@ function optionGains(option: UpgradeOption): Gain[] {
   return option.gains ?? [];
 }
 
-function gainName(gain: Gain): string {
-  return gain.name ?? gain.label ?? "";
-}
-
-function gainIsWeapon(gain: Gain): boolean {
-  return gain.type?.includes("Weapon") === true || typeof gain.attacks === "number" || typeof gain.range === "number";
-}
-
 function gainHasForbiddenQuestRule(gain: Gain): boolean {
   const name = gainName(gain);
   const forbidden = name === "Spawn" || name === "Summon" || name.endsWith("Guard");
-  return forbidden || (gain.content ?? []).some(gainHasForbiddenQuestRule);
+  let nestedForbidden = false;
+  walkGains(gain.content, (nested) => {
+    if (gainHasForbiddenQuestRule(nested)) nestedForbidden = true;
+  });
+  walkGains(gain.specialRules, (nested) => {
+    if (gainHasForbiddenQuestRule(nested)) nestedForbidden = true;
+  });
+  return forbidden || nestedForbidden;
 }
 
 export function isForbiddenQuestPurchase(option: UpgradeOption): boolean {
@@ -412,10 +416,7 @@ export function entryRules(entry: BuilderEntry, sections: UpgradeSection[]): str
   for (const section of sections) {
     for (const option of section.options ?? []) {
       if (!(entry.choices[optionId(option)] ?? 0)) continue;
-      for (const gain of option.gains ?? []) {
-        if (gain.type !== "ArmyBookRule") continue;
-        rules.push(gain.label ?? (gain.rating ? `${gain.name}(${gain.rating})` : gain.name ?? ""));
-      }
+      rules.push(...ruleLabelsFromGains(option.gains));
     }
   }
   return [...new Set(rules.filter(Boolean))];

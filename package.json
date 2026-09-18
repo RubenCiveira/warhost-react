@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --noEmit",
     "test:import": "node scripts/test-import.mjs",
     "test:builder": "node scripts/test-builder.mjs",
+    "test:gains": "node scripts/test-gains.mjs",
     "test:profile": "node scripts/test-profile.mjs",
     "test:spells": "node scripts/test-spells.mjs",
     "test:edit": "node scripts/test-edit.mjs",

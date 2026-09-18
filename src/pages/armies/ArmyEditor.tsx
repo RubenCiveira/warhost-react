@@ -34,7 +34,7 @@ import HeroSkillCard from "../../components/HeroSkillCard";
 import type { HeroSkillCardData } from "../../components/HeroSkillCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
-import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, sectionsForUnit, serializeEntries } from "../../lib/builder";
+import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { catalogImageUrl, getBook, getBookByUid, groupImages, listBookImages, listBooks, listRuleGlossary, pickImageByType, targetKeyFor } from "../../api/catalog";
@@ -50,7 +50,6 @@ import {
   equipoDeEjercito,
   equipoDeFaccion,
   habilidadesDeFaccion,
-  puedeTenerCaster,
   reglasGeneralesDeFaccion,
   reglasUsadasEnEjercito,
   tieneCaster,
@@ -138,8 +137,9 @@ export default function ArmyEditor() {
   /** Indice en `entries` de la unidad que se esta reconfigurando. */
   const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
   const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("unidades");
-  /** Si esta a false, las pestanas de habilidades/equipo/hechizos/generales
-   *  se recortan a lo que aparece de verdad en las fichas de esta lista. */
+  /** Si esta a false, las pestanas de habilidades/equipo/generales se recortan
+   *  a lo que aparece de verdad en las fichas de esta lista. Los hechizos se
+   *  recortan siempre: una unidad solo los tiene si ya compro Caster. */
   const [mostrarTodas, setMostrarTodas] = useState(false);
   /**
    * Las facciones conocidas de este ejercito (puede haber varias) y las
@@ -615,23 +615,7 @@ export default function ArmyEditor() {
     }
     return mapa;
   }, [units, librosConocidos]);
-  const unidadCatalogoDe = useCallback(
-    (unit: ResolvedUnit): ArmyUnit | null => {
-      const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
-      const bookKey = unit.bookKey ?? defaultBookKey;
-      if (!bookKey || !unit.unitKey) return null;
-      return unidadesPorLibro.get(bookKey)?.find((candidate) => candidate.unitId === unit.unitKey) ?? null;
-    },
-    [librosConocidos, unidadesPorLibro],
-  );
-  const puedeLanzarHechizos = useCallback(
-    (unit: ResolvedUnit): boolean => {
-      if (tieneCaster([unit])) return true;
-      const catalogo = unidadCatalogoDe(unit);
-      return catalogo ? puedeTenerCaster(catalogo, sectionsForUnit(catalogo, paquetesPorClave)) : false;
-    },
-    [paquetesPorClave, unidadCatalogoDe],
-  );
+  const puedeLanzarHechizos = useCallback((unit: ResolvedUnit): boolean => tieneCaster([unit]), []);
   /**
    * Habilidades, equipo y hechizos van una fila por faccion conocida —
    * principal y aliadas por igual—, para no mezclar lo que aporta cada libro
@@ -647,8 +631,8 @@ export default function ArmyEditor() {
       librosConocidos
         .map((libro) => ({ libro, spells: parseSpells(libro.spells ?? null) }))
         .filter((grupo) => grupo.spells.length > 0)
-        .filter((grupo) => mostrarTodas || (unidadesEjercitoPorLibro.get(grupo.libro.$id) ?? []).some(puedeLanzarHechizos)),
-    [librosConocidos, mostrarTodas, puedeLanzarHechizos, unidadesEjercitoPorLibro],
+        .filter((grupo) => (unidadesEjercitoPorLibro.get(grupo.libro.$id) ?? []).some(puedeLanzarHechizos)),
+    [librosConocidos, puedeLanzarHechizos, unidadesEjercitoPorLibro],
   );
   const equipoPorFaccion = useMemo(
     () =>

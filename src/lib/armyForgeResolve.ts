@@ -1,5 +1,6 @@
 import { applyOptions, baseLoadout } from "./loadout";
 import type { AppliedOption, LoadoutEntry } from "./loadout";
+import { ruleLabelsFromGains } from "./armyForgeGains";
 
 /**
  * Formas de Army Forge y logica de resolucion de listas, sin dependencias de
@@ -242,9 +243,7 @@ function resolveUnit(unit: ForgeListUnit, books: Map<string, ForgeArmyBook>, ind
     cost += costFor(option, unit.id);
     if (option.label) upgrades.push(option.label);
 
-    for (const gain of option.gains ?? []) {
-      if (gain.type === "ArmyBookRule") rules.push(ruleLabel(gain));
-    }
+    rules.push(...ruleLabelsFromGains(option.gains));
     // Cada seleccion cuenta como una aplicacion: si la misma opcion aparece dos
     // veces en la lista, reemplaza y anade dos veces.
     applied.push({

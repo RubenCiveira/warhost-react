@@ -100,6 +100,7 @@ export default function FactionPrintView({
         {unidadesOrdenadas.map((unit) => {
           const sections = sectionsForUnit(unit, packages);
           const miniatura = pickImageByType(byTarget.get(targetKeyFor(book.$id, unit.unitId)), "miniature");
+          const puedeLanzarHechizos = () => puedeTenerCaster(unit, sections);
           return (
             <div key={unit.$id} className="army-slide print-faccion-unidad">
               <FichaUnidadLibro
@@ -108,6 +109,7 @@ export default function FactionPrintView({
                 libro={book}
                 lore={unit.lore}
                 miniaturaUrl={miniatura ? catalogImageUrl(miniatura.fileId) : null}
+                puedeLanzarHechizos={puedeLanzarHechizos}
               />
               <FichaOpcionesLibro nombre={unit.name} unitId={unit.unitId} sections={sections} glosario={glosario} />
             </div>
