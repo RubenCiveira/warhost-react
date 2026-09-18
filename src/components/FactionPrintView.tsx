@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { catalogImageUrl, groupImages, pickCover, pickImageByType, targetKeyFor } from "../api/catalog";
 import type { ArmyBook, ArmyUnit, CatalogImage, CatalogRule } from "../api/catalog";
 import { sectionsForUnit } from "../lib/builder";
@@ -46,6 +46,8 @@ export default function FactionPrintView({
   const byTarget = useMemo(() => groupImages(images), [images]);
   const factionCover = pickCover(byTarget.get(targetKeyFor(book.$id))?.filter((image) => (image.imageType ?? "gallery") === "gallery"));
   const coverUrl = factionCover ? catalogImageUrl(factionCover.fileId) : book.coverImagePath;
+  const [portada, setPortada] = useState(true);
+  const [incluirLore, setIncluirLore] = useState(true);
 
   return (
     <div className="print-vista print-faccion">
@@ -58,12 +60,24 @@ export default function FactionPrintView({
           Imprimir
         </button>
       </div>
+      <div className="print-lore-opciones">
+        <label className="row" style={{ cursor: "pointer" }}>
+          <input type="checkbox" checked={portada} onChange={(e) => setPortada(e.target.checked)} style={{ width: "auto" }} />
+          <span>Portada con nombre e imagen</span>
+        </label>
+        {book.lore ? (
+          <label className="row" style={{ cursor: "pointer" }}>
+            <input type="checkbox" checked={incluirLore} onChange={(e) => setIncluirLore(e.target.checked)} style={{ width: "auto" }} />
+            <span>Incluir el trasfondo de la faccion</span>
+          </label>
+        ) : null}
+      </div>
 
       <div className="print-libro print-faccion-libro">
-        <header className="print-faccion-titulo">
+        <header className={portada ? "print-faccion-titulo print-faccion-portada" : "print-faccion-titulo"}>
           <h1>{book.name}</h1>
-          {coverUrl ? <img className="print-faccion-cover" src={coverUrl} alt="" /> : null}
-          {book.lore ? <LoreText text={book.lore} className="print-faccion-lore" /> : null}
+          {portada && coverUrl ? <img className="print-faccion-cover" src={coverUrl} alt="" /> : null}
+          {incluirLore && book.lore ? <LoreText text={book.lore} className="print-faccion-lore" /> : null}
         </header>
         {unidadesOrdenadas.map((unit) => {
           const sections = sectionsForUnit(unit, packages);

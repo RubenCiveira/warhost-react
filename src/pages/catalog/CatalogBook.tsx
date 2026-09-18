@@ -320,6 +320,8 @@ export default function CatalogBook() {
     );
   }
 
+  const factionGallery = gallery(targetKeyFor(book.$id), book.coverImagePath);
+
   return (
     <>
       <PageHead
@@ -371,15 +373,20 @@ export default function CatalogBook() {
       )}
 
       {book.hint ? <p className="muted small">{book.hint}</p> : null}
-      {gallery(targetKeyFor(book.$id), book.coverImagePath)}
-      {book.lore ? <LoreText text={book.lore} className="faction-lore" /> : null}
-      {editor ? (
-        <ImageUploader
-          label={`Anadir imagen de ${book.name}`}
-          busy={busy}
-          imageType="gallery"
-          onUpload={(files, caption, imageType) => upload(files, caption, imageType)}
-        />
+      {factionGallery || book.lore || editor ? (
+        <details className="army-details">
+          <summary>Imagen y trasfondo de la faccion</summary>
+          {factionGallery}
+          {book.lore ? <LoreText text={book.lore} className="faction-lore" /> : null}
+          {editor ? (
+            <ImageUploader
+              label={`Anadir imagen de ${book.name}`}
+              busy={busy}
+              imageType="gallery"
+              onUpload={(files, caption, imageType) => upload(files, caption, imageType)}
+            />
+          ) : null}
+        </details>
       ) : null}
 
       <Tabs

@@ -1639,11 +1639,15 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 }
 .print-faccion-lore { margin: 4mm 0 0; color: #111; font-size: 3.2mm; line-height: 1.35; }
 .print-faccion-unidad { display: grid; justify-items: center; gap: 2mm; }
+.print-lore-opciones { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; }
 @media print {
-  .print-toolbar { display: none !important; }
+  .print-toolbar, .print-lore-opciones { display: none !important; }
   .print-vista { max-width: none; padding: 0; margin: 0; background: #fff; }
   .print-libro { display: block; }
   .print-faccion-titulo { width: 190mm; border-color: #000; color: #000; break-after: avoid; }
+  /* Con portada, el nombre y la imagen ocupan su propia pagina en vez de ir
+     pegados a la primera unidad. */
+  .print-faccion-titulo.print-faccion-portada { break-after: page; page-break-after: always; }
   .print-faccion-lore { color: #000; }
   .print-faccion-unidad { display: block; }
 }
