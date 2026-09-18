@@ -1,7 +1,9 @@
 import type { ArmyBook, ArmyUnit, CatalogRule } from "../api/catalog";
+import type { UpgradeSection } from "./builder";
 import { parseHabilidad } from "./reglas";
 import type { Habilidad } from "./reglas";
 import { baseLoadout } from "./loadout";
+import type { Gain } from "./loadout";
 import type { ResolvedUnit } from "./armyForgeResolve";
 
 /** "Tough(3)" -> "Tough": el glosario indexa por el nombre pelado. */
@@ -49,6 +51,22 @@ export function habilidadesDeFaccion(
 function mencionada(nombre: string, texto: string): boolean {
   const escapado = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escapado}\\b`).test(texto);
+}
+
+const esCaster = (regla: string): boolean => /^caster(?:\(\d+\))?$/i.test(regla.trim());
+const mencionaCaster = (texto: string | undefined): boolean => /\bcaster(?:\(\d+\))?\b/i.test(texto ?? "");
+
+function etiquetaGain(gain: { name?: string; label?: string; rating?: string | number }): string {
+  if (gain.label) return gain.label;
+  if (!gain.name) return "";
+  return gain.rating ? `${gain.name}(${gain.rating})` : gain.name;
+}
+
+function gainConcedeCaster(gain: Gain): boolean {
+  if (esCaster(etiquetaGain(gain)) || mencionaCaster(gain.label)) return true;
+  return [...(gain.specialRules ?? []), ...(gain.content ?? [])].some((pieza) =>
+    esCaster(etiquetaGain(pieza)) || mencionaCaster(pieza.label),
+  );
 }
 
 /**
@@ -150,8 +168,15 @@ export function reglasUsadasEnEjercito(glosario: Map<string, CatalogRule>, units
  *  Oracle" que da Caster(2)—, asi que se miran las dos.
  */
 export function tieneCaster(units: ResolvedUnit[]): boolean {
-  const esCaster = (regla: string) => /^caster(?:\(\d+\))?$/i.test(regla.trim());
   return units.some((unit) => unit.rules.some(esCaster) || unit.loadout.some((entrada) => entrada.rules.some(esCaster)));
+}
+
+/** Cierto si la unidad ya lanza hechizos o puede comprar algo que se lo permita. */
+export function puedeTenerCaster(unit: ArmyUnit, sections: UpgradeSection[] = []): boolean {
+  if (unit.rules.some(esCaster) || baseLoadout(unit.weapons, unit.items).some((entrada) => entrada.rules.some(esCaster))) return true;
+  return sections.some((section) =>
+    (section.options ?? []).some((option) => mencionaCaster(option.label) || (option.gains ?? []).some(gainConcedeCaster)),
+  );
 }
 
 export interface EquipoDeFaccion {

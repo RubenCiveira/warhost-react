@@ -53,3 +53,20 @@ export function byThreshold(spells: Spell[]): Array<[number, Spell[]]> {
   }
   return [...map.entries()].sort((a, b) => a[0] - b[0]);
 }
+
+/** Reglas mencionadas por los efectos de una lista de hechizos. */
+export function reglasMencionadasEnHechizos<T extends { name: string }>(
+  glosario: Map<string, T>,
+  spells: Spell[],
+): T[] {
+  const encontradas = new Map<string, T>();
+  const candidatas = [...glosario.values()].sort((a, b) => b.name.length - a.name.length);
+  for (const spell of spells) {
+    for (const regla of candidatas) {
+      const escapado = regla.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const patron = new RegExp(`\\b${escapado}(?:\\(\\+?-?\\d+\\))?\\b`);
+      if (patron.test(spell.effect)) encontradas.set(regla.name.toLowerCase(), regla);
+    }
+  }
+  return [...encontradas.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+}

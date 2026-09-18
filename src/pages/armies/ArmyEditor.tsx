@@ -34,7 +34,7 @@ import HeroSkillCard from "../../components/HeroSkillCard";
 import type { HeroSkillCardData } from "../../components/HeroSkillCard";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddUnitWizard from "../../components/AddUnitWizard";
-import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, serializeEntries } from "../../lib/builder";
+import { buildArmy, entriesFromForgeList, esHeroe, rehydrateEntries, sectionsForUnit, serializeEntries } from "../../lib/builder";
 import type { StoredEntry } from "../../lib/builder";
 import type { BuilderEntry, UpgradeSection } from "../../lib/builder";
 import { catalogImageUrl, getBook, getBookByUid, groupImages, listBookImages, listBooks, listRuleGlossary, pickImageByType, targetKeyFor } from "../../api/catalog";
@@ -50,6 +50,7 @@ import {
   equipoDeEjercito,
   equipoDeFaccion,
   habilidadesDeFaccion,
+  puedeTenerCaster,
   reglasGeneralesDeFaccion,
   reglasUsadasEnEjercito,
   tieneCaster,
@@ -58,7 +59,7 @@ import { agruparUnidades, emparejarHeroes } from "../../lib/unidades";
 import { listUnits as listCatalogUnits, listUpgradePackages } from "../../api/catalog";
 import { habilidadesInicialesQuest } from "../../lib/questHero";
 import Tabs from "../../components/Tabs";
-import { parseSpells } from "../../lib/spells";
+import { parseSpells, reglasMencionadasEnHechizos } from "../../lib/spells";
 import { composeArmyPayload, sourceBooks } from "../../lib/armyPayload";
 import { listHeroClasses, listQuestShopPackages } from "../../api/content";
 import { questShopSectionsForEntry } from "../../lib/questShop";
@@ -614,10 +615,23 @@ export default function ArmyEditor() {
     }
     return mapa;
   }, [units, librosConocidos]);
-  /** Reglas propias y del reglamento basico que aparecen de verdad en las
-   *  fichas de esta lista, con `mostrarTodas` desactivado. */
-  const reglasUsadas = useMemo(() => reglasUsadasEnEjercito(glosario, units), [glosario, units]);
-  const nombresUsados = useMemo(() => new Set(reglasUsadas.map((regla) => regla.name.toLowerCase())), [reglasUsadas]);
+  const unidadCatalogoDe = useCallback(
+    (unit: ResolvedUnit): ArmyUnit | null => {
+      const defaultBookKey = librosConocidos.length === 1 ? librosConocidos[0].$id : undefined;
+      const bookKey = unit.bookKey ?? defaultBookKey;
+      if (!bookKey || !unit.unitKey) return null;
+      return unidadesPorLibro.get(bookKey)?.find((candidate) => candidate.unitId === unit.unitKey) ?? null;
+    },
+    [librosConocidos, unidadesPorLibro],
+  );
+  const puedeLanzarHechizos = useCallback(
+    (unit: ResolvedUnit): boolean => {
+      if (tieneCaster([unit])) return true;
+      const catalogo = unidadCatalogoDe(unit);
+      return catalogo ? puedeTenerCaster(catalogo, sectionsForUnit(catalogo, paquetesPorClave)) : false;
+    },
+    [paquetesPorClave, unidadCatalogoDe],
+  );
   /**
    * Habilidades, equipo y hechizos van una fila por faccion conocida —
    * principal y aliadas por igual—, para no mezclar lo que aporta cada libro
@@ -633,21 +647,8 @@ export default function ArmyEditor() {
       librosConocidos
         .map((libro) => ({ libro, spells: parseSpells(libro.spells ?? null) }))
         .filter((grupo) => grupo.spells.length > 0)
-        .filter((grupo) => mostrarTodas || tieneCaster(unidadesEjercitoPorLibro.get(grupo.libro.$id) ?? [])),
-    [librosConocidos, mostrarTodas, unidadesEjercitoPorLibro],
-  );
-  const habilidadesPorFaccion = useMemo(
-    () =>
-      librosConocidos
-        .map((libro) => {
-          const items = habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? []);
-          return {
-            libro,
-            items: mostrarTodas ? items : items.filter((regla) => nombresUsados.has(regla.name.toLowerCase())),
-          };
-        })
-        .filter((grupo) => grupo.items.length > 0),
-    [librosConocidos, glosario, unidadesPorLibro, mostrarTodas, nombresUsados],
+        .filter((grupo) => mostrarTodas || (unidadesEjercitoPorLibro.get(grupo.libro.$id) ?? []).some(puedeLanzarHechizos)),
+    [librosConocidos, mostrarTodas, puedeLanzarHechizos, unidadesEjercitoPorLibro],
   );
   const equipoPorFaccion = useMemo(
     () =>
@@ -662,6 +663,39 @@ export default function ArmyEditor() {
     [librosConocidos, unidadesPorLibro, mostrarTodas, unidadesEjercitoPorLibro],
   );
   const hechizos = useMemo(() => hechizosPorFaccion.flatMap((g) => g.spells), [hechizosPorFaccion]);
+  const reglasDeHechizos = useMemo(() => reglasMencionadasEnHechizos(glosario, hechizos), [glosario, hechizos]);
+  const reglasDeHechizosPorFaccion = useMemo(() => {
+    const porLibro = new Map<string, CatalogRule[]>();
+    for (const { libro, spells } of hechizosPorFaccion) porLibro.set(libro.$id, reglasMencionadasEnHechizos(glosario, spells));
+    return porLibro;
+  }, [glosario, hechizosPorFaccion]);
+  /** Reglas propias y del reglamento basico que aparecen de verdad en las
+   *  fichas de esta lista, con `mostrarTodas` desactivado. */
+  const reglasUsadas = useMemo(() => {
+    const porId = new Map<string, CatalogRule>();
+    for (const regla of reglasUsadasEnEjercito(glosario, units)) porId.set(regla.$id, regla);
+    for (const regla of reglasDeHechizos) porId.set(regla.$id, regla);
+    return [...porId.values()];
+  }, [glosario, reglasDeHechizos, units]);
+  const nombresUsados = useMemo(() => new Set(reglasUsadas.map((regla) => regla.name.toLowerCase())), [reglasUsadas]);
+  const habilidadesPorFaccion = useMemo(
+    () =>
+      librosConocidos
+        .map((libro) => {
+          const porId = new Map<string, CatalogRule>();
+          for (const regla of habilidadesDeFaccion(libro, glosario, unidadesPorLibro.get(libro.$id) ?? [])) porId.set(regla.$id, regla);
+          for (const regla of reglasDeHechizosPorFaccion.get(libro.$id) ?? []) {
+            if (regla.coreType === null) porId.set(regla.$id, regla);
+          }
+          const items = [...porId.values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+          return {
+            libro,
+            items: mostrarTodas ? items : items.filter((regla) => nombresUsados.has(regla.name.toLowerCase())),
+          };
+        })
+        .filter((grupo) => grupo.items.length > 0),
+    [librosConocidos, glosario, unidadesPorLibro, reglasDeHechizosPorFaccion, mostrarTodas, nombresUsados],
+  );
   const habilidades = useMemo(() => habilidadesPorFaccion.flatMap((g) => g.items), [habilidadesPorFaccion]);
   const equipo = useMemo(() => equipoPorFaccion.flatMap((g) => g.items), [equipoPorFaccion]);
   const generales = useMemo(
@@ -1089,6 +1123,7 @@ export default function ArmyEditor() {
         glosario={glosario}
         librosConocidos={librosConocidos}
         avatarDe={avatarDe}
+        puedeLanzarHechizos={puedeLanzarHechizos}
         onCerrar={() => setImprimiendo(false)}
       />
     );

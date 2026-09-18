@@ -10,7 +10,7 @@ import type { Habilidad } from "../lib/reglas";
 import { optionCost } from "../lib/builder";
 import type { UpgradeOption, UpgradeSection } from "../lib/builder";
 import { desglosarOpcion } from "../lib/opciones";
-import { parseSpells } from "../lib/spells";
+import { parseSpells, reglasMencionadasEnHechizos } from "../lib/spells";
 import type { Spell } from "../lib/spells";
 import type { ArmyNoun } from "../lib/gameSystems";
 import { cuadriculaPorHoja, PAGINA_MM, trocear, espejarHoja } from "../lib/print";
@@ -65,9 +65,31 @@ function perfilDe(v: ResolvedUnit) {
 /** Las cartas de habilidades, equipo, hechizos y reglas generales que
  *  aparecen de verdad en las fichas de estas unidades —directas, por su
  *  equipo o arrastradas por texto—, listas para pintar en Mini Euro. */
-function cartasDe(glosario: Map<string, CatalogRule>, units: ResolvedUnit[], libros: ArmyBook[]): CartaMiniEuro[] {
-  const usadas = reglasUsadasEnEjercito(glosario, units);
-  const reglas: CartaMiniEuro[] = usadas
+function cartasDe(
+  glosario: Map<string, CatalogRule>,
+  units: ResolvedUnit[],
+  libros: ArmyBook[],
+  puedeLanzarHechizos?: (unit: ResolvedUnit) => boolean,
+): CartaMiniEuro[] {
+  const reglasPorId = new Map<string, CatalogRule>();
+  for (const regla of reglasUsadasEnEjercito(glosario, units)) reglasPorId.set(regla.$id, regla);
+  const hechizos: CartaMiniEuro[] = libros.flatMap((libro) => {
+    // Una lista importada y todavia no tocada por el constructor no trae
+    // `bookKey` en sus unidades. Con una sola faccion conocida no hay
+    // ambiguedad: son todas suyas.
+    const defaultBookKey = libros.length === 1 ? libros[0].$id : undefined;
+    const unidadesLibro = units.filter((unit) => (unit.bookKey ?? defaultBookKey) === libro.$id);
+    if (!unidadesLibro.some((unit) => puedeLanzarHechizos?.(unit) ?? tieneCaster([unit]))) return [];
+    const spells = parseSpells(libro.spells ?? null);
+    for (const regla of reglasMencionadasEnHechizos(glosario, spells)) reglasPorId.set(regla.$id, regla);
+    return spells.map((spell) => ({
+      tipo: "hechizo" as const,
+      key: `hechizo-${libro.$id}-${spell.key}`,
+      spell,
+      faccion: libro.factionName ?? libro.name,
+    }));
+  });
+  const reglas: CartaMiniEuro[] = [...reglasPorId.values()]
     .sort((a, b) => a.name.localeCompare(b.name, "es"))
     .map((regla) => ({ tipo: "regla", key: `regla-${regla.$id}`, habilidad: parseHabilidad(regla.name, "regla"), regla }));
   const equipo: CartaMiniEuro[] = equipoDeEjercito(units).map((item) => ({
@@ -75,20 +97,6 @@ function cartasDe(glosario: Map<string, CatalogRule>, units: ResolvedUnit[], lib
     key: `equipo-${item.habilidad.nombre}`,
     item,
   }));
-  // Una lista importada y todavia no tocada por el constructor no trae
-  // `bookKey` en sus unidades. Con una sola faccion conocida no hay
-  // ambiguedad: son todas suyas.
-  const defaultBookKey = libros.length === 1 ? libros[0].$id : undefined;
-  const hechizos: CartaMiniEuro[] = libros.flatMap((libro) => {
-    const unidadesLibro = units.filter((unit) => (unit.bookKey ?? defaultBookKey) === libro.$id);
-    if (!tieneCaster(unidadesLibro)) return [];
-    return parseSpells(libro.spells ?? null).map((spell) => ({
-      tipo: "hechizo" as const,
-      key: `hechizo-${libro.$id}-${spell.key}`,
-      spell,
-      faccion: libro.factionName ?? libro.name,
-    }));
-  });
   return [...reglas, ...equipo, ...hechizos];
 }
 
@@ -397,6 +405,7 @@ export function FichaUnidadLibro({
   avatarUrl,
   lore,
   miniaturaUrl,
+  puedeLanzarHechizos,
 }: {
   unit: ResolvedUnit;
   glosario: Map<string, CatalogRule>;
@@ -405,11 +414,13 @@ export function FichaUnidadLibro({
   avatarUrl?: string | null;
   lore?: string | null;
   miniaturaUrl?: string | null;
+  puedeLanzarHechizos?: (unit: ResolvedUnit) => boolean;
 }) {
   const armas = unit.loadout.filter((entrada) => entrada.kind === "weapon");
   const equipo = unit.loadout.filter((entrada) => entrada.kind === "gear");
-  const esCaster = tieneCaster([unit]);
-  const hechizos = esCaster && libro ? parseSpells(libro.spells ?? null) : [];
+  const hechizos = libro && (puedeLanzarHechizos?.(unit) ?? tieneCaster([unit])) ? parseSpells(libro.spells ?? null) : [];
+  const reglasHechizos = reglasMencionadasEnHechizos(glosario, hechizos).map((regla) => regla.name);
+  const reglasUnidad = [...unit.rules, ...reglasHechizos.filter((nombre) => !unit.rules.some((regla) => parseHabilidad(regla, "regla").nombre.toLowerCase() === nombre.toLowerCase()))];
   const dividida = parte !== undefined;
 
   return (
@@ -424,7 +435,7 @@ export function FichaUnidadLibro({
         ) : null}
         {parte !== "perfil" ? (
           <>
-            <TablaReglasLibro reglas={unit.rules} glosario={glosario} />
+            <TablaReglasLibro reglas={reglasUnidad} glosario={glosario} />
             <TablaEquipoLibro equipo={equipo} glosario={glosario} />
             <TablaHechizosLibro hechizos={hechizos} />
             {unit.notes ? (
@@ -445,8 +456,9 @@ function tarjetasDeUnidadLibro(
   glosario: Map<string, CatalogRule>,
   libro: ArmyBook | undefined,
   avatarUrl?: string | null,
+  puedeLanzarHechizos?: (unit: ResolvedUnit) => boolean,
 ): TarjetaLibro[] {
-  const hechizos = tieneCaster([unit]) && libro ? parseSpells(libro.spells ?? null) : [];
+  const hechizos = libro && (puedeLanzarHechizos?.(unit) ?? tieneCaster([unit])) ? parseSpells(libro.spells ?? null) : [];
   const hayDetalles = unit.rules.length > 0 || unit.loadout.some((entrada) => entrada.kind === "gear") || hechizos.length > 0 || Boolean(unit.notes);
   const partir = hayDetalles && altoLibroEstimadoMm(unit, glosario, hechizos) > LIBRO_ALTO_UTIL_MM;
   const keyBase = `${unit.unitKey ?? unit.name}-${unit.sortOrder}`;
@@ -455,19 +467,6 @@ function tarjetasDeUnidadLibro(
     { key: `${keyBase}-perfil`, unit, libro, avatarUrl, parte: "perfil" },
     { key: `${keyBase}-detalles`, unit, libro, parte: "detalles" },
   ];
-}
-
-function TarjetaUnidadLibro({ tarjeta, glosario }: { tarjeta: TarjetaLibro; glosario: Map<string, CatalogRule> }) {
-  return (
-    <FichaUnidadLibro
-      unit={tarjeta.unit}
-      glosario={glosario}
-      libro={tarjeta.libro}
-      avatarUrl={tarjeta.avatarUrl}
-      miniaturaUrl={tarjeta.miniaturaUrl}
-      parte={tarjeta.parte}
-    />
-  );
 }
 
 /**
@@ -480,12 +479,14 @@ function VistaLibro({
   glosario,
   librosConocidos,
   avatarDe,
+  puedeLanzarHechizos,
   noun,
 }: {
   units: ResolvedUnit[];
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
   avatarDe?: (unit: ResolvedUnit) => string | null;
+  puedeLanzarHechizos?: (unit: ResolvedUnit) => boolean;
   noun: ArmyNoun;
 }) {
   // Una lista importada y todavia no tocada por el constructor no trae
@@ -501,10 +502,11 @@ function VistaLibro({
             glosario,
             librosConocidos.find((libro) => (unit.bookKey ?? defaultBookKey) === libro.$id),
             avatarDe?.(unit) ?? null,
+            puedeLanzarHechizos,
           ),
         ),
       ),
-    [avatarDe, defaultBookKey, glosario, librosConocidos, units],
+    [avatarDe, defaultBookKey, glosario, librosConocidos, puedeLanzarHechizos, units],
   );
 
   if (units.length === 0) return <p className="muted">{noun.demonstrativeCap} {noun.singular} no tiene unidades que imprimir.</p>;
@@ -512,7 +514,16 @@ function VistaLibro({
   return (
     <div className="print-libro">
       {tarjetas.map((tarjeta) => (
-        <TarjetaUnidadLibro key={tarjeta.key} tarjeta={tarjeta} glosario={glosario} />
+        <FichaUnidadLibro
+          key={tarjeta.key}
+          unit={tarjeta.unit}
+          glosario={glosario}
+          libro={tarjeta.libro}
+          avatarUrl={tarjeta.avatarUrl}
+          miniaturaUrl={tarjeta.miniaturaUrl}
+          parte={tarjeta.parte}
+          puedeLanzarHechizos={puedeLanzarHechizos}
+        />
       ))}
     </div>
   );
@@ -627,6 +638,7 @@ export default function ArmyPrintView({
   glosario,
   librosConocidos,
   avatarDe,
+  puedeLanzarHechizos,
   onCerrar,
 }: {
   nombre: string;
@@ -638,11 +650,12 @@ export default function ArmyPrintView({
   glosario: Map<string, CatalogRule>;
   librosConocidos: ArmyBook[];
   avatarDe?: (unit: ResolvedUnit) => string | null;
+  puedeLanzarHechizos?: (unit: ResolvedUnit) => boolean;
   onCerrar: () => void;
 }) {
   const [modo, setModo] = useState<"elegir" | "libro" | "tarjetas">("elegir");
   const filas = useMemo(() => emparejarHeroes(units, entradasAttachedTo), [units, entradasAttachedTo]);
-  const cartas = useMemo(() => cartasDe(glosario, units, librosConocidos), [glosario, units, librosConocidos]);
+  const cartas = useMemo(() => cartasDe(glosario, units, librosConocidos, puedeLanzarHechizos), [glosario, units, librosConocidos, puedeLanzarHechizos]);
 
   return (
     <div className="print-vista">
@@ -680,7 +693,14 @@ export default function ArmyPrintView({
           </div>
         </div>
       ) : modo === "libro" ? (
-        <VistaLibro units={units} glosario={glosario} librosConocidos={librosConocidos} avatarDe={avatarDe} noun={noun} />
+        <VistaLibro
+          units={units}
+          glosario={glosario}
+          librosConocidos={librosConocidos}
+          avatarDe={avatarDe}
+          puedeLanzarHechizos={puedeLanzarHechizos}
+          noun={noun}
+        />
       ) : (
         <VistaTarjetas filas={filas} cartas={cartas} glosario={glosario} quest={quest} avatarDe={avatarDe} />
       )}

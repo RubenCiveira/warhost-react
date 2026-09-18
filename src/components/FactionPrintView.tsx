@@ -6,8 +6,13 @@ import type { UpgradeSection } from "../lib/builder";
 import type { ResolvedUnit } from "../lib/armyForgeResolve";
 import { baseLoadout } from "../lib/loadout";
 import { agruparUnidades } from "../lib/unidades";
+import { puedeTenerCaster } from "../lib/faccion";
+import { parseSpells, reglasMencionadasEnHechizos } from "../lib/spells";
 import { FichaOpcionesLibro, FichaUnidadLibro } from "./ArmyPrintView";
 import LoreText from "./LoreText";
+import SpellCard from "./SpellCard";
+import RuleCard from "./RuleCard";
+import { parseHabilidad } from "../lib/reglas";
 
 function unidadResuelta(unit: ArmyUnit): ResolvedUnit {
   return {
@@ -46,6 +51,15 @@ export default function FactionPrintView({
   const byTarget = useMemo(() => groupImages(images), [images]);
   const factionCover = pickCover(byTarget.get(targetKeyFor(book.$id))?.filter((image) => (image.imageType ?? "gallery") === "gallery"));
   const coverUrl = factionCover ? catalogImageUrl(factionCover.fileId) : book.coverImagePath;
+  const hechizos = useMemo(() => parseSpells(book.spells ?? null), [book.spells]);
+  const imprimeHechizos = useMemo(
+    () => hechizos.length > 0 && units.some((unit) => puedeTenerCaster(unit, sectionsForUnit(unit, packages))),
+    [hechizos.length, packages, units],
+  );
+  const reglasDeHechizos = useMemo(
+    () => (imprimeHechizos ? reglasMencionadasEnHechizos(glosario, hechizos) : []),
+    [glosario, hechizos, imprimeHechizos],
+  );
   const [portada, setPortada] = useState(true);
   const [incluirLore, setIncluirLore] = useState(true);
 
@@ -99,6 +113,19 @@ export default function FactionPrintView({
             </div>
           );
         })}
+        {imprimeHechizos ? (
+          <section className="print-faccion-extra">
+            <h2>Hechizos</h2>
+            <div className="print-card-grid">
+              {hechizos.map((spell) => (
+                <SpellCard key={spell.key} spell={spell} faction={book.factionName ?? book.name} glosario={glosario} />
+              ))}
+              {reglasDeHechizos.map((regla) => (
+                <RuleCard key={regla.$id} habilidad={parseHabilidad(regla.name, "regla")} regla={regla} glosario={glosario} />
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );
