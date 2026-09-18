@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, PointerEvent } from "react";
 import Cropper from "react-easy-crop";
 import type { Area } from "react-easy-crop";
 import { errorMessage } from "../lib/format";
@@ -64,6 +64,149 @@ export async function cropFile(file: File, area: Area): Promise<File> {
   }
 }
 
+async function erasePolygon(file: File, points: Point[]): Promise<File> {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = await loadImage(url);
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No se pudo preparar el borrado de la imagen.");
+    context.drawImage(image, 0, 0);
+    context.globalCompositeOperation = "destination-out";
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (const point of points.slice(1)) context.lineTo(point.x, point.y);
+    context.closePath();
+    context.fill();
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("No se pudo generar la imagen borrada.");
+    const name = `${file.name.replace(/\.[^.]+$/, "")}-editada.png`;
+    return new File([blob], name, { type: "image/png", lastModified: Date.now() });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+type Point = { x: number; y: number };
+
+function LassoEditor({ file, onCancel, onApply }: { file: File; onCancel: () => void; onApply: (file: File) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [points, setPoints] = useState<Point[]>([]);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    let cancelled = false;
+    setImage(null);
+    setPoints([]);
+    loadImage(url)
+      .then((image) => {
+        if (cancelled) return;
+        setImage(image);
+      })
+      .catch((err: unknown) => setError(errorMessage(err)))
+      .finally(() => URL.revokeObjectURL(url));
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || !image) return;
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0);
+    context.save();
+    context.strokeStyle = "#f5c542";
+    context.fillStyle = "#f5c542";
+    context.lineWidth = Math.max(2, canvas.width / 500);
+    context.setLineDash([context.lineWidth * 4, context.lineWidth * 2]);
+    context.beginPath();
+    for (const [index, point] of points.entries()) {
+      if (index === 0) context.moveTo(point.x, point.y);
+      else context.lineTo(point.x, point.y);
+    }
+    if (points.length > 2) context.closePath();
+    context.stroke();
+    for (const point of points) {
+      context.beginPath();
+      context.arc(point.x, point.y, context.lineWidth * 2, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  }, [image, points]);
+
+  function addPoint(event: PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas || working) return;
+    const rect = canvas.getBoundingClientRect();
+    setPoints((prev) => [
+      ...prev,
+      {
+        x: ((event.clientX - rect.left) * canvas.width) / rect.width,
+        y: ((event.clientY - rect.top) * canvas.height) / rect.height,
+      },
+    ]);
+  }
+
+  async function applyErase() {
+    if (points.length < 3) return;
+    setWorking(true);
+    setError(null);
+    try {
+      onApply(await erasePolygon(file, points));
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Borrar con lazo" onClick={onCancel}>
+      <div className="modal wide crop-modal" onClick={(event) => event.stopPropagation()}>
+        <header className="spread">
+          <div>
+            <h2 style={{ margin: 0 }}>Borrar con lazo</h2>
+            <p className="muted small" style={{ margin: "4px 0 0" }}>
+              Marca puntos alrededor de la miniatura que quieras quitar. El area cerrada quedara transparente.
+            </p>
+          </div>
+          <button type="button" className="ghost tiny" disabled={working} onClick={onCancel}>
+            Cerrar
+          </button>
+        </header>
+        <div className="lasso-stage">
+          <canvas ref={canvasRef} onPointerDown={addPoint} />
+        </div>
+        <div className="row">
+          <button type="button" className="ghost tiny" disabled={working || points.length === 0} onClick={() => setPoints([])}>
+            Limpiar puntos
+          </button>
+          <span className="small muted">{points.length} puntos</span>
+        </div>
+        {error ? <p className="small danger-text">{error}</p> : null}
+        <footer className="modal-actions">
+          <button type="button" className="ghost" disabled={working} onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="button" className="primary" disabled={working || points.length < 3} onClick={() => void applyErase()}>
+            {working ? "Borrando…" : "Borrar seleccion"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 /** Se exporta para reutilizarla fuera del picker de ficheros (p.ej. WarhubPicker). */
 export function CropModal({
   file,
@@ -75,10 +218,11 @@ export function CropModal({
   file: File;
   imageType: CatalogImageType;
   onCancel: () => void;
-  onSkip: () => void;
-  onApply: (area: Area) => Promise<void>;
+  onSkip: (file: File) => void;
+  onApply: (file: File, area: Area) => Promise<void>;
 }) {
   const [url, setUrl] = useState("");
+  const [activeFile, setActiveFile] = useState(file);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -86,9 +230,14 @@ export function CropModal({
   const [error, setError] = useState<string | null>(null);
   const [grupo, setGrupo] = useState(false);
   const [ratioGrupo, setRatioGrupo] = useState(GRUPO_RATIO_INICIAL);
+  const [editingLasso, setEditingLasso] = useState(false);
 
   useEffect(() => {
-    const nextUrl = URL.createObjectURL(file);
+    setActiveFile(file);
+  }, [file]);
+
+  useEffect(() => {
+    const nextUrl = URL.createObjectURL(activeFile);
     setUrl(nextUrl);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
@@ -97,7 +246,7 @@ export function CropModal({
     setGrupo(false);
     setRatioGrupo(GRUPO_RATIO_INICIAL);
     return () => URL.revokeObjectURL(nextUrl);
-  }, [file]);
+  }, [activeFile]);
 
   const aspect = grupo ? ratioGrupo : ASPECT[imageType];
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
@@ -107,7 +256,7 @@ export function CropModal({
     setWorking(true);
     setError(null);
     try {
-      await onApply(area);
+      await onApply(activeFile, area);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -150,6 +299,14 @@ export function CropModal({
           <input type="checkbox" checked={grupo} disabled={working} onChange={(event) => setGrupo(event.target.checked)} style={{ width: "auto" }} />
           <span>Foto de varias miniaturas (recorte mas ancho)</span>
         </label>
+        <div className="row">
+          <button type="button" className="ghost tiny" disabled={working} onClick={() => setEditingLasso(true)}>
+            Borrar miniatura con lazo
+          </button>
+          <button type="button" className="ghost tiny" disabled={working || activeFile === file} onClick={() => setActiveFile(file)}>
+            Deshacer borrados
+          </button>
+        </div>
         {grupo ? (
           <label className="crop-control">
             <span>Proporcion</span>
@@ -166,13 +323,23 @@ export function CropModal({
         ) : null}
         {error ? <p className="small danger-text">{error}</p> : null}
         <footer className="modal-actions">
-          <button type="button" className="ghost" disabled={working} onClick={onSkip}>
+          <button type="button" className="ghost" disabled={working} onClick={() => onSkip(activeFile)}>
             Usar sin recortar
           </button>
           <button type="button" className="primary" disabled={working || !area} onClick={() => void apply()}>
             {working ? "Preparando…" : "Aplicar recorte"}
           </button>
         </footer>
+        {editingLasso ? (
+          <LassoEditor
+            file={activeFile}
+            onCancel={() => setEditingLasso(false)}
+            onApply={(nextFile) => {
+              setActiveFile(nextFile);
+              setEditingLasso(false);
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -212,10 +379,10 @@ export default function ImageUploader({ label, busy, imageType, onUpload }: Prop
     setCropIndex(index + 1 < files.length ? index + 1 : null);
   }
 
-  async function applyCrop(index: number, area: Area) {
+  async function applyCrop(index: number, file: File, area: Area) {
     const original = files[index];
     if (!original) return;
-    const cropped = await cropFile(original, area);
+    const cropped = await cropFile(file, area);
     if (cropped.size > MAX_BYTES) throw new Error("El recorte supera los 5 MB. Reduce el zoom o usa otra imagen.");
     setFiles((prev) => prev.map((file, fileIndex) => (fileIndex === index ? cropped : file)));
     nextCrop(index);
@@ -292,8 +459,11 @@ export default function ImageUploader({ label, busy, imageType, onUpload }: Prop
           file={files[cropIndex]}
           imageType={type}
           onCancel={() => setCropIndex(null)}
-          onSkip={() => nextCrop(cropIndex)}
-          onApply={(area) => applyCrop(cropIndex, area)}
+          onSkip={(file) => {
+            setFiles((prev) => prev.map((current, fileIndex) => (fileIndex === cropIndex ? file : current)));
+            nextCrop(cropIndex);
+          }}
+          onApply={(file, area) => applyCrop(cropIndex, file, area)}
         />
       ) : null}
     </div>

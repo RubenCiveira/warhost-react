@@ -32,7 +32,7 @@ export default function WarhubPicker({
   const [original, setOriginal] = useState<File | null>(null);
   const [prepared, setPrepared] = useState<File | null>(null);
   const [sinFondo, setSinFondo] = useState(false);
-  const [tolerancia, setTolerancia] = useState(32);
+  const [tolerancia, setTolerancia] = useState(4);
   const [cropFor, setCropFor] = useState<CatalogImageType | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +67,7 @@ export default function WarhubPicker({
     setPrepared(null);
     setOriginal(null);
     setSinFondo(false);
-    setTolerancia(32);
+    setTolerancia(4);
     setWorking(true);
     setError(null);
     try {
@@ -108,9 +108,9 @@ export default function WarhubPicker({
     setSinFondo(false);
   }
 
-  async function subirRecorte(area: Area) {
+  async function subirRecorte(file: File, area: Area) {
     if (!prepared || !cropFor) return;
-    const cropped = await cropFile(prepared, area);
+    const cropped = await cropFile(file, area);
     await onUpload([cropped], `WarHub: ${selected?.name ?? ""}`, cropFor, unit);
     setCropFor(null);
     setSelected(null);
@@ -200,14 +200,14 @@ export default function WarhubPicker({
               <span>Rango de color</span>
               <input
                 type="range"
-                min={8}
-                max={100}
-                step={2}
+                min={0}
+                max={8}
+                step={0.25}
                 value={tolerancia}
                 disabled={disabled}
                 onChange={(event) => setTolerancia(Number(event.target.value))}
               />
-              <span className="small muted">{tolerancia}</span>
+              <span className="small muted">{Number.isInteger(tolerancia) ? tolerancia : tolerancia.toFixed(2)}</span>
             </label>
           ) : null}
         </div>

@@ -581,6 +581,12 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 .crop-control input[type="range"] { flex: 1 1 auto; }
+.lasso-stage {
+  max-height: min(62vh, 620px); margin: 14px 0; overflow: auto;
+  border: 1px solid var(--border-strong); border-radius: var(--plate-radius);
+  background: #101318;
+}
+.lasso-stage canvas { display: block; width: 100%; height: auto; cursor: crosshair; }
 
 .unit-lore-editor { display: grid; gap: 8px; margin-bottom: 12px; }
 .unit-lore-editor textarea { min-height: 90px; resize: vertical; }
@@ -740,7 +746,7 @@ a.button-link:hover { text-decoration: none; filter: brightness(1.08); }
 }
 .ucard-stats { display: flex; gap: 0.8mm; flex: 0 0 auto; }
 .ucard-stat {
-  width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;
+  z-index: 1; width: 9.5mm; padding: 0.9mm 0 0.7mm; text-align: center;
   background: var(--ucard-banda); color: var(--ucard-banda-texto);
 }
 .ucard.personaje { height: calc(var(--ucard-h) * 2); }
@@ -1539,7 +1545,7 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .ucard.hoja.con-miniatura .ucard-head { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
 .ucard.hoja.con-miniatura .ucard-title { min-height: 12mm; }
 .ucard.hoja.con-miniatura .ucard-miniatura {
-  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
+  position: absolute; top: 0; left: 50%; height: 40mm; max-height: none; object-fit: cover;
   border: 0; border-radius: 0; box-shadow: none; object-position: top;
 }
 .ucard.hoja.con-miniatura .ucard-stats {
@@ -1714,9 +1720,14 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
 .libro-aviso { margin: 1.8mm 2.5mm 0; color: var(--ucard-tenue); font-size: 2.45mm; font-style: italic; }
 .libro-cuerpo { gap: 2.2mm; padding: 2.2mm 2.5mm 0; }
 .libro-cab .libro-avatar { align-self: stretch; }
+.libro-ficha.con-miniatura .libro-cab { align-items: flex-end; min-height: 33mm; padding-top: 2mm; }
+.libro-ficha.con-miniatura .libro-nombre { min-height: 12mm; }
 .libro-ficha.con-miniatura .libro-miniatura {
-  position: absolute; top: 0; left: 50%; width: 58mm; height: 40mm; max-height: none; object-fit: cover;
+  position: absolute; top: 0; left: 50%; height: 40mm; max-height: none; object-fit: cover;
   border: 0; border-radius: 0; box-shadow: none; object-position: top;
+}
+.libro-ficha.con-miniatura .libro-stats {
+  align-self: flex-end; width: auto; flex-wrap: nowrap; justify-content: flex-end;
 }
 .libro-lore {
   margin: 0; padding: 1.6mm 2mm; color: var(--ucard-tenue);
