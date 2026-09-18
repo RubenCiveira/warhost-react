@@ -1,4 +1,4 @@
-import { ID, Permission, Query, Role, storage, tables } from "../lib/appwrite";
+import { ID, Query, storage, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
 import type { Row } from "../lib/types";
@@ -182,12 +182,9 @@ export async function uploadCatalogImage(
   caption?: string,
 ): Promise<CatalogImage> {
   const fileId = ID.unique();
-  await storage.createFile({
-    bucketId: env.catalogBucketId,
-    fileId,
-    file,
-    permissions: [Permission.read(Role.any())],
-  });
+  // El bucket `catalog_assets` es publico de lectura: estas URLs se usan en
+  // `<img>` y no pueden depender de cookies de sesion cruzadas en movil.
+  await storage.createFile({ bucketId: env.catalogBucketId, fileId, file });
 
   return tables.createRow<CatalogImage>({
     databaseId: env.databaseId,
