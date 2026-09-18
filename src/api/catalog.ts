@@ -1,4 +1,4 @@
-import { ID, Query, storage, tables } from "../lib/appwrite";
+import { ID, Permission, Query, Role, storage, tables } from "../lib/appwrite";
 import { TABLES, env } from "../lib/env";
 import type { GameSystemId, Setting } from "../lib/gameSystems";
 import type { Row } from "../lib/types";
@@ -182,9 +182,12 @@ export async function uploadCatalogImage(
   caption?: string,
 ): Promise<CatalogImage> {
   const fileId = ID.unique();
-  // Sin permisos por fichero: manda el bucket, que deja leer a los aceptados y
-  // escribir a admins y editores.
-  await storage.createFile({ bucketId: env.catalogBucketId, fileId, file });
+  await storage.createFile({
+    bucketId: env.catalogBucketId,
+    fileId,
+    file,
+    permissions: [Permission.read(Role.any())],
+  });
 
   return tables.createRow<CatalogImage>({
     databaseId: env.databaseId,
