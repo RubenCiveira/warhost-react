@@ -77,8 +77,12 @@ export default function FactionPrintView({
         <header className={portada ? "print-faccion-titulo print-faccion-portada" : "print-faccion-titulo"}>
           <h1>{book.name}</h1>
           {portada && coverUrl ? <img className="print-faccion-cover" src={coverUrl} alt="" /> : null}
-          {incluirLore && book.lore ? <LoreText text={book.lore} className="print-faccion-lore" /> : null}
         </header>
+        {incluirLore && book.lore ? (
+          <div className="print-faccion-lore-pagina">
+            <LoreText text={book.lore} className="print-faccion-lore" />
+          </div>
+        ) : null}
         {unidadesOrdenadas.map((unit) => {
           const sections = sectionsForUnit(unit, packages);
           const miniatura = pickImageByType(byTarget.get(targetKeyFor(book.$id, unit.unitId)), "miniature");
