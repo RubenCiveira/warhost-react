@@ -1,10 +1,23 @@
 /**
- * Quita el fondo de una foto de producto de forma aproximada: parte de las
- * cuatro esquinas y vacia (alpha 0) todo pixel conectado a ellas cuyo color
- * quede cerca del de la esquina. Funciona bien con fotos de estudio sobre
- * fondo solido o casi solido, que es lo habitual en el catalogo de WarHub;
- * no es una segmentacion real y no distingue un fondo con textura o color
- * variable.
+ * Quita el fondo de una foto de producto de forma aproximada. Funciona bien
+ * con fotos de estudio sobre fondo solido o casi solido, que es lo habitual
+ * en el catalogo de WarHub; no es una segmentacion real y no distingue un
+ * fondo con textura o color muy variable.
+ *
+ * Dos pasadas, no una:
+ *
+ * 1. Inundacion desde todo el borde de la imagen (no solo las esquinas),
+ *    comparando cada pixel con el vecino que lo descubrio y no con un color
+ *    fijo. Con un color fijo, una sombra que va oscureciendo el fondo hacia
+ *    el centro corta la inundacion en cuanto se aleja demasiado de ese
+ *    color; comparando contra el vecino, la diferencia en cada paso es
+ *    pequeña aunque la acumulada sea grande, y la sombra no frena nada.
+ * 2. Un barrido del resto de la imagen que vacia cualquier pixel que siga
+ *    pareciendose al color del fondo, sin exigir que este conectado al
+ *    borde. Hace falta porque un hueco "entre las piernas" o "entre el
+ *    brazo y el torso" es fondo de verdad pero puede quedar completamente
+ *    rodeado por la silueta, sin ningun camino hasta el borde por floja que
+ *    se ponga la tolerancia de la primera pasada.
  */
 export async function removeBackground(file: File, tolerance = 32): Promise<File> {
   const url = URL.createObjectURL(file);
@@ -18,7 +31,7 @@ export async function removeBackground(file: File, tolerance = 32): Promise<File
     context.drawImage(image, 0, 0);
 
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-    clearFromCorners(imageData, tolerance);
+    clearBackground(imageData, tolerance);
     context.putImageData(imageData, 0, 0);
 
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
@@ -39,44 +52,84 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Inundacion desde las cuatro esquinas: vacia lo conectado a un color parecido al suyo. */
-function clearFromCorners(imageData: ImageData, tolerance: number) {
+function clearBackground(imageData: ImageData, tolerance: number) {
   const { data, width, height } = imageData;
-  const corners = [0, width - 1, (height - 1) * width, height * width - 1];
-
-  let refR = 0;
-  let refG = 0;
-  let refB = 0;
-  for (const idx of corners) {
-    refR += data[idx * 4];
-    refG += data[idx * 4 + 1];
-    refB += data[idx * 4 + 2];
-  }
-  refR /= corners.length;
-  refG /= corners.length;
-  refB /= corners.length;
-
   const toleranceSq = tolerance * tolerance * 3;
-  const visited = new Uint8Array(width * height);
-  const stack = [...corners];
+  // Un poco mas laxa solo para decidir que pixel de borde sirve de semilla:
+  // una esquina o un lateral ya tocado por la silueta no debe arrancar nada.
+  const seedToleranceSq = (tolerance * 1.5) ** 2 * 3;
+  const ref = cornerReference(data, width, height);
+
+  const cleared = new Uint8Array(width * height);
+  const stack: number[] = [];
+  const trySeed = (idx: number) => {
+    if (colorDistSqToRef(data, idx, ref) <= seedToleranceSq) stack.push(idx);
+  };
+  for (let x = 0; x < width; x += 1) {
+    trySeed(x);
+    trySeed((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    trySeed(y * width);
+    trySeed(y * width + width - 1);
+  }
 
   while (stack.length > 0) {
     const idx = stack.pop();
-    if (idx === undefined || visited[idx]) continue;
-    visited[idx] = 1;
+    if (idx === undefined || cleared[idx]) continue;
+    cleared[idx] = 1;
 
-    const offset = idx * 4;
-    const dr = data[offset] - refR;
-    const dg = data[offset + 1] - refG;
-    const db = data[offset + 2] - refB;
-    if (dr * dr + dg * dg + db * db > toleranceSq) continue;
-
-    data[offset + 3] = 0;
     const x = idx % width;
-    const y = Math.floor(idx / width);
-    if (x > 0) stack.push(idx - 1);
-    if (x < width - 1) stack.push(idx + 1);
-    if (y > 0) stack.push(idx - width);
-    if (y < height - 1) stack.push(idx + width);
+    const y = (idx / width) | 0;
+    if (x > 0) tryGrow(data, idx, idx - 1, toleranceSq, cleared, stack);
+    if (x < width - 1) tryGrow(data, idx, idx + 1, toleranceSq, cleared, stack);
+    if (y > 0) tryGrow(data, idx, idx - width, toleranceSq, cleared, stack);
+    if (y < height - 1) tryGrow(data, idx, idx + width, toleranceSq, cleared, stack);
   }
+
+  // Bolsas de fondo encerradas por la silueta: no conectan con el borde por
+  // ningun camino, asi que se comparan directamente contra el color de
+  // referencia en vez de esperar a que la inundacion las alcance.
+  for (let idx = 0; idx < cleared.length; idx += 1) {
+    if (!cleared[idx] && colorDistSqToRef(data, idx, ref) <= toleranceSq) cleared[idx] = 1;
+  }
+
+  for (let idx = 0; idx < cleared.length; idx += 1) {
+    if (cleared[idx]) data[idx * 4 + 3] = 0;
+  }
+}
+
+function tryGrow(data: Uint8ClampedArray, from: number, to: number, toleranceSq: number, cleared: Uint8Array, stack: number[]) {
+  if (cleared[to]) return;
+  if (colorDistSq(data, from, to) <= toleranceSq) stack.push(to);
+}
+
+function colorDistSq(data: Uint8ClampedArray, idxA: number, idxB: number): number {
+  const a = idxA * 4;
+  const b = idxB * 4;
+  const dr = data[a] - data[b];
+  const dg = data[a + 1] - data[b + 1];
+  const db = data[a + 2] - data[b + 2];
+  return dr * dr + dg * dg + db * db;
+}
+
+function colorDistSqToRef(data: Uint8ClampedArray, idx: number, ref: [number, number, number]): number {
+  const o = idx * 4;
+  const dr = data[o] - ref[0];
+  const dg = data[o + 1] - ref[1];
+  const db = data[o + 2] - ref[2];
+  return dr * dr + dg * dg + db * db;
+}
+
+function cornerReference(data: Uint8ClampedArray, width: number, height: number): [number, number, number] {
+  const corners = [0, width - 1, (height - 1) * width, height * width - 1];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (const idx of corners) {
+    r += data[idx * 4];
+    g += data[idx * 4 + 1];
+    b += data[idx * 4 + 2];
+  }
+  return [r / corners.length, g / corners.length, b / corners.length];
 }

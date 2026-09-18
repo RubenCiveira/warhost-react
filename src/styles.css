@@ -1546,6 +1546,10 @@ fieldset.desnudo { border: 0; padding: 0; margin: 0; min-width: 0; }
   align-self: flex-end; width: auto; flex-wrap: nowrap; justify-content: flex-end;
 }
 .ucard.hoja.con-miniatura .ucard-stat { width: 13mm; }
+/* La miniatura mide 40mm pero la cabecera solo reserva 33mm: sin lore, que
+   normalmente absorbe esos 7mm de sobra con su fondo semitransparente, la
+   foto pisaba la primera tabla. */
+.ucard.hoja.con-miniatura .ucard-body:not(:has(.ucard-lore-intro)) { padding-top: 7mm; }
 .ucard.hoja .ucard-stat { width: 13mm; padding: 1.2mm 0 1mm; }
 .ucard.hoja .ucard-stat-key { font-size: 2.4mm; }
 .ucard.hoja .ucard-stat-value { font-size: 4.2mm; }
