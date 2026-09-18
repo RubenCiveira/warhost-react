@@ -475,3 +475,27 @@ pnpm test:reemplazos
 
 Ojo al comprobarlo: hay opciones que quitan un `CCW (A2)` y devuelven un
 `CCW (A1)` distinto, asi que hay que comparar etiquetas y no nombres.
+
+## Buscar una miniatura en WarHub
+
+Editando una unidad, `WarhubPicker` deja buscar en el catalogo de miniaturas
+del backend (`src/api/miniatures.ts`, tabla `miniature_catalog`) filtrando
+por sistema de juego y nombre, sin salir de la ficha.
+
+Elegir un resultado descarga la foto a traves de `miniature_image_proxy`: no
+todos los fabricantes mandan cabeceras CORS (warhammer.com no las manda), y
+sin ellas el navegador no puede leer los pixeles de una imagen de otro origen
+en un `<canvas>`, que es lo que hacen falta tanto para el recorte como para
+quitar el fondo. Ver la rejilla de resultados no necesita el proxy: ahi las
+miniaturas se muestran directamente desde la URL del fabricante, porque
+mostrar una imagen no exige leer sus pixeles.
+
+`lib/backgroundRemoval.ts` quita el fondo de forma aproximada: parte de las
+cuatro esquinas e inunda de transparencia lo que quede cerca de su color.
+Funciona bien con fotos de estudio sobre fondo solido, que es lo habitual en
+el catalogo; no es una segmentacion de verdad y no hace nada util con un
+fondo con textura.
+
+Ya con la foto (con o sin fondo), recortarla y subirla como miniatura o como
+avatar reutiliza el mismo `CropModal` de `ImageUploader`, exportado para
+poder usarlo desde fuera de su selector de ficheros.

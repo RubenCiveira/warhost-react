@@ -588,6 +588,23 @@ button.icon { padding: 4px 10px; min-width: 34px; letter-spacing: 0; }
 .unit-editor-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .unit-editor-media h3 { margin: 0 0 8px; }
 
+.warhub-picker { display: grid; gap: 10px; margin-top: 4px; }
+.warhub-picker-filtros { display: flex; flex-wrap: wrap; gap: 8px; }
+.warhub-picker-filtros input[type="text"] { flex: 1 1 200px; width: auto; }
+.warhub-picker-filtros select { flex: 0 1 220px; }
+.warhub-picker-grid {
+  display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  max-height: 260px; overflow-y: auto; padding: 4px;
+}
+.warhub-picker-item {
+  display: grid; gap: 4px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--surface); cursor: pointer; text-align: center;
+}
+.warhub-picker-item:hover { border-color: var(--accent); }
+.warhub-picker-item img { width: 100%; height: 80px; object-fit: contain; }
+.warhub-picker-elegido { display: grid; gap: 8px; justify-items: start; }
+.warhub-picker-elegido .thumb { max-height: 160px; }
+
 .lore-markdown { white-space: normal; }
 .lore-markdown > *:first-child { margin-top: 0; }
 .lore-markdown > *:last-child { margin-bottom: 0; }

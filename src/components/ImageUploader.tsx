@@ -40,7 +40,8 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function cropFile(file: File, area: Area): Promise<File> {
+/** Se exporta para reutilizarla fuera del picker de ficheros (p.ej. WarhubPicker). */
+export async function cropFile(file: File, area: Area): Promise<File> {
   const url = URL.createObjectURL(file);
   try {
     const image = await loadImage(url);
@@ -58,7 +59,8 @@ async function cropFile(file: File, area: Area): Promise<File> {
   }
 }
 
-function CropModal({
+/** Se exporta para reutilizarla fuera del picker de ficheros (p.ej. WarhubPicker). */
+export function CropModal({
   file,
   imageType,
   onCancel,

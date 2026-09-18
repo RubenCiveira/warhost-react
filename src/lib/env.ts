@@ -11,6 +11,7 @@ export const env = {
   catalogBucketId: import.meta.env.VITE_APPWRITE_CATALOG_BUCKET_ID ?? "catalog_assets",
   notifyFunctionId: import.meta.env.VITE_APPWRITE_NOTIFY_FUNCTION_ID ?? "notify_verified_user",
   armyForgeFunctionId: import.meta.env.VITE_APPWRITE_ARMY_FORGE_FUNCTION_ID ?? "army_forge_proxy",
+  miniatureProxyFunctionId: import.meta.env.VITE_APPWRITE_MINIATURE_PROXY_FUNCTION_ID ?? "miniature_image_proxy",
 } as const;
 
 export const TABLES = {
@@ -29,6 +30,7 @@ export const TABLES = {
   armyUpgradePackages: "army_upgrade_packages",
   armyRules: "army_rules",
   catalogImages: "catalog_images",
+  miniatureCatalog: "miniature_catalog",
 } as const;
 
 /** Label que un admin concede en Appwrite para dar acceso a los datos. */

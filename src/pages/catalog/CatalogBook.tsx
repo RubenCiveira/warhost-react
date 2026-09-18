@@ -22,6 +22,7 @@ import type { ArmyBook, ArmyUnit, CatalogImage, CatalogImageType, CatalogRule } 
 import { errorMessage } from "../../lib/format";
 import { EmptyState, ErrorBanner, PageHead, Spinner } from "../../components/ui";
 import ImageUploader from "../../components/ImageUploader";
+import WarhubPicker from "../../components/WarhubPicker";
 import FactionPrintView from "../../components/FactionPrintView";
 import UnitCard from "../../components/UnitCard";
 import LoreText from "../../components/LoreText";
@@ -129,6 +130,10 @@ function UnitEditorModal({
             placeholder="Trasfondo breve, notas de ambientacion o descripcion visual. Admite Markdown."
             onChange={(event) => setLore(event.target.value)}
           />
+        </section>
+        <section className="unit-editor-media">
+          <h3>Buscar miniatura</h3>
+          <WarhubPicker unit={unit} busy={busy} onUpload={onUpload} />
         </section>
         <div className="unit-editor-grid">
           {bloqueImagen("avatar", "Avatar")}
