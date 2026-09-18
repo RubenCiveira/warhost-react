@@ -14,6 +14,11 @@ const ASPECT: Record<CatalogImageType, number> = {
   gallery: 4 / 3,
 };
 
+/** Proporcion inicial al activar "foto de varias miniaturas": un poco mas ancha que alta. */
+const GRUPO_RATIO_INICIAL = 16 / 9;
+const GRUPO_RATIO_MIN = 1;
+const GRUPO_RATIO_MAX = 3;
+
 interface Props {
   label: string;
   busy?: boolean;
@@ -79,6 +84,8 @@ export function CropModal({
   const [area, setArea] = useState<Area | null>(null);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [grupo, setGrupo] = useState(false);
+  const [ratioGrupo, setRatioGrupo] = useState(GRUPO_RATIO_INICIAL);
 
   useEffect(() => {
     const nextUrl = URL.createObjectURL(file);
@@ -87,9 +94,12 @@ export function CropModal({
     setZoom(1);
     setArea(null);
     setError(null);
+    setGrupo(false);
+    setRatioGrupo(GRUPO_RATIO_INICIAL);
     return () => URL.revokeObjectURL(nextUrl);
   }, [file]);
 
+  const aspect = grupo ? ratioGrupo : ASPECT[imageType];
   const onCropComplete = useCallback((_: Area, pixels: Area) => setArea(pixels), []);
 
   async function apply() {
@@ -125,7 +135,7 @@ export function CropModal({
               image={url}
               crop={crop}
               zoom={zoom}
-              aspect={ASPECT[imageType]}
+              aspect={aspect}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
@@ -136,6 +146,24 @@ export function CropModal({
           <span>Zoom</span>
           <input type="range" min={1} max={4} step={0.01} value={zoom} disabled={working} onChange={(event) => setZoom(Number(event.target.value))} />
         </label>
+        <label className="row" style={{ cursor: "pointer" }}>
+          <input type="checkbox" checked={grupo} disabled={working} onChange={(event) => setGrupo(event.target.checked)} style={{ width: "auto" }} />
+          <span>Foto de varias miniaturas (recorte mas ancho)</span>
+        </label>
+        {grupo ? (
+          <label className="crop-control">
+            <span>Proporcion</span>
+            <input
+              type="range"
+              min={GRUPO_RATIO_MIN}
+              max={GRUPO_RATIO_MAX}
+              step={0.05}
+              value={ratioGrupo}
+              disabled={working}
+              onChange={(event) => setRatioGrupo(Number(event.target.value))}
+            />
+          </label>
+        ) : null}
         {error ? <p className="small danger-text">{error}</p> : null}
         <footer className="modal-actions">
           <button type="button" className="ghost" disabled={working} onClick={onSkip}>
