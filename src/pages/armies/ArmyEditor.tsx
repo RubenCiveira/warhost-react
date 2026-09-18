@@ -136,7 +136,7 @@ export default function ArmyEditor() {
   const [anadiendo, setAnadiendo] = useState(false);
   /** Indice en `entries` de la unidad que se esta reconfigurando. */
   const [editandoIndice, setEditandoIndice] = useState<number | null>(null);
-  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("generales");
+  const [pestana, setPestana] = useState<"unidades" | "hechizos" | "habilidades" | "habilidadesClase" | "equipo" | "generales">("unidades");
   /** Si esta a false, las pestanas de habilidades/equipo/hechizos/generales
    *  se recortan a lo que aparece de verdad en las fichas de esta lista. */
   const [mostrarTodas, setMostrarTodas] = useState(false);
@@ -189,6 +189,7 @@ export default function ArmyEditor() {
     setImagenesCatalogo([]);
     setPaquetesPorClave(new Map());
     setFacSeleccionada("");
+    setPestana("unidades");
     resolveArmy(armyId)
       .then(({ active: row, draft: pendiente }) => {
         if (cancelled) return;
