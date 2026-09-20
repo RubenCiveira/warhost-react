@@ -5,7 +5,21 @@ import type { MiniatureProduct } from "../api/miniatures";
 import type { ArmyUnit, CatalogImageType } from "../api/catalog";
 import { removeBackground } from "../lib/backgroundRemoval";
 import { errorMessage } from "../lib/format";
+import { fetchWikiSuggestions, suggestionsFor } from "../lib/wikiMiniatures";
 import { CropModal, cropFile } from "./ImageUploader";
+
+// La pagina de sugerencias es por faccion, no por unidad: se guarda una vez
+// aqui y todas las unidades de esa faccion la reutilizan sin volver a pedirla.
+const suggestionsCache = new Map<string, Promise<Map<string, string[]>>>();
+
+function wikiSuggestionsFor(factionName: string): Promise<Map<string, string[]>> {
+  let cached = suggestionsCache.get(factionName);
+  if (!cached) {
+    cached = fetchWikiSuggestions(factionName).catch(() => new Map<string, string[]>());
+    suggestionsCache.set(factionName, cached);
+  }
+  return cached;
+}
 
 /**
  * Busca una miniatura en el catalogo de WarHub para usarla como foto de la
@@ -16,10 +30,13 @@ import { CropModal, cropFile } from "./ImageUploader";
  */
 export default function WarhubPicker({
   unit,
+  factionName,
   busy,
   onUpload,
 }: {
   unit: ArmyUnit;
+  /** Nombre de la faccion, para mirar en la wiki que miniatura de otra marca conviene buscar. */
+  factionName?: string | null;
   busy?: boolean;
   onUpload: (files: File[], caption: string, imageType: CatalogImageType, unit: ArmyUnit) => Promise<void>;
 }) {
@@ -28,6 +45,7 @@ export default function WarhubPicker({
   const [query, setQuery] = useState(unit.name);
   const [results, setResults] = useState<MiniatureProduct[]>([]);
   const [searching, setSearching] = useState(false);
+  const [sugerencias, setSugerencias] = useState<string[]>([]);
   const [selected, setSelected] = useState<MiniatureProduct | null>(null);
   const [original, setOriginal] = useState<File | null>(null);
   const [prepared, setPrepared] = useState<File | null>(null);
@@ -50,16 +68,37 @@ export default function WarhubPicker({
 
   const disabled = busy || working;
 
-  async function buscar() {
+  // Sugerencias de la wiki, solo mientras el buscador esta abierto: para
+  // muchas unidades no hace falta pedirlas nunca.
+  useEffect(() => {
+    if (!open || !factionName) {
+      setSugerencias([]);
+      return;
+    }
+    let cancelado = false;
+    wikiSuggestionsFor(factionName).then((mapa) => {
+      if (!cancelado) setSugerencias(suggestionsFor(mapa, unit.name));
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [open, factionName, unit.name]);
+
+  async function buscar(texto = query) {
     setSearching(true);
     setError(null);
     try {
-      setResults(await searchMiniatures({ gameSystem: gameSystem || undefined, query }));
+      setResults(await searchMiniatures({ gameSystem: gameSystem || undefined, query: texto }));
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setSearching(false);
     }
+  }
+
+  function buscarSugerencia(nombre: string) {
+    setQuery(nombre);
+    void buscar(nombre);
   }
 
   async function elegir(product: MiniatureProduct) {
@@ -152,6 +191,17 @@ export default function WarhubPicker({
           Cerrar
         </button>
       </div>
+
+      {sugerencias.length > 0 ? (
+        <div className="warhub-picker-sugerencias">
+          <span className="small muted">Sugerido por la wiki:</span>
+          {sugerencias.map((nombre) => (
+            <button key={nombre} type="button" className="ghost tiny" disabled={disabled || searching} onClick={() => buscarSugerencia(nombre)}>
+              {nombre}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {error ? <p className="small danger-text">{error}</p> : null}
 

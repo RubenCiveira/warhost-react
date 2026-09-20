@@ -41,6 +41,7 @@ import type { UpgradeSection } from "../../lib/builder";
 
 function UnitEditorModal({
   unit,
+  factionName,
   images,
   busy,
   onSave,
@@ -50,6 +51,7 @@ function UnitEditorModal({
   onClose,
 }: {
   unit: ArmyUnit;
+  factionName?: string | null;
   images: CatalogImage[];
   busy: boolean;
   onSave: (unit: ArmyUnit, lore: string) => Promise<void>;
@@ -133,7 +135,7 @@ function UnitEditorModal({
         </section>
         <section className="unit-editor-media">
           <h3>Buscar miniatura</h3>
-          <WarhubPicker unit={unit} busy={busy} onUpload={onUpload} />
+          <WarhubPicker unit={unit} factionName={factionName} busy={busy} onUpload={onUpload} />
         </section>
         <div className="unit-editor-grid">
           {bloqueImagen("avatar", "Avatar")}
@@ -361,6 +363,7 @@ export default function CatalogBook() {
       {unidadEditando ? (
         <UnitEditorModal
           unit={unidadEditando}
+          factionName={book.factionName ?? book.name}
           images={byTarget.get(targetKeyFor(book.$id, unidadEditando.unitId)) ?? []}
           busy={busy}
           onSave={saveLore}
